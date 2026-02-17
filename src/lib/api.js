@@ -14,3 +14,10 @@ export async function forgotPassword(data) {
   const response = await axiosClient.post("/auth/forgot-password", data);
   return response.data;
 }
+
+export async function createParty(data) {
+  const { userType, ...payload } = data;
+  const endpoint = userType === "manufacturer" ? "/manufacturers" : "/customers";
+  const response = await axiosClient.post(endpoint, payload);
+  return response.data;
+}

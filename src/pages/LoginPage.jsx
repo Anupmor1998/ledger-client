@@ -1,28 +1,37 @@
 import { useState } from "react";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { login } from "../lib/api";
 import { useAppDispatch } from "../store/hooks";
 import { setSession } from "../store/slices/authSlice";
+import { loginSchema } from "../validation/authSchemas";
 
 function LoginPage({ dark, onToggleTheme }) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
-  const [status, setStatus] = useState({ loading: false, error: "", success: "" });
+  const [status, setStatus] = useState({ error: "", success: "" });
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setStatus({ loading: true, error: "", success: "" });
+  async function onSubmit(values) {
+    setStatus({ error: "", success: "" });
 
     try {
-      const result = await login(form);
+      const result = await login(values);
       dispatch(setSession(result));
-      setStatus({ loading: false, error: "", success: "Login successful" });
+      setStatus({ error: "", success: "Login successful" });
       navigate("/");
     } catch (error) {
-      setStatus({ loading: false, error: error.message, success: "" });
+      setStatus({ error: error.message, success: "" });
     }
   }
 
@@ -33,16 +42,15 @@ function LoginPage({ dark, onToggleTheme }) {
       dark={dark}
       onToggleTheme={onToggleTheme}
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <label className="block">
           <span className="mb-1 block text-sm muted-text">Email</span>
           <input
             className="form-input"
             type="email"
-            value={form.email}
-            onChange={(event) => setForm({ ...form, email: event.target.value })}
-            required
+            {...register("email")}
           />
+          {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email.message}</p> : null}
         </label>
 
         <label className="block">
@@ -51,9 +59,7 @@ function LoginPage({ dark, onToggleTheme }) {
             <input
               className="form-input pr-12"
               type={showPassword ? "text" : "password"}
-              value={form.password}
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-              required
+              {...register("password")}
             />
             <button
               type="button"
@@ -76,6 +82,7 @@ function LoginPage({ dark, onToggleTheme }) {
               )}
             </button>
           </div>
+          {errors.password ? <p className="mt-1 text-sm text-red-500">{errors.password.message}</p> : null}
         </label>
 
         {status.error ? <p className="text-sm text-red-500">{status.error}</p> : null}
@@ -83,10 +90,10 @@ function LoginPage({ dark, onToggleTheme }) {
 
         <button
           type="submit"
-          disabled={status.loading}
+          disabled={isSubmitting}
           className="primary-btn"
         >
-          {status.loading ? "Logging in..." : "Login"}
+          {isSubmitting ? "Logging in..." : "Login"}
         </button>
       </form>
 

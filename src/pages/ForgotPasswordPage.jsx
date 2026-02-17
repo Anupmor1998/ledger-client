@@ -1,26 +1,34 @@
 import { useState } from "react";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { forgotPassword } from "../lib/api";
+import { forgotPasswordSchema } from "../validation/authSchemas";
 
 function ForgotPasswordPage({ dark, onToggleTheme }) {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState({ loading: false, error: "", success: "", token: "" });
+  const [status, setStatus] = useState({ error: "", success: "", token: "" });
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
+  });
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setStatus({ loading: true, error: "", success: "", token: "" });
+  async function onSubmit(values) {
+    setStatus({ error: "", success: "", token: "" });
 
     try {
-      const result = await forgotPassword({ email });
+      const result = await forgotPassword(values);
       setStatus({
-        loading: false,
         error: "",
         success: result.message || "Reset request processed",
         token: result.resetToken || "",
       });
     } catch (error) {
-      setStatus({ loading: false, error: error.message, success: "", token: "" });
+      setStatus({ error: error.message, success: "", token: "" });
     }
   }
 
@@ -31,16 +39,11 @@ function ForgotPasswordPage({ dark, onToggleTheme }) {
       dark={dark}
       onToggleTheme={onToggleTheme}
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <label className="block">
           <span className="mb-1 block text-sm muted-text">Email</span>
-          <input
-            className="form-input"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
+          <input className="form-input" type="email" {...register("email")} />
+          {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email.message}</p> : null}
         </label>
 
         {status.error ? <p className="text-sm text-red-500">{status.error}</p> : null}
@@ -48,10 +51,10 @@ function ForgotPasswordPage({ dark, onToggleTheme }) {
 
         <button
           type="submit"
-          disabled={status.loading}
+          disabled={isSubmitting}
           className="primary-btn"
         >
-          {status.loading ? "Sending..." : "Send Reset Request"}
+          {isSubmitting ? "Sending..." : "Send Reset Request"}
         </button>
       </form>
 
