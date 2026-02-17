@@ -2,6 +2,7 @@ import { useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import AuthLayout from "../components/AuthLayout";
 import { signup } from "../lib/api";
 import { useAppDispatch } from "../store/hooks";
@@ -12,7 +13,7 @@ function SignupPage({ dark, onToggleTheme }) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
-  const [status, setStatus] = useState({ error: "", success: "" });
+  const [status, setStatus] = useState({ error: "" });
   const {
     register,
     handleSubmit,
@@ -23,15 +24,20 @@ function SignupPage({ dark, onToggleTheme }) {
   });
 
   async function onSubmit(values) {
-    setStatus({ error: "", success: "" });
+    setStatus({ error: "" });
 
     try {
       const result = await signup(values);
       dispatch(setSession(result));
-      setStatus({ error: "", success: "Signup successful" });
+      toast.success("Account created successfully");
       navigate("/");
     } catch (error) {
-      setStatus({ error: error.message, success: "" });
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to create account. Please try again.";
+      toast.error(message);
+      setStatus({ error: message });
     }
   }
 
@@ -88,7 +94,6 @@ function SignupPage({ dark, onToggleTheme }) {
         </label>
 
         {status.error ? <p className="text-sm text-red-500">{status.error}</p> : null}
-        {status.success ? <p className="text-sm text-emerald-500">{status.success}</p> : null}
 
         <button
           type="submit"

@@ -2,12 +2,13 @@ import { useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import AuthLayout from "../components/AuthLayout";
 import { forgotPassword } from "../lib/api";
 import { forgotPasswordSchema } from "../validation/authSchemas";
 
 function ForgotPasswordPage({ dark, onToggleTheme }) {
-  const [status, setStatus] = useState({ error: "", success: "", token: "" });
+  const [status, setStatus] = useState({ error: "", token: "" });
   const {
     register,
     handleSubmit,
@@ -18,17 +19,22 @@ function ForgotPasswordPage({ dark, onToggleTheme }) {
   });
 
   async function onSubmit(values) {
-    setStatus({ error: "", success: "", token: "" });
+    setStatus({ error: "", token: "" });
 
     try {
       const result = await forgotPassword(values);
+      toast.success("Reset request sent successfully");
       setStatus({
         error: "",
-        success: result.message || "Reset request processed",
         token: result.resetToken || "",
       });
     } catch (error) {
-      setStatus({ error: error.message, success: "", token: "" });
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to process reset request. Please try again.";
+      toast.error(message);
+      setStatus({ error: message, token: "" });
     }
   }
 
@@ -47,7 +53,6 @@ function ForgotPasswordPage({ dark, onToggleTheme }) {
         </label>
 
         {status.error ? <p className="text-sm text-red-500">{status.error}</p> : null}
-        {status.success ? <p className="text-sm text-emerald-500">{status.success}</p> : null}
 
         <button
           type="submit"

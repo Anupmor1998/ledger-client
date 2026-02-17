@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
+import { toast } from "react-toastify";
 import { createParty } from "../lib/api";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
@@ -9,7 +10,7 @@ import partySchema from "../validation/partySchema";
 function HomePage({ dark, onToggleTheme }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
-  const [status, setStatus] = useState({ error: "", success: "" });
+  const [status, setStatus] = useState({ error: "" });
 
   const {
     register,
@@ -32,14 +33,14 @@ function HomePage({ dark, onToggleTheme }) {
   const userType = watch("userType");
 
   async function handleCreateParty(values) {
-    setStatus({ error: "", success: "" });
+    setStatus({ error: "" });
 
     try {
       await createParty(values);
-      setStatus({
-        error: "",
-        success: `${values.userType === "customer" ? "Customer" : "Manufacturer"} created`,
-      });
+      const successMessage = `${
+        values.userType === "customer" ? "Customer" : "Manufacturer"
+      } created successfully`;
+      toast.success(successMessage);
       reset({
         userType: values.userType,
         name: "",
@@ -49,7 +50,12 @@ function HomePage({ dark, onToggleTheme }) {
         phone: "",
       });
     } catch (error) {
-      setStatus({ error: error.message, success: "" });
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to create record. Please check your input and try again.";
+      toast.error(message);
+      setStatus({ error: message });
     }
   }
 
@@ -126,7 +132,6 @@ function HomePage({ dark, onToggleTheme }) {
             </div>
 
             {status.error ? <p className="text-sm text-red-500">{status.error}</p> : null}
-            {status.success ? <p className="text-sm text-emerald-500">{status.success}</p> : null}
 
             <button type="submit" disabled={isSubmitting} className="primary-btn sm:w-auto">
               {isSubmitting

@@ -45,8 +45,7 @@ export function setupAxiosInterceptors(store) {
       if (error?.response?.status === 401) {
         store.dispatch(logout());
       }
-      const message = error?.response?.data?.message || error?.message || "Request failed";
-      return Promise.reject(new Error(message));
+      return Promise.reject(error);
     }
   );
 

@@ -7,6 +7,7 @@ import App from "./App";
 import { setupAxiosInterceptors } from "./lib/axiosClient";
 import store from "./store";
 import "./index.css";
+import "react-toastify/dist/ReactToastify.css";
 
 setupAxiosInterceptors(store);
 
