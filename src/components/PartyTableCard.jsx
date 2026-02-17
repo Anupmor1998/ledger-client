@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import useDebounce from "../hooks/useDebounce";
 import ConfirmDialog from "./ConfirmDialog";
+import CopyableText from "./CopyableText";
 import DataTable from "./DataTable";
 import Modal from "./Modal";
 
@@ -154,31 +155,52 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
         accessorKey: "name",
         header: "Name",
         enableSorting: true,
+        cell: ({ getValue }) => {
+          return (
+            <CopyableText
+              value={getValue()}
+              className="max-w-[260px]"
+              truncate
+              nowrap
+            />
+          );
+        },
       },
       {
         id: "gstNo",
         accessorKey: "gstNo",
         header: "GST No",
         enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
       },
       {
         id: "phone",
         accessorKey: "phone",
         header: "Phone",
         enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
       },
       {
         id: "email",
         accessorKey: "email",
         header: "Email",
         enableSorting: true,
-        cell: ({ getValue }) => getValue() || "-",
+        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
       },
       {
         id: "address",
         accessorKey: "address",
         header: "Address",
         enableSorting: true,
+        cell: ({ getValue }) => {
+          return (
+            <CopyableText
+              value={getValue()}
+              className="max-w-[260px]"
+              preserveLineBreaks
+            />
+          );
+        },
       },
       {
         id: "actions",

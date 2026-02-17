@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import ConfirmDialog from "../components/ConfirmDialog";
+import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
@@ -154,6 +155,7 @@ function QualityPage() {
         accessorKey: "name",
         header: "Name",
         enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} />,
       },
       {
         id: "actions",

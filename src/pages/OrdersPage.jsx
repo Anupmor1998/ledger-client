@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import ConfirmDialog from "../components/ConfirmDialog";
+import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
@@ -193,40 +194,55 @@ function OrdersPage() {
 
   const columns = useMemo(
     () => [
-      { id: "orderNo", header: "Order No", accessorKey: "orderNo", enableSorting: true },
+      {
+        id: "orderNo",
+        header: "Order No",
+        accessorKey: "orderNo",
+        enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
+      },
       {
         id: "orderDate",
         header: "Order Date",
         accessorKey: "orderDate",
         enableSorting: true,
-        cell: ({ getValue }) => formatDate(getValue()),
+        cell: ({ getValue }) => <CopyableText value={formatDate(getValue())} nowrap />,
       },
       {
         id: "customerName",
         header: "Customer",
         accessorFn: (row) => row.customer?.name || "-",
         enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} />,
       },
       {
         id: "manufacturerName",
         header: "Manufacturer",
         accessorFn: (row) => row.manufacturer?.name || "-",
         enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} />,
       },
       {
         id: "qualityName",
         header: "Quality",
         accessorFn: (row) => row.quality?.name || "-",
         enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} />,
       },
       {
         id: "rate",
         header: "Rate",
         accessorKey: "rate",
         enableSorting: true,
-        cell: ({ getValue }) => Number(getValue() || 0).toFixed(2),
+        cell: ({ getValue }) => <CopyableText value={Number(getValue() || 0).toFixed(2)} nowrap />,
       },
-      { id: "quantity", header: "Qty", accessorKey: "quantity", enableSorting: true },
+      {
+        id: "quantity",
+        header: "Qty",
+        accessorKey: "quantity",
+        enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
+      },
       {
         id: "actions",
         header: "Actions",
