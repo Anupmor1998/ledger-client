@@ -9,7 +9,7 @@ import { useAppDispatch } from "../store/hooks";
 import { setSession } from "../store/slices/authSlice";
 import { signupSchema } from "../validation/authSchemas";
 
-function SignupPage({ dark, onToggleTheme }) {
+function SignupPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
@@ -45,8 +45,6 @@ function SignupPage({ dark, onToggleTheme }) {
     <AuthLayout
       title="Signup"
       subtitle="Create your account to start managing ledger operations."
-      dark={dark}
-      onToggleTheme={onToggleTheme}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <label className="block">

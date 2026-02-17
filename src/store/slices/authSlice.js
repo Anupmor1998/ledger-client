@@ -41,8 +41,15 @@ const authSlice = createSlice({
       clearAuthTokenCookie();
       localStorage.removeItem(USER_STORAGE_KEY);
     },
+    setUserTheme(state, action) {
+      if (!state.user) {
+        return;
+      }
+      state.user = { ...state.user, theme: action.payload };
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(state.user));
+    },
   },
 });
 
-export const { setSession, logout } = authSlice.actions;
+export const { setSession, logout, setUserTheme } = authSlice.actions;
 export default authSlice.reducer;

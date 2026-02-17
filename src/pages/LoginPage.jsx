@@ -9,7 +9,7 @@ import { useAppDispatch } from "../store/hooks";
 import { setSession } from "../store/slices/authSlice";
 import { loginSchema } from "../validation/authSchemas";
 
-function LoginPage({ dark, onToggleTheme }) {
+function LoginPage() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
@@ -43,8 +43,6 @@ function LoginPage({ dark, onToggleTheme }) {
     <AuthLayout
       title="Login"
       subtitle="Access your account to manage customers, manufacturers, orders, and reports."
-      dark={dark}
-      onToggleTheme={onToggleTheme}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <label className="block">

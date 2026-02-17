@@ -7,7 +7,7 @@ import AuthLayout from "../components/AuthLayout";
 import { forgotPassword } from "../lib/api";
 import { forgotPasswordSchema } from "../validation/authSchemas";
 
-function ForgotPasswordPage({ dark, onToggleTheme }) {
+function ForgotPasswordPage() {
   const [status, setStatus] = useState({ error: "", token: "" });
   const {
     register,
@@ -42,8 +42,6 @@ function ForgotPasswordPage({ dark, onToggleTheme }) {
     <AuthLayout
       title="Forgot Password"
       subtitle="Request a reset token to securely update your password."
-      dark={dark}
-      onToggleTheme={onToggleTheme}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <label className="block">

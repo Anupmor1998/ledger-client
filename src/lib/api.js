@@ -118,6 +118,16 @@ export async function getUsers(params = {}) {
   return response.data;
 }
 
+export async function getMyPreferences() {
+  const response = await axiosClient.get("/users/me/preferences");
+  return response.data;
+}
+
+export async function updateMyPreferences(data) {
+  const response = await axiosClient.put("/users/me/preferences", data);
+  return response.data;
+}
+
 function resolveFilenameFromDisposition(headerValue, fallbackName) {
   if (!headerValue) {
     return fallbackName;
