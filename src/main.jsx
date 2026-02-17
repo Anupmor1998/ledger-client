@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { getMyPreferences, updateMyPreferences } from "./lib/api";
 import { setupAxiosInterceptors } from "./lib/axiosClient";
@@ -12,6 +13,7 @@ import "./index.css";
 import "react-toastify/dist/ReactToastify.css";
 
 setupAxiosInterceptors(store);
+registerSW({ immediate: true });
 
 const THEME_STORAGE_KEY = "ledger_theme";
 
