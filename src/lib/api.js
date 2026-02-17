@@ -21,3 +21,28 @@ export async function createParty(data) {
   const response = await axiosClient.post(endpoint, payload);
   return response.data;
 }
+
+export async function getCustomers() {
+  const response = await axiosClient.get("/customers");
+  return response.data;
+}
+
+export async function getManufacturers() {
+  const response = await axiosClient.get("/manufacturers");
+  return response.data;
+}
+
+export async function getQualities() {
+  const response = await axiosClient.get("/qualities");
+  return response.data;
+}
+
+export async function getOrders() {
+  const response = await axiosClient.get("/orders");
+  return response.data;
+}
+
+export async function createOrder(data) {
+  const response = await axiosClient.post("/orders", data);
+  return response.data;
+}
