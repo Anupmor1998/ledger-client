@@ -110,3 +110,56 @@ export async function deleteOrder(id) {
   const response = await axiosClient.delete(`/orders/${id}`);
   return response.data;
 }
+
+export async function getUsers(params = {}) {
+  const response = await axiosClient.get("/users", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
+function resolveFilenameFromDisposition(headerValue, fallbackName) {
+  if (!headerValue) {
+    return fallbackName;
+  }
+
+  const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const quotedMatch = headerValue.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+
+  const unquotedMatch = headerValue.match(/filename=([^;]+)/i);
+  if (unquotedMatch?.[1]) {
+    return unquotedMatch[1].trim();
+  }
+
+  return fallbackName;
+}
+
+export async function downloadReportFile(path, params = {}, fallbackName = "report.xlsx") {
+  const response = await axiosClient.get(`/reports/${path}`, {
+    params: normalizeListParams(params),
+    responseType: "blob",
+  });
+
+  const disposition = response.headers?.["content-disposition"];
+  const filename = resolveFilenameFromDisposition(disposition, fallbackName);
+  const blob = new Blob([response.data], {
+    type:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
