@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import ThemeToggle from "./ThemeToggle";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
 
@@ -18,11 +19,29 @@ function DashboardLayout({ dark, onToggleTheme }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const location = useLocation();
+  const popoverContainerRef = useRef(null);
 
   useEffect(() => {
     setMobileOpen(false);
     setPopoverOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!popoverOpen) {
+      return undefined;
+    }
+
+    function handleOutsideClick(event) {
+      if (!popoverContainerRef.current?.contains(event.target)) {
+        setPopoverOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [popoverOpen]);
 
   const avatarText = useMemo(() => {
     const base = user?.name || user?.email || "U";
@@ -66,7 +85,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
               <h1 className="text-base font-semibold sm:text-lg">Ledger App</h1>
 
               <div className="hidden md:block">
-                <div className="relative">
+                <div className="relative" ref={popoverContainerRef}>
                   <button
                     type="button"
                     onClick={() => setPopoverOpen((prev) => !prev)}
@@ -79,13 +98,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
                   {popoverOpen ? (
                     <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg">
                       <p className="px-2 py-2 text-sm font-medium">{displayName}</p>
-                      <button
-                        type="button"
-                        onClick={onToggleTheme}
-                        className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-bg"
-                      >
-                        Switch to {dark ? "Light" : "Dark"} Theme
-                      </button>
+                      <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
                       <button
                         type="button"
                         onClick={handleLogout}
@@ -134,10 +147,12 @@ function DashboardLayout({ dark, onToggleTheme }) {
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
-            className="rounded-md border border-border px-2 py-1 text-sm"
+            className="rounded-md border border-border p-2"
             aria-label="Close menu"
           >
-            Close
+            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+              <path d="M6 6l12 12M18 6l-12 12" />
+            </svg>
           </button>
         </div>
 
@@ -169,13 +184,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
         </nav>
 
         <div className="mt-4 border-t border-border pt-4">
-          <button
-            type="button"
-            onClick={onToggleTheme}
-            className="w-full rounded-lg border border-border px-3 py-2 text-left text-sm"
-          >
-            Switch to {dark ? "Light" : "Dark"} Theme
-          </button>
+          <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
           <button
             type="button"
             onClick={handleLogout}

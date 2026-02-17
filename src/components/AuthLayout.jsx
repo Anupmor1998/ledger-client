@@ -1,3 +1,5 @@
+import ThemeToggle from "./ThemeToggle";
+
 function AuthLayout({ title, subtitle, children, dark, onToggleTheme }) {
   return (
     <main className="app-shell">
@@ -9,9 +11,7 @@ function AuthLayout({ title, subtitle, children, dark, onToggleTheme }) {
               <h2 className="mt-2 text-2xl font-semibold sm:text-3xl">{title}</h2>
               <p className="mt-1 text-sm leading-relaxed muted-text">{subtitle}</p>
             </div>
-            <button type="button" onClick={onToggleTheme} className="ghost-btn whitespace-nowrap">
-              {dark ? "Light" : "Dark"}
-            </button>
+            <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
           </div>
           {children}
         </section>

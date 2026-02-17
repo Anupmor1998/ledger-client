@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
-import ConfirmDialog from "../components/ConfirmDialog";
-import DataTable from "../components/DataTable";
-import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
-import { createQuality, deleteQuality, getQualities, updateQuality } from "../lib/api";
+import ConfirmDialog from "./ConfirmDialog";
+import DataTable from "./DataTable";
+import Modal from "./Modal";
+
+const emptyForm = {
+  name: "",
+  gstNo: "",
+  address: "",
+  email: "",
+  phone: "",
+};
 
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
@@ -30,24 +37,20 @@ function parseListResponse(payload) {
   };
 }
 
-function QualityPage() {
+function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [sorting, setSorting] = useState([{ id: "name", desc: false }]);
+  const [sorting, setSorting] = useState([{ id: "createdAt", desc: true }]);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createName, setCreateName] = useState("");
-  const [createLoading, setCreateLoading] = useState(false);
-
   const [editItem, setEditItem] = useState(null);
-  const [editName, setEditName] = useState("");
-  const [editLoading, setEditLoading] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [submitting, setSubmitting] = useState(false);
 
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -55,25 +58,26 @@ function QualityPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const sort = sorting[0] || { id: "name", desc: false };
-      const payload = await getQualities({
+      const sort = sorting[0] || { id: "createdAt", desc: true };
+      const payload = await fetchFn({
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
       });
+
       const parsed = parseListResponse(payload);
       setRows(parsed.items);
       setPagination(parsed.pagination);
     } catch (error) {
       const message =
-        error?.response?.data?.message || error?.message || "Unable to load quality list.";
+        error?.response?.data?.message || error?.message || `Unable to load ${entityLabel} list.`;
       toast.error(message);
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, sorting]);
+  }, [debouncedSearch, entityLabel, fetchFn, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
     setPageIndex(0);
@@ -83,50 +87,45 @@ function QualityPage() {
     loadData();
   }, [loadData]);
 
-  async function handleCreate() {
-    if (!createName.trim()) {
-      toast.error("Quality name is required.");
-      return;
-    }
-
-    setCreateLoading(true);
-    try {
-      await createQuality({ name: createName.trim() });
-      await loadData();
-      toast.success("Quality created successfully");
-      setCreateName("");
-      setCreateOpen(false);
-    } catch (error) {
-      const message = error?.response?.data?.message || error?.message || "Unable to create quality.";
-      toast.error(message);
-    } finally {
-      setCreateLoading(false);
-    }
-  }
-
   function openEdit(item) {
     setEditItem(item);
-    setEditName(item.name || "");
+    setForm({
+      name: item.name || "",
+      gstNo: item.gstNo || "",
+      address: item.address || "",
+      email: item.email || "",
+      phone: item.phone || "",
+    });
   }
 
-  async function handleEdit() {
+  async function handleSaveEdit() {
     if (!editItem) return;
-    if (!editName.trim()) {
-      toast.error("Quality name is required.");
+
+    if (!form.name.trim() || !form.gstNo.trim() || !form.address.trim() || !form.phone.trim()) {
+      toast.error("Name, GST No, address and phone are required.");
       return;
     }
 
-    setEditLoading(true);
+    setSubmitting(true);
     try {
-      await updateQuality(editItem.id, { name: editName.trim() });
+      const payload = {
+        name: form.name.trim(),
+        gstNo: form.gstNo.trim(),
+        address: form.address.trim(),
+        email: form.email.trim() || null,
+        phone: form.phone.trim(),
+      };
+
+      await updateFn(editItem.id, payload);
       await loadData();
-      toast.success("Quality updated successfully");
+      toast.success(`${entityLabel} updated successfully`);
       setEditItem(null);
     } catch (error) {
-      const message = error?.response?.data?.message || error?.message || "Unable to update quality.";
+      const message =
+        error?.response?.data?.message || error?.message || `Unable to update ${entityLabel}.`;
       toast.error(message);
     } finally {
-      setEditLoading(false);
+      setSubmitting(false);
     }
   }
 
@@ -135,12 +134,13 @@ function QualityPage() {
 
     setDeleteLoading(true);
     try {
-      await deleteQuality(deleteItem.id);
+      await deleteFn(deleteItem.id);
       await loadData();
-      toast.success("Quality deleted successfully");
+      toast.success(`${entityLabel} deleted successfully`);
       setDeleteItem(null);
     } catch (error) {
-      const message = error?.response?.data?.message || error?.message || "Unable to delete quality.";
+      const message =
+        error?.response?.data?.message || error?.message || `Unable to delete ${entityLabel}.`;
       toast.error(message);
     } finally {
       setDeleteLoading(false);
@@ -153,6 +153,31 @@ function QualityPage() {
         id: "name",
         accessorKey: "name",
         header: "Name",
+        enableSorting: true,
+      },
+      {
+        id: "gstNo",
+        accessorKey: "gstNo",
+        header: "GST No",
+        enableSorting: true,
+      },
+      {
+        id: "phone",
+        accessorKey: "phone",
+        header: "Phone",
+        enableSorting: true,
+      },
+      {
+        id: "email",
+        accessorKey: "email",
+        header: "Email",
+        enableSorting: true,
+        cell: ({ getValue }) => getValue() || "-",
+      },
+      {
+        id: "address",
+        accessorKey: "address",
+        header: "Address",
         enableSorting: true,
       },
       {
@@ -196,19 +221,7 @@ function QualityPage() {
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">Quality</h2>
-        <button
-          type="button"
-          className="primary-btn w-auto inline-flex items-center gap-2"
-          onClick={() => setCreateOpen(true)}
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Add Quality
-        </button>
-      </div>
+      <h2 className="text-xl font-semibold">{title}</h2>
 
       <DataTable
         columns={columns}
@@ -229,71 +242,49 @@ function QualityPage() {
         }}
       />
 
-      {createOpen ? (
-        <Modal
-          title="Add Quality"
-          onClose={() => setCreateOpen(false)}
-          footer={
-            <div className="flex justify-end gap-2">
-              <button type="button" className="ghost-btn" onClick={() => setCreateOpen(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="primary-btn w-auto"
-                onClick={handleCreate}
-                disabled={createLoading}
-              >
-                {createLoading ? "Saving..." : "Create"}
-              </button>
-            </div>
-          }
-        >
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Quality Name</span>
-            <input
-              className="form-input"
-              value={createName}
-              onChange={(event) => setCreateName(event.target.value)}
-            />
-          </label>
-        </Modal>
-      ) : null}
-
       {editItem ? (
         <Modal
-          title="Edit Quality"
+          title={`Edit ${entityLabel}`}
           onClose={() => setEditItem(null)}
           footer={
             <div className="flex justify-end gap-2">
               <button type="button" className="ghost-btn" onClick={() => setEditItem(null)}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="primary-btn w-auto"
-                onClick={handleEdit}
-                disabled={editLoading}
-              >
-                {editLoading ? "Saving..." : "Save"}
+              <button type="button" className="primary-btn w-auto" disabled={submitting} onClick={handleSaveEdit}>
+                {submitting ? "Saving..." : "Save"}
               </button>
             </div>
           }
         >
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Quality Name</span>
-            <input
-              className="form-input"
-              value={editName}
-              onChange={(event) => setEditName(event.target.value)}
-            />
-          </label>
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Name</span>
+              <input className="form-input" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">GST No</span>
+              <input className="form-input" value={form.gstNo} onChange={(event) => setForm((prev) => ({ ...prev, gstNo: event.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Address</span>
+              <textarea className="form-input min-h-24" value={form.address} onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Phone</span>
+              <input className="form-input" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Email (Optional)</span>
+              <input className="form-input" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
+            </label>
+          </div>
         </Modal>
       ) : null}
 
       {deleteItem ? (
         <ConfirmDialog
-          title="Delete Quality"
+          title={`Delete ${entityLabel}`}
           description={`Are you sure you want to delete ${deleteItem.name}? This action cannot be undone.`}
           onCancel={() => setDeleteItem(null)}
           onConfirm={handleDelete}
@@ -304,4 +295,4 @@ function QualityPage() {
   );
 }
 
-export default QualityPage;
+export default PartyTableCard;
