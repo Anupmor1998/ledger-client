@@ -11,6 +11,7 @@ import {
 } from "../lib/api";
 import orderSchema from "../validation/orderSchema";
 import AutocompleteInput from "./AutocompleteInput";
+import Modal from "./Modal";
 
 function getTodayDate() {
   return new Date().toISOString().slice(0, 10);
@@ -44,6 +45,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedManufacturerId, setSelectedManufacturerId] = useState("");
   const [selectedQualityId, setSelectedQualityId] = useState("");
+  const [whatsappModalData, setWhatsappModalData] = useState(null);
 
   const {
     register,
@@ -261,6 +263,14 @@ function OrderFormCard({ refreshSignal = 0 }) {
     clearErrors("qualityName");
   }
 
+  function openWhatsAppLink(url) {
+    if (!url) {
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   async function onSubmit(values) {
     setStatus({ error: "" });
 
@@ -294,7 +304,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
     };
 
     try {
-      await createOrder(payload);
+      const createdOrder = await createOrder(payload);
       const refreshedQualityOptions = await loadQualityOptions();
 
       const refreshedMatch = findOptionByLabel(
@@ -309,6 +319,16 @@ function OrderFormCard({ refreshSignal = 0 }) {
       setValue("rate", "");
       setValue("quantity", "");
       setValue("orderDate", getTodayDate());
+
+      const customerLink = createdOrder?.whatsappLinks?.customer || "";
+      const manufacturerLink = createdOrder?.whatsappLinks?.manufacturer || "";
+      if (customerLink || manufacturerLink) {
+        setWhatsappModalData({
+          orderNo: createdOrder?.orderNo,
+          customerLink,
+          manufacturerLink,
+        });
+      }
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -434,6 +454,50 @@ function OrderFormCard({ refreshSignal = 0 }) {
           {isSubmitting ? "Saving..." : "Create Order"}
         </button>
       </form>
+
+      {whatsappModalData ? (
+        <Modal
+          title="Share On WhatsApp"
+          onClose={() => setWhatsappModalData(null)}
+          closeOnBackdrop={false}
+          closeOnEsc={false}
+          footer={
+            <div className="flex justify-end">
+              <button type="button" className="ghost-btn" onClick={() => setWhatsappModalData(null)}>
+                Close
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm muted-text">
+              {whatsappModalData.orderNo
+                ? `Order ${whatsappModalData.orderNo} created.`
+                : "Order created."}{" "}
+              Use the buttons below to open WhatsApp with pre-filled message.
+            </p>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => openWhatsAppLink(whatsappModalData.manufacturerLink)}
+                disabled={!whatsappModalData.manufacturerLink}
+              >
+                Send To Manufacturer
+              </button>
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => openWhatsAppLink(whatsappModalData.customerLink)}
+                disabled={!whatsappModalData.customerLink}
+              >
+                Send To Customer
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </section>
   );
 }
