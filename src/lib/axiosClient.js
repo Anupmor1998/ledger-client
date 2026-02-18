@@ -1,13 +1,12 @@
 import axios from "axios";
-import { getAuthTokenFromCookie } from "./authCookie";
 import { logout } from "../store/slices/authSlice";
 import { requestEnded, requestStarted } from "../store/slices/uiSlice";
+import { getAuthTokenFromCookie } from "./authCookie";
 
 const apiBaseUrl = process.env.API_BASE_URL || "http://localhost:8000/api";
 
 const axiosClient = axios.create({
   baseURL: apiBaseUrl,
-  timeout: 15000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -32,7 +31,7 @@ export function setupAxiosInterceptors(store) {
     (error) => {
       store.dispatch(requestEnded());
       return Promise.reject(error);
-    }
+    },
   );
 
   axiosClient.interceptors.response.use(
@@ -46,7 +45,7 @@ export function setupAxiosInterceptors(store) {
         store.dispatch(logout());
       }
       return Promise.reject(error);
-    }
+    },
   );
 
   interceptorsConfigured = true;
