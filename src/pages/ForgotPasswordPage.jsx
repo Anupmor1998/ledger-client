@@ -8,7 +8,7 @@ import { forgotPassword } from "../lib/api";
 import { forgotPasswordSchema } from "../validation/authSchemas";
 
 function ForgotPasswordPage() {
-  const [status, setStatus] = useState({ error: "", token: "" });
+  const [status, setStatus] = useState({ error: "", success: "" });
   const {
     register,
     handleSubmit,
@@ -19,14 +19,15 @@ function ForgotPasswordPage() {
   });
 
   async function onSubmit(values) {
-    setStatus({ error: "", token: "" });
+    setStatus({ error: "", success: "" });
 
     try {
-      const result = await forgotPassword(values);
-      toast.success("Reset request sent successfully");
+      await forgotPassword(values);
+      const successMessage = "If the email exists, a reset link has been sent. Please check your inbox.";
+      toast.success(successMessage);
       setStatus({
         error: "",
-        token: result.resetToken || "",
+        success: successMessage,
       });
     } catch (error) {
       const message =
@@ -34,14 +35,14 @@ function ForgotPasswordPage() {
         error?.message ||
         "Unable to process reset request. Please try again.";
       toast.error(message);
-      setStatus({ error: message, token: "" });
+      setStatus({ error: message, success: "" });
     }
   }
 
   return (
     <AuthLayout
       title="Forgot Password"
-      subtitle="Request a reset token to securely update your password."
+      subtitle="Request a reset link to securely update your password."
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <label className="block">
@@ -51,22 +52,16 @@ function ForgotPasswordPage() {
         </label>
 
         {status.error ? <p className="text-sm text-red-500">{status.error}</p> : null}
+        {status.success ? <p className="text-sm text-green-600">{status.success}</p> : null}
 
         <button
           type="submit"
           disabled={isSubmitting}
           className="primary-btn"
         >
-          {isSubmitting ? "Sending..." : "Send Reset Request"}
+          {isSubmitting ? "Sending..." : "Send Reset Link"}
         </button>
       </form>
-
-      {status.token ? (
-        <div className="mt-4 rounded-lg border border-border bg-surface p-3">
-          <p className="text-xs muted-text">Reset Token (dev mode from API):</p>
-          <p className="mt-1 break-all text-sm">{status.token}</p>
-        </div>
-      ) : null}
 
       <p className="mt-5 text-sm muted-text">
         Back to{" "}

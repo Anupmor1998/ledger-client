@@ -18,4 +18,15 @@ const forgotPasswordSchema = yup.object({
   email: yup.string().trim().email("Enter a valid email").required("Email is required"),
 });
 
-export { loginSchema, signupSchema, forgotPasswordSchema };
+const resetPasswordSchema = yup.object({
+  password: yup
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .required("New password is required"),
+  confirmPassword: yup
+    .string()
+    .oneOf([yup.ref("password")], "Passwords must match")
+    .required("Confirm password is required"),
+});
+
+export { loginSchema, signupSchema, forgotPasswordSchema, resetPasswordSchema };

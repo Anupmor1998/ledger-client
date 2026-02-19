@@ -7,6 +7,7 @@ import LoginPage from "../pages/LoginPage";
 import ManufacturersPage from "../pages/ManufacturersPage";
 import OrdersPage from "../pages/OrdersPage";
 import QualityPage from "../pages/QualityPage";
+import ResetPasswordPage from "../pages/ResetPasswordPage";
 import ReportsPage from "../pages/ReportsPage";
 import SignupPage from "../pages/SignupPage";
 import ProtectedRoute from "./ProtectedRoute";
@@ -21,6 +22,10 @@ function AppRoutes({ dark, onToggleTheme }) {
         <Route
           path="/forgot-password"
           element={<ForgotPasswordPage dark={dark} onToggleTheme={onToggleTheme} />}
+        />
+        <Route
+          path="/reset-password"
+          element={<ResetPasswordPage dark={dark} onToggleTheme={onToggleTheme} />}
         />
       </Route>
 

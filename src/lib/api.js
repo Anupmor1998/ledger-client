@@ -26,6 +26,11 @@ export async function forgotPassword(data) {
   return response.data;
 }
 
+export async function resetPassword(data) {
+  const response = await axiosClient.post("/auth/reset-password", data);
+  return response.data;
+}
+
 export async function createParty(data) {
   const { userType, ...payload } = data;
   const endpoint = userType === "manufacturer" ? "/manufacturers" : "/customers";
