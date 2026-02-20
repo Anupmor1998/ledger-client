@@ -22,17 +22,17 @@ function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-black/40 p-3 sm:items-center sm:p-4"
       onMouseDown={handleBackdropMouseDown}
       onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-border bg-surface p-4 shadow-xl"
+        className="my-2 flex w-full max-w-lg flex-col rounded-xl border border-border bg-surface p-4 shadow-xl sm:my-0 sm:max-h-[88vh] sm:p-4 max-h-[92dvh]"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
           <h3 className="text-lg font-semibold">{title}</h3>
           {hideCloseButton ? null : (
             <button
@@ -47,8 +47,8 @@ function Modal({
             </button>
           )}
         </div>
-        <div>{children}</div>
-        {footer ? <div className="mt-4">{footer}</div> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-3 sm:pr-4">{children}</div>
+        {footer ? <div className="mt-4 shrink-0 border-t border-border pt-3">{footer}</div> : null}
       </div>
     </div>
   );
