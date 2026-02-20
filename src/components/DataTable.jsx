@@ -19,6 +19,7 @@ function DataTable({
   onPageChange,
   onPageSizeChange,
   emptyMessage = "No records found.",
+  tableMinWidthClass = "min-w-full",
 }) {
   const table = useReactTable({
     data,
@@ -72,15 +73,15 @@ function DataTable({
         </div>
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
-        <table className="min-w-full border-collapse text-sm">
+      <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
+        <table className={`w-full ${tableMinWidthClass} border-collapse text-sm`}>
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b border-border text-left">
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   return (
-                    <th key={header.id} className="px-2 py-2">
+                    <th key={header.id} className="whitespace-nowrap px-3 py-2.5">
                       {header.isPlaceholder ? null : (
                         <button
                           type="button"
@@ -109,7 +110,7 @@ function DataTable({
             {rows.map((row) => (
               <tr key={row.id} className="border-b border-border/70 align-top">
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-2 py-2">
+                  <td key={cell.id} className="px-3 py-2.5">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

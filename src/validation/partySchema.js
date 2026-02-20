@@ -12,9 +12,21 @@ const partySchema = yup.object({
   gstNo: yup
     .string()
     .trim()
-    .transform((value) => (value ? value.toUpperCase() : value))
-    .matches(gstRegex, "Enter a valid GSTIN (example: 27ABCDE1234F1Z5)")
-    .required("GST No is required"),
+    .transform((value) => {
+      const normalized = (value || "").toUpperCase();
+      return normalized === "" ? null : normalized;
+    })
+    .nullable()
+    .when("userType", {
+      is: "customer",
+      then: (schema) =>
+        schema.test(
+          "gst-format",
+          "Enter a valid GSTIN (example: 27ABCDE1234F1Z5)",
+          (value) => !value || gstRegex.test(value)
+        ),
+      otherwise: (schema) => schema.strip(),
+    }),
   address: yup.string().trim().required("Address is required"),
   phone: yup
     .string()

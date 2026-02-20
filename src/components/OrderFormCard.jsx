@@ -28,15 +28,28 @@ function mapToOptions(list, labelKey) {
   }));
 }
 
+const QUANTITY_UNITS = ["TAKKA", "LOT", "METER"];
+const TAKKA_PER_LOT = 12;
+const LOT_MIN_METERS = 1450;
+const LOT_MAX_METERS = 1550;
+const GST_RATE = 0.05;
+const COMMISSION_RATE = 0.01;
+
+function randomLotMeters() {
+  return LOT_MIN_METERS + Math.random() * (LOT_MAX_METERS - LOT_MIN_METERS);
+}
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
+}
+
 function OrderFormCard({ refreshSignal = 0 }) {
   const initializedRef = useRef(false);
   const [status, setStatus] = useState({ error: "" });
   const [mastersLoading, setMastersLoading] = useState(true);
 
   const [customerNameOptions, setCustomerNameOptions] = useState([]);
-  const [customerGstOptions, setCustomerGstOptions] = useState([]);
   const [manufacturerNameOptions, setManufacturerNameOptions] = useState([]);
-  const [manufacturerGstOptions, setManufacturerGstOptions] = useState([]);
   const [qualityOptions, setQualityOptions] = useState([]);
 
   const [customersById, setCustomersById] = useState({});
@@ -46,6 +59,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const [selectedManufacturerId, setSelectedManufacturerId] = useState("");
   const [selectedQualityId, setSelectedQualityId] = useState("");
   const [whatsappModalData, setWhatsappModalData] = useState(null);
+  const [lotMetersBasis, setLotMetersBasis] = useState(randomLotMeters);
 
   const {
     register,
@@ -59,24 +73,45 @@ function OrderFormCard({ refreshSignal = 0 }) {
     resolver: yupResolver(orderSchema),
     defaultValues: {
       customerName: "",
-      customerGstNo: "",
       manufacturerName: "",
-      manufacturerGstNo: "",
+      quantityUnit: "TAKKA",
       qualityName: "",
       rate: "",
       quantity: "",
+      paymentDueOn: "",
+      remarks: "",
       orderDate: getTodayDate(),
     },
   });
 
   const customerName = watch("customerName") || "";
-  const customerGstNo = watch("customerGstNo") || "";
   const manufacturerName = watch("manufacturerName") || "";
-  const manufacturerGstNo = watch("manufacturerGstNo") || "";
+  const quantityUnit = watch("quantityUnit") || "TAKKA";
   const qualityName = watch("qualityName") || "";
   const rate = Number(watch("rate") || 0);
   const quantity = Number(watch("quantity") || 0);
-  const totalAmount = useMemo(() => rate * quantity, [rate, quantity]);
+  const commissionPreview = useMemo(() => {
+    if (!Number.isFinite(rate) || !Number.isFinite(quantity) || rate <= 0 || quantity <= 0) {
+      return 0;
+    }
+
+    const meter =
+      quantityUnit === "METER"
+        ? quantity
+        : quantityUnit === "LOT"
+        ? quantity * lotMetersBasis
+        : quantity * (lotMetersBasis / TAKKA_PER_LOT);
+
+    const baseAmount = meter * rate;
+    const gstAmount = baseAmount * GST_RATE;
+    return round2((baseAmount + gstAmount) * COMMISSION_RATE);
+  }, [rate, quantity, quantityUnit, lotMetersBasis]);
+
+  useEffect(() => {
+    if (quantityUnit === "LOT" || quantityUnit === "TAKKA") {
+      setLotMetersBasis(randomLotMeters());
+    }
+  }, [quantityUnit]);
 
   function findOptionByLabel(options, label) {
     return options.find((item) => normalize(item.label) === normalize(label));
@@ -89,9 +124,8 @@ function OrderFormCard({ refreshSignal = 0 }) {
     }
 
     setSelectedCustomerId(customerId);
-    clearErrors(["customerName", "customerGstNo"]);
+    clearErrors(["customerName"]);
     setValue("customerName", customer.name, { shouldValidate: true, shouldDirty: true });
-    setValue("customerGstNo", customer.gstNo, { shouldValidate: true, shouldDirty: true });
   }
 
   function setManufacturerById(manufacturerId) {
@@ -101,9 +135,8 @@ function OrderFormCard({ refreshSignal = 0 }) {
     }
 
     setSelectedManufacturerId(manufacturerId);
-    clearErrors(["manufacturerName", "manufacturerGstNo"]);
+    clearErrors(["manufacturerName"]);
     setValue("manufacturerName", manufacturer.name, { shouldValidate: true, shouldDirty: true });
-    setValue("manufacturerGstNo", manufacturer.gstNo, { shouldValidate: true, shouldDirty: true });
   }
 
   async function loadPartyOptions() {
@@ -116,9 +149,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
     setManufacturersById(Object.fromEntries(manufacturerList.map((item) => [item.id, item])));
 
     setCustomerNameOptions(mapToOptions(customerList, "name"));
-    setCustomerGstOptions(mapToOptions(customerList, "gstNo"));
     setManufacturerNameOptions(mapToOptions(manufacturerList, "name"));
-    setManufacturerGstOptions(mapToOptions(manufacturerList, "gstNo"));
   }
 
   async function loadQualityOptions() {
@@ -147,15 +178,16 @@ function OrderFormCard({ refreshSignal = 0 }) {
         if (lastOrder?.customer) {
           setSelectedCustomerId(lastOrder.customer.id);
           setValue("customerName", lastOrder.customer.name, { shouldValidate: true });
-          setValue("customerGstNo", lastOrder.customer.gstNo, { shouldValidate: true });
         }
         if (lastOrder?.manufacturer) {
           setSelectedManufacturerId(lastOrder.manufacturer.id);
           setValue("manufacturerName", lastOrder.manufacturer.name, { shouldValidate: true });
-          setValue("manufacturerGstNo", lastOrder.manufacturer.gstNo, { shouldValidate: true });
         }
         if (lastOrder?.quality?.name) {
           setValue("qualityName", lastOrder.quality.name, { shouldValidate: true });
+        }
+        if (lastOrder?.quantityUnit && QUANTITY_UNITS.includes(lastOrder.quantityUnit)) {
+          setValue("quantityUnit", lastOrder.quantityUnit, { shouldValidate: true });
         }
       } catch (error) {
         const message =
@@ -205,20 +237,6 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     if (!match) {
       setSelectedCustomerId("");
-      setValue("customerGstNo", "", { shouldValidate: true, shouldDirty: true });
-      return;
-    }
-
-    setCustomerById(match.value);
-  }
-
-  function handleCustomerGstInput(value) {
-    setValue("customerGstNo", value, { shouldValidate: true, shouldDirty: true });
-    const match = findOptionByLabel(customerGstOptions, value);
-
-    if (!match) {
-      setSelectedCustomerId("");
-      setValue("customerName", "", { shouldValidate: true, shouldDirty: true });
       return;
     }
 
@@ -231,20 +249,6 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     if (!match) {
       setSelectedManufacturerId("");
-      setValue("manufacturerGstNo", "", { shouldValidate: true, shouldDirty: true });
-      return;
-    }
-
-    setManufacturerById(match.value);
-  }
-
-  function handleManufacturerGstInput(value) {
-    setValue("manufacturerGstNo", value, { shouldValidate: true, shouldDirty: true });
-    const match = findOptionByLabel(manufacturerGstOptions, value);
-
-    if (!match) {
-      setSelectedManufacturerId("");
-      setValue("manufacturerName", "", { shouldValidate: true, shouldDirty: true });
       return;
     }
 
@@ -276,7 +280,6 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     if (!selectedCustomerId) {
       setError("customerName", { type: "manual", message: "Select a valid customer from list" });
-      setError("customerGstNo", { type: "manual", message: "Select a valid customer GST from list" });
       return;
     }
 
@@ -284,10 +287,6 @@ function OrderFormCard({ refreshSignal = 0 }) {
       setError("manufacturerName", {
         type: "manual",
         message: "Select a valid manufacturer from list",
-      });
-      setError("manufacturerGstNo", {
-        type: "manual",
-        message: "Select a valid manufacturer GST from list",
       });
       return;
     }
@@ -300,6 +299,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
       qualityName: matchedQuality?.label || values.qualityName.trim(),
       rate: Number(values.rate),
       quantity: Number(values.quantity),
+      quantityUnit: values.quantityUnit,
+      paymentDueOn:
+        values.paymentDueOn === "" || values.paymentDueOn === null
+          ? null
+          : Number(values.paymentDueOn),
+      remarks: values.remarks?.trim() || null,
       orderDate: values.orderDate,
     };
 
@@ -318,6 +323,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
       toast.success("Order created successfully");
       setValue("rate", "");
       setValue("quantity", "");
+      setValue("quantityUnit", values.quantityUnit);
+      setValue("paymentDueOn", "");
+      setValue("remarks", "");
       setValue("orderDate", getTodayDate());
 
       const customerLink = createdOrder?.whatsappLinks?.customer || "";
@@ -369,18 +377,6 @@ function OrderFormCard({ refreshSignal = 0 }) {
           />
 
           <AutocompleteInput
-            label="Customer GST No"
-            value={customerGstNo}
-            onChange={handleCustomerGstInput}
-            onSelect={(option) => setCustomerById(option.value)}
-            options={customerGstOptions}
-            placeholder="Search customer by GST No"
-            error={errors.customerGstNo?.message}
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <AutocompleteInput
             label="Manufacturer Name"
             value={manufacturerName}
             onChange={handleManufacturerNameInput}
@@ -389,19 +385,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
             placeholder="Search manufacturer by name"
             error={errors.manufacturerName?.message}
           />
-
-          <AutocompleteInput
-            label="Manufacturer GST No"
-            value={manufacturerGstNo}
-            onChange={handleManufacturerGstInput}
-            onSelect={(option) => setManufacturerById(option.value)}
-            options={manufacturerGstOptions}
-            placeholder="Search manufacturer by GST No"
-            error={errors.manufacturerGstNo?.message}
-          />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-5">
           <div className="md:col-span-1">
             <AutocompleteInput
               label="Quality"
@@ -431,7 +417,33 @@ function OrderFormCard({ refreshSignal = 0 }) {
             />
             {errors.quantity ? <p className="mt-1 text-sm text-red-500">{errors.quantity.message}</p> : null}
           </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Unit</span>
+            <select className="form-input" {...register("quantityUnit")}>
+              <option value="TAKKA">Takka</option>
+              <option value="LOT">Lot</option>
+              <option value="METER">Meter</option>
+            </select>
+            {errors.quantityUnit ? (
+              <p className="mt-1 text-sm text-red-500">{errors.quantityUnit.message}</p>
+            ) : null}
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Payment Dhara (Days)</span>
+            <input className="form-input" type="number" min="0" step="1" {...register("paymentDueOn")} />
+            {errors.paymentDueOn ? (
+              <p className="mt-1 text-sm text-red-500">{errors.paymentDueOn.message}</p>
+            ) : null}
+          </label>
         </div>
+
+        <label className="block">
+          <span className="mb-1 block text-sm muted-text">Remarks (Optional)</span>
+          <textarea className="form-input min-h-24" {...register("remarks")} />
+          {errors.remarks ? <p className="mt-1 text-sm text-red-500">{errors.remarks.message}</p> : null}
+        </label>
 
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block">
@@ -441,10 +453,13 @@ function OrderFormCard({ refreshSignal = 0 }) {
           </label>
 
           <div className="rounded-lg border border-border bg-surface p-3">
-            <p className="text-xs muted-text">Calculated Amount</p>
+            <p className="text-xs muted-text">Commission Amount (Preview)</p>
             <p className="mt-1 text-lg font-semibold">
-              Rs. {Number.isFinite(totalAmount) ? totalAmount.toFixed(2) : "0.00"}
+              Rs. {Number.isFinite(commissionPreview) ? commissionPreview.toFixed(2) : "0.00"}
             </p>
+            {(quantityUnit === "LOT" || quantityUnit === "TAKKA") && quantity > 0 ? (
+              <p className="mt-1 text-xs muted-text">Lot meter basis: {round2(lotMetersBasis).toFixed(2)}</p>
+            ) : null}
           </div>
         </div>
 

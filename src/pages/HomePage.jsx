@@ -30,6 +30,11 @@ function HomePage() {
 
   const userType = watch("userType");
 
+  function handlePhoneInputChange(event) {
+    const digitsOnly = event.target.value.replace(/\D/g, "").slice(0, 10);
+    event.target.value = digitsOnly;
+  }
+
   async function handleCreateParty(values) {
     setStatus({ error: "" });
 
@@ -84,11 +89,13 @@ function HomePage() {
             {errors.name ? <p className="mt-1 text-sm text-red-500">{errors.name.message}</p> : null}
           </label>
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">GST No</span>
-            <input className="form-input" {...register("gstNo")} />
-            {errors.gstNo ? <p className="mt-1 text-sm text-red-500">{errors.gstNo.message}</p> : null}
-          </label>
+          {userType === "customer" ? (
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
+              <input className="form-input" {...register("gstNo")} />
+              {errors.gstNo ? <p className="mt-1 text-sm text-red-500">{errors.gstNo.message}</p> : null}
+            </label>
+          ) : null}
 
           <label className="block">
             <span className="mb-1 block text-sm muted-text">Address</span>
@@ -99,7 +106,13 @@ function HomePage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Phone</span>
-              <input className="form-input" {...register("phone")} />
+              <input
+                className="form-input"
+                inputMode="numeric"
+                maxLength={10}
+                {...register("phone")}
+                onInput={handlePhoneInputChange}
+              />
               {errors.phone ? <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p> : null}
             </label>
 

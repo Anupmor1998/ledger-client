@@ -14,6 +14,10 @@ const emptyForm = {
   phone: "",
 };
 
+function sanitizePhoneInput(value) {
+  return (value || "").replace(/\D/g, "").slice(0, 10);
+}
+
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -39,6 +43,7 @@ function parseListResponse(payload) {
 }
 
 function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
+  const hasGstField = entityLabel === "customer";
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -102,8 +107,8 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
   async function handleSaveEdit() {
     if (!editItem) return;
 
-    if (!form.name.trim() || !form.gstNo.trim() || !form.address.trim() || !form.phone.trim()) {
-      toast.error("Name, GST No, address and phone are required.");
+    if (!form.name.trim() || !form.address.trim() || !form.phone.trim()) {
+      toast.error("Name, address and phone are required.");
       return;
     }
 
@@ -111,10 +116,10 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
     try {
       const payload = {
         name: form.name.trim(),
-        gstNo: form.gstNo.trim(),
         address: form.address.trim(),
         email: form.email.trim() || null,
         phone: form.phone.trim(),
+        ...(hasGstField ? { gstNo: form.gstNo.trim() || null } : {}),
       };
 
       await updateFn(editItem.id, payload);
@@ -166,13 +171,17 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
           );
         },
       },
-      {
-        id: "gstNo",
-        accessorKey: "gstNo",
-        header: "GST No",
-        enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
-      },
+      ...(hasGstField
+        ? [
+            {
+              id: "gstNo",
+              accessorKey: "gstNo",
+              header: "GST No",
+              enableSorting: true,
+              cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
+            },
+          ]
+        : []),
       {
         id: "phone",
         accessorKey: "phone",
@@ -238,7 +247,7 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
         ),
       },
     ],
-    []
+    [hasGstField]
   );
 
   return (
@@ -284,17 +293,31 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
               <span className="mb-1 block text-sm muted-text">Name</span>
               <input className="form-input" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">GST No</span>
-              <input className="form-input" value={form.gstNo} onChange={(event) => setForm((prev) => ({ ...prev, gstNo: event.target.value }))} />
-            </label>
+            {hasGstField ? (
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
+                <input
+                  className="form-input"
+                  value={form.gstNo}
+                  onChange={(event) => setForm((prev) => ({ ...prev, gstNo: event.target.value }))}
+                />
+              </label>
+            ) : null}
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Address</span>
               <textarea className="form-input min-h-24" value={form.address} onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))} />
             </label>
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Phone</span>
-              <input className="form-input" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
+              <input
+                className="form-input"
+                inputMode="numeric"
+                maxLength={10}
+                value={form.phone}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, phone: sanitizePhoneInput(event.target.value) }))
+                }
+              />
             </label>
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Email (Optional)</span>

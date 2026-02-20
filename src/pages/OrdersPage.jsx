@@ -9,6 +9,7 @@ import {
   deleteOrder,
   getCustomers,
   getManufacturers,
+  getOrderById,
   getOrders,
   updateOrder,
 } from "../lib/api";
@@ -51,6 +52,20 @@ function formatDate(value) {
   return date.toLocaleDateString();
 }
 
+const TAKKA_PER_LOT = 12;
+const LOT_MIN_METERS = 1450;
+const LOT_MAX_METERS = 1550;
+const GST_RATE = 0.05;
+const COMMISSION_RATE = 0.01;
+
+function round2(value) {
+  return Math.round(value * 100) / 100;
+}
+
+function randomLotMeters() {
+  return LOT_MIN_METERS + Math.random() * (LOT_MAX_METERS - LOT_MIN_METERS);
+}
+
 function OrdersPage() {
   const [rows, setRows] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -71,12 +86,18 @@ function OrdersPage() {
     qualityName: "",
     rate: "",
     quantity: "",
+    quantityUnit: "TAKKA",
+    paymentDueOn: "",
+    remarks: "",
     orderDate: "",
   });
+  const [lotMetersBasis, setLotMetersBasis] = useState(randomLotMeters);
   const [editLoading, setEditLoading] = useState(false);
 
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [whatsappModalData, setWhatsappModalData] = useState(null);
+  const [messageLoadingId, setMessageLoadingId] = useState("");
 
   useEffect(() => {
     async function loadMasters() {
@@ -133,8 +154,16 @@ function OrdersPage() {
       qualityName: item.quality?.name || "",
       rate: item.rate ?? "",
       quantity: item.quantity ?? "",
+      quantityUnit: item.quantityUnit || "TAKKA",
+      paymentDueOn: item.paymentDueOn ?? "",
+      remarks: item.remarks ?? "",
       orderDate: toDateInput(item.orderDate),
     });
+    if (item.lotMeters) {
+      setLotMetersBasis(Number(item.lotMeters));
+    } else {
+      setLotMetersBasis(randomLotMeters());
+    }
   }
 
   async function handleSave() {
@@ -152,12 +181,29 @@ function OrdersPage() {
       return;
     }
 
+    if (
+      form.paymentDueOn !== "" &&
+      (!Number.isInteger(Number(form.paymentDueOn)) || Number(form.paymentDueOn) < 0)
+    ) {
+      toast.error("Payment due days must be a whole number and cannot be negative.");
+      return;
+    }
+
+    if (!["TAKKA", "LOT", "METER"].includes(form.quantityUnit)) {
+      toast.error("Please select a valid quantity unit.");
+      return;
+    }
+
     const payload = {
       customerId: form.customerId,
       manufacturerId: form.manufacturerId,
       qualityName: form.qualityName.trim(),
       rate: Number(form.rate),
       quantity: Number(form.quantity),
+      quantityUnit: form.quantityUnit,
+      paymentDueOn:
+        form.paymentDueOn === "" || form.paymentDueOn === null ? null : Number(form.paymentDueOn),
+      remarks: form.remarks?.trim() || null,
       orderDate: form.orderDate,
     };
 
@@ -191,6 +237,45 @@ function OrdersPage() {
       setDeleteLoading(false);
     }
   }
+
+  function openWhatsAppLink(url) {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleMessageClick(order) {
+    if (!order?.id) return;
+
+    setMessageLoadingId(order.id);
+    try {
+      const latestOrder = await getOrderById(order.id);
+      setWhatsappModalData({
+        orderNo: latestOrder?.orderNo || order.orderNo,
+        customerLink: latestOrder?.whatsappLinks?.customer || "",
+        manufacturerLink: latestOrder?.whatsappLinks?.manufacturer || "",
+      });
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Unable to load latest order details.";
+      toast.error(message);
+    } finally {
+      setMessageLoadingId("");
+    }
+  }
+
+  const editCommissionPreview = useMemo(() => {
+    const rate = Number(form.rate || 0);
+    const quantity = Number(form.quantity || 0);
+    if (!Number.isFinite(rate) || !Number.isFinite(quantity) || rate <= 0 || quantity <= 0) {
+      return 0;
+    }
+    const meter =
+      form.quantityUnit === "METER"
+        ? quantity
+        : form.quantityUnit === "LOT"
+        ? quantity * lotMetersBasis
+        : quantity * (lotMetersBasis / TAKKA_PER_LOT);
+    return round2((meter * rate + meter * rate * GST_RATE) * COMMISSION_RATE);
+  }, [form.rate, form.quantity, form.quantityUnit, lotMetersBasis]);
 
   const columns = useMemo(
     () => [
@@ -238,10 +323,31 @@ function OrdersPage() {
       },
       {
         id: "quantity",
-        header: "Qty",
-        accessorKey: "quantity",
+        header: "Qty / Unit",
+        accessorFn: (row) => `${row.quantity ?? "-"} ${row.quantityUnit || ""}`.trim(),
         enableSorting: true,
         cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
+      },
+      {
+        id: "commissionAmount",
+        header: "Commission Amount",
+        accessorKey: "commissionAmount",
+        enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={`Rs. ${Number(getValue() || 0).toFixed(2)}`} nowrap />,
+      },
+      {
+        id: "paymentDueOn",
+        header: "Payment Dhara (Days)",
+        accessorKey: "paymentDueOn",
+        enableSorting: false,
+        cell: ({ getValue }) => <CopyableText value={getValue() ?? "-"} nowrap />,
+      },
+      {
+        id: "remarks",
+        header: "Remarks",
+        accessorKey: "remarks",
+        enableSorting: false,
+        cell: ({ getValue }) => <CopyableText value={getValue() || "-"} className="max-w-[220px]" truncate />,
       },
       {
         id: "actions",
@@ -249,6 +355,18 @@ function OrdersPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-emerald-400/40 p-2 text-emerald-500 hover:bg-emerald-50"
+              onClick={() => handleMessageClick(row.original)}
+              aria-label="Send message"
+              title="Send message"
+              disabled={messageLoadingId === row.original.id}
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                <path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.5L3 21l2-5.1A8.5 8.5 0 1 1 21 11.5z" />
+              </svg>
+            </button>
             <button
               type="button"
               className="rounded-lg border border-border p-2 hover:bg-bg"
@@ -290,6 +408,7 @@ function OrdersPage() {
         columns={columns}
         data={rows}
         loading={loading}
+        tableMinWidthClass="min-w-[1280px]"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
         sorting={sorting}
@@ -387,6 +506,54 @@ function OrdersPage() {
             </div>
 
             <label className="block">
+              <span className="mb-1 block text-sm muted-text">Unit</span>
+              <select
+                className="form-input"
+                value={form.quantityUnit}
+                onChange={(event) => {
+                  const nextUnit = event.target.value;
+                  setForm((prev) => ({ ...prev, quantityUnit: nextUnit }));
+                  if (nextUnit === "LOT" || nextUnit === "TAKKA") {
+                    setLotMetersBasis(randomLotMeters());
+                  }
+                }}
+              >
+                <option value="TAKKA">Takka</option>
+                <option value="LOT">Lot</option>
+                <option value="METER">Meter</option>
+              </select>
+            </label>
+
+            <div className="rounded-lg border border-border bg-surface p-3">
+              <p className="text-xs muted-text">Commission Amount (Preview)</p>
+              <p className="mt-1 text-lg font-semibold">Rs. {editCommissionPreview.toFixed(2)}</p>
+              {(form.quantityUnit === "LOT" || form.quantityUnit === "TAKKA") && Number(form.quantity) > 0 ? (
+                <p className="mt-1 text-xs muted-text">Lot meter basis: {round2(lotMetersBasis).toFixed(2)}</p>
+              ) : null}
+            </div>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Payment Dhara (Days)</span>
+              <input
+                className="form-input"
+                type="number"
+                min="0"
+                step="1"
+                value={form.paymentDueOn}
+                onChange={(event) => setForm((prev) => ({ ...prev, paymentDueOn: event.target.value }))}
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Remarks (Optional)</span>
+              <textarea
+                className="form-input min-h-24"
+                value={form.remarks}
+                onChange={(event) => setForm((prev) => ({ ...prev, remarks: event.target.value }))}
+              />
+            </label>
+
+            <label className="block">
               <span className="mb-1 block text-sm muted-text">Order Date</span>
               <input
                 className="form-input"
@@ -407,6 +574,48 @@ function OrdersPage() {
           onConfirm={handleDelete}
           loading={deleteLoading}
         />
+      ) : null}
+
+      {whatsappModalData ? (
+        <Modal
+          title="Share On WhatsApp"
+          onClose={() => setWhatsappModalData(null)}
+          closeOnBackdrop={false}
+          closeOnEsc={false}
+          footer={
+            <div className="flex justify-end">
+              <button type="button" className="ghost-btn" onClick={() => setWhatsappModalData(null)}>
+                Close
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm muted-text">
+              {whatsappModalData.orderNo ? `Order ${whatsappModalData.orderNo}.` : "Order details ready."} Use the
+              buttons below to open WhatsApp with pre-filled message.
+            </p>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => openWhatsAppLink(whatsappModalData.manufacturerLink)}
+                disabled={!whatsappModalData.manufacturerLink}
+              >
+                Send To Manufacturer
+              </button>
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => openWhatsAppLink(whatsappModalData.customerLink)}
+                disabled={!whatsappModalData.customerLink}
+              >
+                Send To Customer
+              </button>
+            </div>
+          </div>
+        </Modal>
       ) : null}
     </section>
   );

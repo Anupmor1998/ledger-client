@@ -2,9 +2,11 @@ import * as yup from "yup";
 
 const orderSchema = yup.object({
   customerName: yup.string().trim().required("Customer is required"),
-  customerGstNo: yup.string().trim().required("Customer GST No is required"),
   manufacturerName: yup.string().trim().required("Manufacturer is required"),
-  manufacturerGstNo: yup.string().trim().required("Manufacturer GST No is required"),
+  quantityUnit: yup
+    .string()
+    .oneOf(["TAKKA", "LOT", "METER"], "Select a valid quantity unit")
+    .required("Quantity unit is required"),
   qualityName: yup.string().trim().required("Quality is required"),
   rate: yup
     .number()
@@ -20,6 +22,17 @@ const orderSchema = yup.object({
     .string()
     .required("Order date is required")
     .matches(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
+  remarks: yup
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => (value === "" ? null : value)),
+  paymentDueOn: yup
+    .number()
+    .nullable()
+    .transform((value, originalValue) => (originalValue === "" || originalValue === null ? null : value))
+    .integer("Payment due days must be a whole number")
+    .min(0, "Payment due days cannot be negative"),
 });
 
 export default orderSchema;

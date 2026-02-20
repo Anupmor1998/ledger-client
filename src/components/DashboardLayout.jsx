@@ -56,7 +56,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
 
   return (
     <div className="app-shell min-h-screen">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl gap-4 md:gap-6">
+      <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 md:gap-6">
         <aside className="hidden w-64 shrink-0 md:flex md:flex-col">
           <div className="sticky top-4 rounded-2xl border border-border bg-surface p-4 shadow-lg">
             <p className="text-xs uppercase tracking-wider muted-text">Navigation</p>

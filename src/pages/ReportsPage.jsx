@@ -54,7 +54,7 @@ const reportConfigs = [
   {
     key: "gst-summary",
     title: "GST Summary",
-    description: "GST-wise summary across customers and manufacturers.",
+    description: "GST-wise summary for customers.",
     endpoint: "gst-summary.xlsx",
     filename: "gst-summary.xlsx",
   },

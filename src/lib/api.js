@@ -111,6 +111,11 @@ export async function updateOrder(id, data) {
   return response.data;
 }
 
+export async function getOrderById(id) {
+  const response = await axiosClient.get(`/orders/${id}`);
+  return response.data;
+}
+
 export async function deleteOrder(id) {
   const response = await axiosClient.delete(`/orders/${id}`);
   return response.data;
