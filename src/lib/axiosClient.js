@@ -41,7 +41,9 @@ export function setupAxiosInterceptors(store) {
     },
     (error) => {
       store.dispatch(requestEnded());
-      if (error?.response?.status === 401) {
+      const status = error?.response?.status;
+      const message = String(error?.response?.data?.message || "").toLowerCase();
+      if (status === 401 || (status === 404 && message.includes("user not found"))) {
         store.dispatch(logout());
       }
       return Promise.reject(error);
