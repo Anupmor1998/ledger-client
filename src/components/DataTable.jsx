@@ -40,8 +40,8 @@ function DataTable({
 
   function getSortIndicator(column) {
     const sort = column.getIsSorted();
-    if (sort === "asc") return " ?";
-    if (sort === "desc") return " ?";
+    if (sort === "asc") return " ↑";
+    if (sort === "desc") return " ↓";
     return "";
   }
 
