@@ -8,6 +8,14 @@ const partySchema = yup.object({
     .string()
     .oneOf(["customer", "manufacturer"], "Select a valid user type")
     .required("User type is required"),
+  firmName: yup
+    .string()
+    .trim()
+    .when("userType", {
+      is: "customer",
+      then: (schema) => schema.required("Firm name is required"),
+      otherwise: (schema) => schema.nullable().transform((value) => (value === "" ? null : value)),
+    }),
   name: yup.string().trim().required("Name is required"),
   gstNo: yup
     .string()
@@ -27,7 +35,51 @@ const partySchema = yup.object({
         ),
       otherwise: (schema) => schema.strip(),
     }),
-  address: yup.string().trim().required("Address is required"),
+  commissionBase: yup
+    .string()
+    .transform((value) => (value ? value.toUpperCase() : value))
+    .when("userType", {
+      is: "customer",
+      then: (schema) =>
+        schema
+          .oneOf(["PERCENT", "LOT"], "Select a valid commission base")
+          .required("Commission base is required"),
+      otherwise: (schema) => schema.strip(),
+    }),
+  commissionPercent: yup
+    .number()
+    .nullable()
+    .transform((value, originalValue) => (originalValue === "" ? null : value))
+    .when(["userType", "commissionBase"], {
+      is: (userType, commissionBase) => userType === "customer" && commissionBase === "PERCENT",
+      then: (schema) =>
+        schema
+          .typeError("Commission percent must be a number")
+          .moreThan(0, "Commission percent must be greater than 0")
+          .required("Commission percent is required"),
+      otherwise: (schema) => schema.strip(),
+    }),
+  commissionLotRate: yup
+    .number()
+    .nullable()
+    .transform((value, originalValue) => (originalValue === "" ? null : value))
+    .when(["userType", "commissionBase"], {
+      is: (userType, commissionBase) => userType === "customer" && commissionBase === "LOT",
+      then: (schema) =>
+        schema
+          .typeError("Lot rate must be a number")
+          .moreThan(0, "Lot rate must be greater than 0")
+          .required("Lot rate is required"),
+      otherwise: (schema) => schema.strip(),
+    }),
+  address: yup
+    .string()
+    .trim()
+    .when("userType", {
+      is: "customer",
+      then: (schema) => schema.required("Address is required"),
+      otherwise: (schema) => schema.nullable().transform((value) => (value === "" ? null : value)),
+    }),
   phone: yup
     .string()
     .trim()

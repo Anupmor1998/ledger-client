@@ -9,6 +9,7 @@ function CustomersPage() {
       fetchFn={getCustomers}
       updateFn={updateCustomer}
       deleteFn={deleteCustomer}
+      addEntryPath="/?focus=customer"
     />
   );
 }

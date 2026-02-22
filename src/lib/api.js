@@ -133,6 +133,11 @@ export async function getMyPreferences() {
   return response.data;
 }
 
+export async function updateMyProfile(data) {
+  const response = await axiosClient.put("/users/me", data);
+  return response.data;
+}
+
 export async function updateMyPreferences(data) {
   const response = await axiosClient.put("/users/me/preferences", data);
   return response.data;

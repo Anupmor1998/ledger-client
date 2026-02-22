@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useDebounce from "../hooks/useDebounce";
 import ConfirmDialog from "./ConfirmDialog";
@@ -7,8 +8,12 @@ import DataTable from "./DataTable";
 import Modal from "./Modal";
 
 const emptyForm = {
+  firmName: "",
   name: "",
   gstNo: "",
+  commissionBase: "PERCENT",
+  commissionPercent: "1",
+  commissionLotRate: "",
   address: "",
   email: "",
   phone: "",
@@ -42,8 +47,10 @@ function parseListResponse(payload) {
   };
 }
 
-function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
-  const hasGstField = entityLabel === "customer";
+function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn, addEntryPath = "/" }) {
+  const navigate = useNavigate();
+  const isCustomer = entityLabel === "customer";
+  const hasGstField = isCustomer;
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -96,8 +103,18 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
   function openEdit(item) {
     setEditItem(item);
     setForm({
+      firmName: item.firmName || "",
       name: item.name || "",
       gstNo: item.gstNo || "",
+      commissionBase: item.commissionBase || "PERCENT",
+      commissionPercent:
+        item.commissionPercent === null || item.commissionPercent === undefined
+          ? "1"
+          : String(item.commissionPercent),
+      commissionLotRate:
+        item.commissionLotRate === null || item.commissionLotRate === undefined
+          ? ""
+          : String(item.commissionLotRate),
       address: item.address || "",
       email: item.email || "",
       phone: item.phone || "",
@@ -107,19 +124,42 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
   async function handleSaveEdit() {
     if (!editItem) return;
 
-    if (!form.name.trim() || !form.address.trim() || !form.phone.trim()) {
-      toast.error("Name, address and phone are required.");
+    if (isCustomer && (!form.firmName.trim() || !form.name.trim() || !form.address.trim() || !form.phone.trim())) {
+      toast.error("Firm name, name, address and phone are required for customer.");
+      return;
+    }
+    if (isCustomer && form.commissionBase === "PERCENT" && Number(form.commissionPercent) <= 0) {
+      toast.error("Commission percent must be greater than 0.");
+      return;
+    }
+    if (isCustomer && form.commissionBase === "LOT" && Number(form.commissionLotRate) <= 0) {
+      toast.error("Lot rate must be greater than 0.");
+      return;
+    }
+
+    if (!isCustomer && (!form.name.trim() || !form.phone.trim())) {
+      toast.error("Name and phone are required for manufacturer.");
       return;
     }
 
     setSubmitting(true);
     try {
       const payload = {
+        firmName: form.firmName.trim() || null,
         name: form.name.trim(),
-        address: form.address.trim(),
+        address: form.address.trim() || null,
         email: form.email.trim() || null,
         phone: form.phone.trim(),
         ...(hasGstField ? { gstNo: form.gstNo.trim() || null } : {}),
+        ...(isCustomer
+          ? {
+              commissionBase: form.commissionBase,
+              commissionPercent:
+                form.commissionBase === "PERCENT" ? Number(form.commissionPercent) : 1,
+              commissionLotRate:
+                form.commissionBase === "LOT" ? Number(form.commissionLotRate) : null,
+            }
+          : {}),
       };
 
       await updateFn(editItem.id, payload);
@@ -156,6 +196,13 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
   const columns = useMemo(
     () => [
       {
+        id: "firmName",
+        accessorKey: "firmName",
+        header: "Firm Name",
+        enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue() || "-"} className="max-w-[260px]" truncate />,
+      },
+      {
         id: "name",
         accessorKey: "name",
         header: "Name",
@@ -179,6 +226,38 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
               header: "GST No",
               enableSorting: true,
               cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
+            },
+          ]
+        : []),
+      ...(isCustomer
+        ? [
+            {
+              id: "commissionBase",
+              accessorKey: "commissionBase",
+              header: "Commission Base",
+              enableSorting: true,
+              cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
+            },
+            {
+              id: "commissionValue",
+              header: "Commission Value",
+              enableSorting: false,
+              accessorFn: (row) =>
+                row.commissionBase === "LOT"
+                  ? row.commissionLotRate == null
+                    ? "-"
+                    : row.commissionLotRate
+                  : row.commissionPercent == null
+                  ? "-"
+                  : row.commissionPercent,
+              cell: ({ row }) => {
+                const value =
+                  row.original.commissionBase === "LOT"
+                    ? row.original.commissionLotRate
+                    : row.original.commissionPercent;
+                const suffix = row.original.commissionBase === "LOT" ? "" : "%";
+                return <CopyableText value={value == null ? "-" : `${value}${suffix}`} nowrap />;
+              },
             },
           ]
         : []),
@@ -247,12 +326,17 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
         ),
       },
     ],
-    [hasGstField]
+    [hasGstField, isCustomer]
   );
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <h2 className="text-xl font-semibold">{title}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold">{title}</h2>
+        <button type="button" className="primary-btn w-auto" onClick={() => navigate(addEntryPath)}>
+          Add New Entry
+        </button>
+      </div>
 
       <DataTable
         columns={columns}
@@ -290,21 +374,82 @@ function PartyTableCard({ title, entityLabel, fetchFn, updateFn, deleteFn }) {
         >
           <div className="space-y-3">
             <label className="block">
+              <span className="mb-1 block text-sm muted-text">
+                Firm Name {isCustomer ? "" : "(Optional)"}
+              </span>
+              <input
+                className="form-input"
+                value={form.firmName}
+                onChange={(event) => setForm((prev) => ({ ...prev, firmName: event.target.value }))}
+              />
+            </label>
+            <label className="block">
               <span className="mb-1 block text-sm muted-text">Name</span>
               <input className="form-input" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
             </label>
             {hasGstField ? (
-              <label className="block">
-                <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
-                <input
-                  className="form-input"
-                  value={form.gstNo}
-                  onChange={(event) => setForm((prev) => ({ ...prev, gstNo: event.target.value }))}
-                />
-              </label>
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
+                  <input
+                    className="form-input"
+                    value={form.gstNo}
+                    onChange={(event) => setForm((prev) => ({ ...prev, gstNo: event.target.value }))}
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-sm muted-text">Commission Base</span>
+                    <select
+                      className="form-input"
+                      value={form.commissionBase}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          commissionBase: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="PERCENT">Percent</option>
+                      <option value="LOT">LOT</option>
+                    </select>
+                  </label>
+                  {form.commissionBase === "LOT" ? (
+                    <label className="block">
+                      <span className="mb-1 block text-sm muted-text">Lot Rate</span>
+                      <input
+                        className="form-input"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.commissionLotRate}
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, commissionLotRate: event.target.value }))
+                        }
+                      />
+                    </label>
+                  ) : (
+                    <label className="block">
+                      <span className="mb-1 block text-sm muted-text">Commission Percent</span>
+                      <input
+                        className="form-input"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.commissionPercent}
+                        onChange={(event) =>
+                          setForm((prev) => ({ ...prev, commissionPercent: event.target.value }))
+                        }
+                      />
+                    </label>
+                  )}
+                </div>
+              </>
             ) : null}
             <label className="block">
-              <span className="mb-1 block text-sm muted-text">Address</span>
+              <span className="mb-1 block text-sm muted-text">
+                Address {isCustomer ? "" : "(Optional)"}
+              </span>
               <textarea className="form-input min-h-24" value={form.address} onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))} />
             </label>
             <label className="block">

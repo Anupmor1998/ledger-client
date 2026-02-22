@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
@@ -8,6 +9,7 @@ import useDebounce from "../hooks/useDebounce";
 import {
   deleteOrder,
   getCustomers,
+  getQualities,
   getManufacturers,
   getOrderById,
   getOrders,
@@ -56,7 +58,7 @@ const TAKKA_PER_LOT = 12;
 const LOT_MIN_METERS = 1450;
 const LOT_MAX_METERS = 1550;
 const GST_RATE = 0.05;
-const COMMISSION_RATE = 0.01;
+const DEFAULT_COMMISSION_PERCENT = 1;
 
 function round2(value) {
   return Math.round(value * 100) / 100;
@@ -66,10 +68,21 @@ function randomLotMeters() {
   return LOT_MIN_METERS + Math.random() * (LOT_MAX_METERS - LOT_MIN_METERS);
 }
 
+function formatPartyDisplay(party) {
+  if (!party) {
+    return { primary: "-", secondary: "" };
+  }
+  const primary = party.firmName || party.name || "-";
+  const secondary = party.firmName && party.name ? party.name : "";
+  return { primary, secondary };
+}
+
 function OrdersPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [manufacturers, setManufacturers] = useState([]);
+  const [qualities, setQualities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [sorting, setSorting] = useState([{ id: "createdAt", desc: true }]);
@@ -78,6 +91,15 @@ function OrdersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
+  const [filters, setFilters] = useState({
+    status: "",
+    customerId: "",
+    manufacturerId: "",
+    qualityId: "",
+    from: "",
+    to: "",
+  });
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
@@ -102,12 +124,17 @@ function OrdersPage() {
   useEffect(() => {
     async function loadMasters() {
       try {
-        const [customerData, manufacturerData] = await Promise.all([getCustomers(), getManufacturers()]);
+        const [customerData, manufacturerData, qualityData] = await Promise.all([
+          getCustomers(),
+          getManufacturers(),
+          getQualities(),
+        ]);
         setCustomers(Array.isArray(customerData) ? customerData : customerData?.items || []);
         setManufacturers(Array.isArray(manufacturerData) ? manufacturerData : manufacturerData?.items || []);
+        setQualities(Array.isArray(qualityData) ? qualityData : qualityData?.items || []);
       } catch (error) {
         const message =
-          error?.response?.data?.message || error?.message || "Unable to load customer/manufacturer data.";
+          error?.response?.data?.message || error?.message || "Unable to load filter data.";
         toast.error(message);
       }
     }
@@ -117,7 +144,15 @@ function OrdersPage() {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [debouncedSearch]);
+  }, [
+    debouncedSearch,
+    filters.status,
+    filters.customerId,
+    filters.manufacturerId,
+    filters.qualityId,
+    filters.from,
+    filters.to,
+  ]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -127,6 +162,12 @@ function OrdersPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        status: filters.status,
+        customerId: filters.customerId,
+        manufacturerId: filters.manufacturerId,
+        qualityId: filters.qualityId,
+        from: filters.from,
+        to: filters.to,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
       });
@@ -140,7 +181,7 @@ function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, sorting]);
+  }, [debouncedSearch, filters, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
     loadData();
@@ -268,14 +309,26 @@ function OrdersPage() {
     if (!Number.isFinite(rate) || !Number.isFinite(quantity) || rate <= 0 || quantity <= 0) {
       return 0;
     }
+    const selectedCustomer = customers.find((customer) => customer.id === form.customerId);
+    const commissionBase = String(selectedCustomer?.commissionBase || "PERCENT").toUpperCase();
+    const commissionPercent =
+      Number(selectedCustomer?.commissionPercent) > 0
+        ? Number(selectedCustomer.commissionPercent)
+        : DEFAULT_COMMISSION_PERCENT;
+    const commissionLotRate = Number(selectedCustomer?.commissionLotRate || 0);
+
+    if (commissionBase === "LOT") {
+      return round2(quantity * commissionLotRate);
+    }
+
     const meter =
       form.quantityUnit === "METER"
         ? quantity
         : form.quantityUnit === "LOT"
         ? quantity * lotMetersBasis
         : quantity * (lotMetersBasis / TAKKA_PER_LOT);
-    return round2((meter * rate + meter * rate * GST_RATE) * COMMISSION_RATE);
-  }, [form.rate, form.quantity, form.quantityUnit, lotMetersBasis]);
+    return round2((meter * rate + meter * rate * GST_RATE) * (commissionPercent / 100));
+  }, [customers, form.customerId, form.quantity, form.quantityUnit, form.rate, lotMetersBasis]);
 
   const columns = useMemo(
     () => [
@@ -298,14 +351,36 @@ function OrdersPage() {
         header: "Customer",
         accessorFn: (row) => row.customer?.name || "-",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue()} />,
+        cell: ({ row }) => {
+          const customer = row.original.customer;
+          const display = formatPartyDisplay(customer);
+          return (
+            <div className="text-left">
+              <CopyableText value={display.primary} />
+              {display.secondary ? (
+                <span className="mt-0.5 block text-xs muted-text">{display.secondary}</span>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "manufacturerName",
         header: "Manufacturer",
         accessorFn: (row) => row.manufacturer?.name || "-",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue()} />,
+        cell: ({ row }) => {
+          const manufacturer = row.original.manufacturer;
+          const display = formatPartyDisplay(manufacturer);
+          return (
+            <div className="text-left">
+              <CopyableText value={display.primary} />
+              {display.secondary ? (
+                <span className="mt-0.5 block text-xs muted-text">{display.secondary}</span>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "qualityName",
@@ -327,6 +402,20 @@ function OrdersPage() {
         accessorFn: (row) => `${row.quantity ?? "-"} ${row.quantityUnit || ""}`.trim(),
         enableSorting: true,
         cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
+      },
+      {
+        id: "processedQuantity",
+        header: "Processed Qty",
+        accessorKey: "processedQuantity",
+        enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue() ?? 0} nowrap />,
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
       },
       {
         id: "commissionAmount",
@@ -402,7 +491,143 @@ function OrdersPage() {
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <h2 className="text-xl font-semibold">Orders</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-semibold">Orders</h2>
+        <div className="flex items-center gap-2">
+          <button type="button" className="ghost-btn" onClick={() => setMobileFiltersOpen(true)}>
+            Filters
+          </button>
+          <button type="button" className="primary-btn w-auto" onClick={() => navigate("/?focus=order")}>
+            Add New Entry
+          </button>
+        </div>
+      </div>
+
+      {mobileFiltersOpen ? (
+        <Modal
+          title="Order Filters"
+          onClose={() => setMobileFiltersOpen(false)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setFilters({
+                    status: "",
+                    customerId: "",
+                    manufacturerId: "",
+                    qualityId: "",
+                    from: "",
+                    to: "",
+                  });
+                }}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => setMobileFiltersOpen(false)}
+              >
+                Apply
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Status</span>
+              <select
+                className="form-input"
+                value={filters.status}
+                onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+              >
+                <option value="">All</option>
+                <option value="PENDING">Pending</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Customer</span>
+              <select
+                className="form-input"
+                value={filters.customerId}
+                onChange={(event) => setFilters((prev) => ({ ...prev, customerId: event.target.value }))}
+              >
+                <option value="">All</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {formatPartyDisplay(customer).primary}
+                {formatPartyDisplay(customer).secondary
+                  ? ` / ${formatPartyDisplay(customer).secondary}`
+                  : ""}
+              </option>
+            ))}
+          </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Manufacturer</span>
+              <select
+                className="form-input"
+                value={filters.manufacturerId}
+                onChange={(event) =>
+                  setFilters((prev) => ({ ...prev, manufacturerId: event.target.value }))
+                }
+              >
+                <option value="">All</option>
+            {manufacturers.map((manufacturer) => (
+              <option key={manufacturer.id} value={manufacturer.id}>
+                {formatPartyDisplay(manufacturer).primary}
+                {formatPartyDisplay(manufacturer).secondary
+                  ? ` / ${formatPartyDisplay(manufacturer).secondary}`
+                  : ""}
+              </option>
+            ))}
+          </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Quality</span>
+              <select
+                className="form-input"
+                value={filters.qualityId}
+                onChange={(event) => setFilters((prev) => ({ ...prev, qualityId: event.target.value }))}
+              >
+                <option value="">All</option>
+                {qualities.map((quality) => (
+                  <option key={quality.id} value={quality.id}>
+                    {quality.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">From Date</span>
+              <input
+                className="form-input"
+                type="date"
+                value={filters.from}
+                onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))}
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">To Date</span>
+              <input
+                className="form-input"
+                type="date"
+                value={filters.to}
+                onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))}
+              />
+            </label>
+          </div>
+        </Modal>
+      ) : null}
 
       <DataTable
         columns={columns}
@@ -450,7 +675,10 @@ function OrdersPage() {
                 <option value="">Select customer</option>
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
-                    {customer.name}
+                    {formatPartyDisplay(customer).primary}
+                    {formatPartyDisplay(customer).secondary
+                      ? ` / ${formatPartyDisplay(customer).secondary}`
+                      : ""}
                   </option>
                 ))}
               </select>
@@ -466,7 +694,10 @@ function OrdersPage() {
                 <option value="">Select manufacturer</option>
                 {manufacturers.map((manufacturer) => (
                   <option key={manufacturer.id} value={manufacturer.id}>
-                    {manufacturer.name}
+                    {formatPartyDisplay(manufacturer).primary}
+                    {formatPartyDisplay(manufacturer).secondary
+                      ? ` / ${formatPartyDisplay(manufacturer).secondary}`
+                      : ""}
                   </option>
                 ))}
               </select>

@@ -9,6 +9,7 @@ function ManufacturersPage() {
       fetchFn={getManufacturers}
       updateFn={updateManufacturer}
       deleteFn={deleteManufacturer}
+      addEntryPath="/?focus=manufacturer"
     />
   );
 }

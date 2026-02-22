@@ -34,6 +34,7 @@ const LOT_MIN_METERS = 1450;
 const LOT_MAX_METERS = 1550;
 const GST_RATE = 0.05;
 const COMMISSION_RATE = 0.01;
+const DEFAULT_COMMISSION_PERCENT = 1;
 
 function randomLotMeters() {
   return LOT_MIN_METERS + Math.random() * (LOT_MAX_METERS - LOT_MIN_METERS);
@@ -90,9 +91,20 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const qualityName = watch("qualityName") || "";
   const rate = Number(watch("rate") || 0);
   const quantity = Number(watch("quantity") || 0);
+  const selectedCustomer = selectedCustomerId ? customersById[selectedCustomerId] : null;
+  const selectedCustomerCommissionBase = String(selectedCustomer?.commissionBase || "PERCENT").toUpperCase();
+  const selectedCustomerCommissionPercent =
+    Number(selectedCustomer?.commissionPercent) > 0
+      ? Number(selectedCustomer?.commissionPercent)
+      : DEFAULT_COMMISSION_PERCENT;
+  const selectedCustomerLotRate = Number(selectedCustomer?.commissionLotRate || 0);
   const commissionPreview = useMemo(() => {
     if (!Number.isFinite(rate) || !Number.isFinite(quantity) || rate <= 0 || quantity <= 0) {
       return 0;
+    }
+
+    if (selectedCustomerCommissionBase === "LOT") {
+      return round2(quantity * selectedCustomerLotRate);
     }
 
     const meter =
@@ -104,8 +116,16 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     const baseAmount = meter * rate;
     const gstAmount = baseAmount * GST_RATE;
-    return round2((baseAmount + gstAmount) * COMMISSION_RATE);
-  }, [rate, quantity, quantityUnit, lotMetersBasis]);
+    return round2((baseAmount + gstAmount) * (selectedCustomerCommissionPercent / 100));
+  }, [
+    rate,
+    quantity,
+    quantityUnit,
+    lotMetersBasis,
+    selectedCustomerCommissionBase,
+    selectedCustomerCommissionPercent,
+    selectedCustomerLotRate,
+  ]);
 
   useEffect(() => {
     if (quantityUnit === "LOT" || quantityUnit === "TAKKA") {
@@ -126,6 +146,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
     setSelectedCustomerId(customerId);
     clearErrors(["customerName"]);
     setValue("customerName", customer.name, { shouldValidate: true, shouldDirty: true });
+    if (String(customer.commissionBase || "").toUpperCase() === "LOT") {
+      setValue("quantityUnit", "LOT", { shouldValidate: true, shouldDirty: true });
+    }
   }
 
   function setManufacturerById(manufacturerId) {
@@ -456,6 +479,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
             <p className="text-xs muted-text">Commission Amount (Preview)</p>
             <p className="mt-1 text-lg font-semibold">
               Rs. {Number.isFinite(commissionPreview) ? commissionPreview.toFixed(2) : "0.00"}
+            </p>
+            <p className="mt-1 text-xs muted-text">
+              Base:{" "}
+              {selectedCustomerCommissionBase === "LOT"
+                ? `LOT (${selectedCustomerLotRate || 0} x Qty)`
+                : `${selectedCustomerCommissionPercent}% on (Amount + GST)`}
             </p>
             {(quantityUnit === "LOT" || quantityUnit === "TAKKA") && quantity > 0 ? (
               <p className="mt-1 text-xs muted-text">Lot meter basis: {round2(lotMetersBasis).toFixed(2)}</p>
