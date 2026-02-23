@@ -28,6 +28,10 @@ function mapToOptions(list, labelKey) {
   }));
 }
 
+function getPartyDisplayName(party) {
+  return party?.firmName || party?.name || "";
+}
+
 const QUANTITY_UNITS = ["TAKKA", "LOT", "METER"];
 const TAKKA_PER_LOT = 12;
 const LOT_MIN_METERS = 1450;
@@ -145,7 +149,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     setSelectedCustomerId(customerId);
     clearErrors(["customerName"]);
-    setValue("customerName", customer.name, { shouldValidate: true, shouldDirty: true });
+    setValue("customerName", getPartyDisplayName(customer), { shouldValidate: true, shouldDirty: true });
     if (String(customer.commissionBase || "").toUpperCase() === "LOT") {
       setValue("quantityUnit", "LOT", { shouldValidate: true, shouldDirty: true });
     }
@@ -171,7 +175,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
     setCustomersById(Object.fromEntries(customerList.map((item) => [item.id, item])));
     setManufacturersById(Object.fromEntries(manufacturerList.map((item) => [item.id, item])));
 
-    setCustomerNameOptions(mapToOptions(customerList, "name"));
+    setCustomerNameOptions(
+      customerList.map((item) => ({
+        label: getPartyDisplayName(item),
+        value: item.id,
+      }))
+    );
     setManufacturerNameOptions(mapToOptions(manufacturerList, "name"));
   }
 
@@ -200,7 +209,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
         const lastOrder = (orders || [])[0];
         if (lastOrder?.customer) {
           setSelectedCustomerId(lastOrder.customer.id);
-          setValue("customerName", lastOrder.customer.name, { shouldValidate: true });
+          setValue("customerName", getPartyDisplayName(lastOrder.customer), { shouldValidate: true });
         }
         if (lastOrder?.manufacturer) {
           setSelectedManufacturerId(lastOrder.manufacturer.id);
