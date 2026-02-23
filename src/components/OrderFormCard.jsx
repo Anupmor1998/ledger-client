@@ -404,7 +404,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
             onChange={handleCustomerNameInput}
             onSelect={(option) => setCustomerById(option.value)}
             options={customerNameOptions}
-            placeholder="Search customer by name"
+            placeholder="Search customer by firm name"
             error={errors.customerName?.message}
           />
 
