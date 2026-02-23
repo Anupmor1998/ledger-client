@@ -143,6 +143,26 @@ export async function updateMyPreferences(data) {
   return response.data;
 }
 
+export async function getMyWhatsAppGroups() {
+  const response = await axiosClient.get("/users/me/whatsapp-groups");
+  return response.data;
+}
+
+export async function createMyWhatsAppGroup(data) {
+  const response = await axiosClient.post("/users/me/whatsapp-groups", data);
+  return response.data;
+}
+
+export async function updateMyWhatsAppGroup(id, data) {
+  const response = await axiosClient.put(`/users/me/whatsapp-groups/${id}`, data);
+  return response.data;
+}
+
+export async function deleteMyWhatsAppGroup(id) {
+  const response = await axiosClient.delete(`/users/me/whatsapp-groups/${id}`);
+  return response.data;
+}
+
 function resolveFilenameFromDisposition(headerValue, fallbackName) {
   if (!headerValue) {
     return fallbackName;

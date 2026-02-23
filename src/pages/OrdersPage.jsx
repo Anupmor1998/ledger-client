@@ -9,6 +9,7 @@ import useDebounce from "../hooks/useDebounce";
 import {
   deleteOrder,
   getCustomers,
+  getMyWhatsAppGroups,
   getQualities,
   getManufacturers,
   getOrderById,
@@ -77,6 +78,13 @@ function formatPartyDisplay(party) {
   return { primary, secondary };
 }
 
+function extractMessageFromWhatsAppLink(link) {
+  if (!link) return "";
+  const [, query = ""] = String(link).split("?");
+  const params = new URLSearchParams(query);
+  return params.get("text") || "";
+}
+
 function OrdersPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
@@ -119,6 +127,8 @@ function OrdersPage() {
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [whatsappModalData, setWhatsappModalData] = useState(null);
+  const [whatsappGroups, setWhatsappGroups] = useState([]);
+  const [selectedGroupId, setSelectedGroupId] = useState("");
   const [messageLoadingId, setMessageLoadingId] = useState("");
 
   useEffect(() => {
@@ -140,6 +150,18 @@ function OrdersPage() {
     }
 
     loadMasters();
+  }, []);
+
+  useEffect(() => {
+    async function loadGroups() {
+      try {
+        const groups = await getMyWhatsAppGroups();
+        setWhatsappGroups(Array.isArray(groups) ? groups : []);
+      } catch {
+        setWhatsappGroups([]);
+      }
+    }
+    loadGroups();
   }, []);
 
   useEffect(() => {
@@ -284,17 +306,35 @@ function OrdersPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  async function handleSendToGroup() {
+    if (!whatsappModalData?.groupMessage || !selectedGroupId) return;
+    const group = whatsappGroups.find((item) => item.id === selectedGroupId);
+    if (!group?.inviteLink) return;
+
+    try {
+      await navigator.clipboard.writeText(whatsappModalData.groupMessage);
+      toast.success("Message copied. Paste in group and send.");
+    } catch {
+      toast.info("Group opened. Copy message manually and send.");
+    }
+    window.open(group.inviteLink, "_blank", "noopener,noreferrer");
+  }
+
   async function handleMessageClick(order) {
     if (!order?.id) return;
 
     setMessageLoadingId(order.id);
     try {
       const latestOrder = await getOrderById(order.id);
+      const customerLink = latestOrder?.whatsappLinks?.customer || "";
       setWhatsappModalData({
         orderNo: latestOrder?.orderNo || order.orderNo,
-        customerLink: latestOrder?.whatsappLinks?.customer || "",
+        customerLink,
         manufacturerLink: latestOrder?.whatsappLinks?.manufacturer || "",
+        groupMessage:
+          latestOrder?.whatsappMessages?.customer || extractMessageFromWhatsAppLink(customerLink),
       });
+      setSelectedGroupId("");
     } catch (error) {
       const message = error?.response?.data?.message || error?.message || "Unable to load latest order details.";
       toast.error(message);
@@ -845,6 +885,34 @@ function OrdersPage() {
                 Send To Customer
               </button>
             </div>
+
+            {whatsappGroups.length > 0 ? (
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs muted-text">Optional: Send to WhatsApp Group</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    className="form-input"
+                    value={selectedGroupId}
+                    onChange={(event) => setSelectedGroupId(event.target.value)}
+                  >
+                    <option value="">Select group (optional)</option>
+                    {whatsappGroups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="primary-btn w-auto"
+                    onClick={handleSendToGroup}
+                    disabled={!selectedGroupId}
+                  >
+                    Send To Group
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </Modal>
       ) : null}
