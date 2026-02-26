@@ -47,6 +47,22 @@ function formatPartyDisplay(party) {
   return { primary, secondary };
 }
 
+function formatNumber(value) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return "0";
+  return Number.isInteger(num) ? String(num) : num.toFixed(2);
+}
+
+function formatProcessedQuantityDisplay(value, unit) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return "0";
+  const normalizedUnit = String(unit || "").toUpperCase();
+  if (normalizedUnit === "TAKKA" || normalizedUnit === "LOT") {
+    return String(Math.round(num));
+  }
+  return formatNumber(num);
+}
+
 function OrderProgressPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +77,7 @@ function OrderProgressPage() {
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
     processedQuantityToAdd: "",
+    processedQuantityAddUnit: "TAKKA",
     manufacturerFirmName: "",
   });
   const [saving, setSaving] = useState(false);
@@ -106,6 +123,7 @@ function OrderProgressPage() {
     setEditItem(item);
     setForm({
       processedQuantityToAdd: "",
+      processedQuantityAddUnit: item.quantityUnit || "TAKKA",
       manufacturerFirmName: item.manufacturer?.firmName || "",
     });
   }
@@ -113,17 +131,15 @@ function OrderProgressPage() {
   async function saveProgress() {
     if (!editItem) return;
 
-    if (
-      !Number.isInteger(Number(form.processedQuantityToAdd)) ||
-      Number(form.processedQuantityToAdd) < 0
-    ) {
-      toast.error("Add processed quantity must be a whole number and cannot be negative.");
+    if (!Number.isFinite(Number(form.processedQuantityToAdd)) || Number(form.processedQuantityToAdd) < 0) {
+      toast.error("Add processed quantity must be a number and cannot be negative.");
       return;
     }
     setSaving(true);
     try {
       const updatedOrder = await updateOrder(editItem.id, {
         processedQuantityAdd: Number(form.processedQuantityToAdd || 0),
+        processedQuantityAddUnit: String(form.processedQuantityAddUnit || editItem.quantityUnit || "TAKKA"),
         manufacturerFirmName: String(form.manufacturerFirmName || "").trim() || null,
       });
       toast.success("Order progress updated");
@@ -256,10 +272,23 @@ function OrderProgressPage() {
       },
       {
         id: "processedQuantity",
-        header: "Processed Qty",
-        accessorKey: "processedQuantity",
+        header: "Processed Qty / Meter",
+        accessorFn: (row) => Number(row.processedQuantity || 0),
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue() ?? 0} nowrap />,
+        cell: ({ row }) => (
+          <div className="text-left">
+            <CopyableText
+              value={`${formatProcessedQuantityDisplay(
+                row.original.processedQuantity,
+                row.original.quantityUnit
+              )} ${row.original.quantityUnit || ""}`}
+              nowrap
+            />
+            <span className="mt-0.5 block text-xs muted-text">
+              {`${formatNumber(row.original.processedMeter)} METER`}
+            </span>
+          </div>
+        ),
       },
       {
         id: "status",
@@ -383,14 +412,35 @@ function OrderProgressPage() {
                 className="form-input"
                 type="number"
                 min="0"
-                step="1"
+                step="0.01"
                 value={form.processedQuantityToAdd}
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, processedQuantityToAdd: event.target.value }))
                 }
               />
+              <p className="mt-1 text-xs muted-text">Use meter or order unit as needed.</p>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Processed Unit</span>
+              <select
+                className="form-input"
+                value={form.processedQuantityAddUnit}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, processedQuantityAddUnit: event.target.value }))
+                }
+              >
+                <option value={editItem.quantityUnit || "TAKKA"}>{editItem.quantityUnit || "TAKKA"}</option>
+                {(editItem.quantityUnit || "").toUpperCase() !== "METER" ? <option value="METER">METER</option> : null}
+              </select>
               <p className="mt-1 text-xs muted-text">
-                Ordered quantity: {editItem.quantity} | Current processed: {editItem.processedQuantity || 0}
+                Ordered quantity: {formatNumber(editItem.quantity)} {editItem.quantityUnit}
+                {" | "}
+                Current processed:{" "}
+                {formatProcessedQuantityDisplay(editItem.processedQuantity, editItem.quantityUnit)}{" "}
+                {editItem.quantityUnit}
+                {" | "}
+                {formatNumber(editItem.processedMeter)} METER
               </p>
             </label>
 

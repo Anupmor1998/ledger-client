@@ -78,6 +78,22 @@ function formatPartyDisplay(party) {
   return { primary, secondary };
 }
 
+function formatNumber(value) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return "0";
+  return Number.isInteger(num) ? String(num) : num.toFixed(2);
+}
+
+function formatProcessedQuantityDisplay(value, unit) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return "0";
+  const normalizedUnit = String(unit || "").toUpperCase();
+  if (normalizedUnit === "TAKKA" || normalizedUnit === "LOT") {
+    return String(Math.round(num));
+  }
+  return formatNumber(num);
+}
+
 function extractMessageFromWhatsAppLink(link) {
   if (!link) return "";
   const [, query = ""] = String(link).split("?");
@@ -445,10 +461,23 @@ function OrdersPage() {
       },
       {
         id: "processedQuantity",
-        header: "Processed Qty",
-        accessorKey: "processedQuantity",
+        header: "Processed Qty / Meter",
+        accessorFn: (row) => Number(row.processedQuantity || 0),
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue() ?? 0} nowrap />,
+        cell: ({ row }) => (
+          <div className="text-left">
+            <CopyableText
+              value={`${formatProcessedQuantityDisplay(
+                row.original.processedQuantity,
+                row.original.quantityUnit
+              )} ${row.original.quantityUnit || ""}`}
+              nowrap
+            />
+            <span className="mt-0.5 block text-xs muted-text">
+              {`${formatNumber(row.original.processedMeter)} METER`}
+            </span>
+          </div>
+        ),
       },
       {
         id: "status",
