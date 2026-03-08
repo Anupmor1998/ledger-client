@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
+import { format, isValid, parseISO } from "date-fns";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
@@ -33,9 +34,8 @@ function parseListResponse(payload) {
 
 function formatDate(value) {
   if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString();
+  const date = typeof value === "string" ? parseISO(value) : new Date(value);
+  return isValid(date) ? format(date, "dd-MM-yyyy") : "-";
 }
 
 function formatPartyDisplay(party) {
