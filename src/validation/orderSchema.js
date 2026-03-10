@@ -27,6 +27,26 @@ const orderSchema = yup.object({
     .trim()
     .nullable()
     .transform((value) => (value === "" ? null : value)),
+  remark2: yup
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => (value === "" ? null : value)),
+  remark2Target: yup
+    .string()
+    .nullable()
+    .transform((value, originalValue) => {
+      if (originalValue === "" || originalValue === null || originalValue === undefined) {
+        return null;
+      }
+      return value;
+    })
+    .oneOf(["CUSTOMER", "MANUFACTURER", null], "Select a valid remark 2 target")
+    .when("remark2", {
+      is: (value) => Boolean(value && String(value).trim()),
+      then: (schema) => schema.required("Remark 2 target is required when remark 2 is provided"),
+      otherwise: (schema) => schema.notRequired(),
+    }),
   paymentDueOn: yup
     .number()
     .nullable()

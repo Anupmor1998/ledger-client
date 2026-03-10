@@ -135,6 +135,8 @@ function OrdersPage() {
     quantityUnit: "TAKKA",
     paymentDueOn: "",
     remarks: "",
+    remark2: "",
+    remark2Target: "CUSTOMER",
     orderDate: "",
   });
   const [lotMetersBasis, setLotMetersBasis] = useState(randomLotMeters);
@@ -236,6 +238,8 @@ function OrdersPage() {
       quantityUnit: item.quantityUnit || "TAKKA",
       paymentDueOn: item.paymentDueOn ?? "",
       remarks: item.remarks ?? "",
+      remark2: item.remark2 ?? "",
+      remark2Target: item.remark2Target || "CUSTOMER",
       orderDate: toDateInput(item.orderDate),
     });
     if (item.lotMeters) {
@@ -283,6 +287,8 @@ function OrdersPage() {
       paymentDueOn:
         form.paymentDueOn === "" || form.paymentDueOn === null ? null : Number(form.paymentDueOn),
       remarks: form.remarks?.trim() || null,
+      remark2: form.remark2?.trim() || null,
+      remark2Target: form.remark2?.trim() ? form.remark2Target : null,
       orderDate: form.orderDate,
     };
 
@@ -852,6 +858,30 @@ function OrdersPage() {
                 onChange={(event) => setForm((prev) => ({ ...prev, remarks: event.target.value }))}
               />
             </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Remark 2 (Optional)</span>
+                <textarea
+                  className="form-input min-h-24"
+                  value={form.remark2}
+                  onChange={(event) => setForm((prev) => ({ ...prev, remark2: event.target.value }))}
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Remark 2 Target</span>
+                <select
+                  className="form-input"
+                  value={form.remark2Target}
+                  disabled={!String(form.remark2 || "").trim()}
+                  onChange={(event) => setForm((prev) => ({ ...prev, remark2Target: event.target.value }))}
+                >
+                  <option value="CUSTOMER">Customer</option>
+                  <option value="MANUFACTURER">Manufacturer</option>
+                </select>
+              </label>
+            </div>
 
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Order Date</span>
