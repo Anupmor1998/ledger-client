@@ -55,6 +55,18 @@ function formatDate(value) {
   return isValid(date) ? format(date, "dd-MM-yyyy") : "-";
 }
 
+function formatDateRange(from, to) {
+  const hasFrom = Boolean(from);
+  const hasTo = Boolean(to);
+  if (!hasFrom && !hasTo) {
+    return "-";
+  }
+  if (hasFrom && hasTo) {
+    return `${formatDate(from)} to ${formatDate(to)}`;
+  }
+  return hasFrom ? formatDate(from) : formatDate(to);
+}
+
 const TAKKA_PER_LOT = 12;
 const LOT_MIN_METERS = 1450;
 const LOT_MAX_METERS = 1550;
@@ -92,6 +104,21 @@ function formatProcessedQuantityDisplay(value, unit) {
     return String(Math.round(num));
   }
   return formatNumber(num);
+}
+
+function joinRemarkParts(parts) {
+  return parts
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function buildMergedRemark(row, { includeCustomer = true, includeManufacturer = true } = {}) {
+  return joinRemarkParts([
+    String(row?.remarks || "").trim(),
+    includeCustomer ? String(row?.customerRemark || "").trim() : "",
+    includeManufacturer ? String(row?.manufacturerRemark || "").trim() : "",
+  ]);
 }
 
 function extractMessageFromWhatsAppLink(link) {
@@ -134,9 +161,12 @@ function OrdersPage() {
     quantity: "",
     quantityUnit: "TAKKA",
     paymentDueOn: "",
+    deliveryDateFrom: "",
+    deliveryDateTo: "",
+    dyeingGuarantees: false,
     remarks: "",
-    remark2: "",
-    remark2Target: "CUSTOMER",
+    customerRemark: "",
+    manufacturerRemark: "",
     orderDate: "",
   });
   const [lotMetersBasis, setLotMetersBasis] = useState(randomLotMeters);
@@ -237,9 +267,12 @@ function OrdersPage() {
       quantity: item.quantity ?? "",
       quantityUnit: item.quantityUnit || "TAKKA",
       paymentDueOn: item.paymentDueOn ?? "",
+      deliveryDateFrom: toDateInput(item.deliveryDateFrom),
+      deliveryDateTo: toDateInput(item.deliveryDateTo),
+      dyeingGuarantees: Boolean(item.dyeingGuarantees),
       remarks: item.remarks ?? "",
-      remark2: item.remark2 ?? "",
-      remark2Target: item.remark2Target || "CUSTOMER",
+      customerRemark: item.customerRemark ?? "",
+      manufacturerRemark: item.manufacturerRemark ?? "",
       orderDate: toDateInput(item.orderDate),
     });
     if (item.lotMeters) {
@@ -271,6 +304,10 @@ function OrdersPage() {
       toast.error("Payment due days must be a whole number and cannot be negative.");
       return;
     }
+    if (form.deliveryDateFrom && form.deliveryDateTo && form.deliveryDateFrom > form.deliveryDateTo) {
+      toast.error("Delivery from date cannot be after delivery to date.");
+      return;
+    }
 
     if (!["TAKKA", "LOT", "METER"].includes(form.quantityUnit)) {
       toast.error("Please select a valid quantity unit.");
@@ -286,9 +323,12 @@ function OrdersPage() {
       quantityUnit: form.quantityUnit,
       paymentDueOn:
         form.paymentDueOn === "" || form.paymentDueOn === null ? null : Number(form.paymentDueOn),
+      deliveryDateFrom: form.deliveryDateFrom || null,
+      deliveryDateTo: form.deliveryDateTo || null,
+      dyeingGuarantees: Boolean(form.dyeingGuarantees),
       remarks: form.remarks?.trim() || null,
-      remark2: form.remark2?.trim() || null,
-      remark2Target: form.remark2?.trim() ? form.remark2Target : null,
+      customerRemark: form.customerRemark?.trim() || null,
+      manufacturerRemark: form.manufacturerRemark?.trim() || null,
       orderDate: form.orderDate,
     };
 
@@ -445,6 +485,18 @@ function OrdersPage() {
         },
       },
       {
+        id: "deliveryWindow",
+        header: "Delivery",
+        accessorFn: (row) => formatDateRange(row.deliveryDateFrom, row.deliveryDateTo),
+        enableSorting: false,
+        cell: ({ row }) => (
+          <CopyableText
+            value={formatDateRange(row.original.deliveryDateFrom, row.original.deliveryDateTo)}
+            nowrap
+          />
+        ),
+      },
+      {
         id: "qualityName",
         header: "Quality",
         accessorFn: (row) => row.quality?.name || "-",
@@ -509,9 +561,11 @@ function OrdersPage() {
       {
         id: "remarks",
         header: "Remarks",
-        accessorKey: "remarks",
+        accessorFn: (row) => buildMergedRemark(row),
         enableSorting: false,
-        cell: ({ getValue }) => <CopyableText value={getValue() || "-"} className="max-w-[220px]" truncate />,
+        cell: ({ row }) => (
+          <CopyableText value={buildMergedRemark(row.original) || "-"} className="max-w-[260px]" truncate />
+        ),
       },
       {
         id: "actions",
@@ -850,6 +904,44 @@ function OrdersPage() {
               />
             </label>
 
+            <label className="inline-flex w-fit items-center gap-3">
+              <input
+                className="h-4 w-4 rounded border-border"
+                type="checkbox"
+                checked={Boolean(form.dyeingGuarantees)}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, dyeingGuarantees: event.target.checked }))
+                }
+              />
+              <span className="text-sm muted-text">Dyeing guarantees</span>
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Delivery Date From</span>
+                <input
+                  className="form-input"
+                  type="date"
+                  value={form.deliveryDateFrom}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, deliveryDateFrom: event.target.value }))
+                  }
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Delivery Date To</span>
+                <input
+                  className="form-input"
+                  type="date"
+                  value={form.deliveryDateTo}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, deliveryDateTo: event.target.value }))
+                  }
+                />
+              </label>
+            </div>
+
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Remarks (Optional)</span>
               <textarea
@@ -861,25 +953,25 @@ function OrdersPage() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-sm muted-text">Remark 2 (Optional)</span>
+                <span className="mb-1 block text-sm muted-text">Customer Remark (Optional)</span>
                 <textarea
                   className="form-input min-h-24"
-                  value={form.remark2}
-                  onChange={(event) => setForm((prev) => ({ ...prev, remark2: event.target.value }))}
+                  value={form.customerRemark}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, customerRemark: event.target.value }))
+                  }
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1 block text-sm muted-text">Remark 2 Target</span>
-                <select
-                  className="form-input"
-                  value={form.remark2Target}
-                  disabled={!String(form.remark2 || "").trim()}
-                  onChange={(event) => setForm((prev) => ({ ...prev, remark2Target: event.target.value }))}
-                >
-                  <option value="CUSTOMER">Customer</option>
-                  <option value="MANUFACTURER">Manufacturer</option>
-                </select>
+                <span className="mb-1 block text-sm muted-text">Manufacturer Remark (Optional)</span>
+                <textarea
+                  className="form-input min-h-24"
+                  value={form.manufacturerRemark}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, manufacturerRemark: event.target.value }))
+                  }
+                />
               </label>
             </div>
 

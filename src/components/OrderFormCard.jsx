@@ -94,9 +94,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
       rate: "",
       quantity: "",
       paymentDueOn: "",
+      deliveryDateFrom: "",
+      deliveryDateTo: "",
+      dyeingGuarantees: false,
       remarks: "",
-      remark2: "",
-      remark2Target: "CUSTOMER",
+      customerRemark: "",
+      manufacturerRemark: "",
       orderDate: getTodayDate(),
     },
   });
@@ -105,7 +108,6 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const manufacturerName = watch("manufacturerName") || "";
   const quantityUnit = watch("quantityUnit") || "TAKKA";
   const qualityName = watch("qualityName") || "";
-  const remark2 = watch("remark2") || "";
   const rate = Number(watch("rate") || 0);
   const quantity = Number(watch("quantity") || 0);
   const selectedCustomer = selectedCustomerId ? customersById[selectedCustomerId] : null;
@@ -375,9 +377,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
         values.paymentDueOn === "" || values.paymentDueOn === null
           ? null
           : Number(values.paymentDueOn),
+      deliveryDateFrom: values.deliveryDateFrom || null,
+      deliveryDateTo: values.deliveryDateTo || null,
+      dyeingGuarantees: Boolean(values.dyeingGuarantees),
       remarks: values.remarks?.trim() || null,
-      remark2: values.remark2?.trim() || null,
-      remark2Target: values.remark2?.trim() ? values.remark2Target : null,
+      customerRemark: values.customerRemark?.trim() || null,
+      manufacturerRemark: values.manufacturerRemark?.trim() || null,
       orderDate: values.orderDate,
     };
 
@@ -398,9 +403,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
       setValue("quantity", "");
       setValue("quantityUnit", values.quantityUnit);
       setValue("paymentDueOn", "");
+      setValue("deliveryDateFrom", "");
+      setValue("deliveryDateTo", "");
+      setValue("dyeingGuarantees", false);
       setValue("remarks", "");
-      setValue("remark2", "");
-      setValue("remark2Target", "CUSTOMER");
+      setValue("customerRemark", "");
+      setValue("manufacturerRemark", "");
       setValue("orderDate", getTodayDate());
 
       const customerLink = createdOrder?.whatsappLinks?.customer || "";
@@ -518,30 +526,33 @@ function OrderFormCard({ refreshSignal = 0 }) {
           </label>
         </div>
 
-        <label className="block">
-          <span className="mb-1 block text-sm muted-text">Remarks (Optional)</span>
-          <textarea className="form-input min-h-24" {...register("remarks")} />
-          {errors.remarks ? <p className="mt-1 text-sm text-red-500">{errors.remarks.message}</p> : null}
-        </label>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Remark 2 (Optional)</span>
-            <textarea className="form-input min-h-24" {...register("remark2")} />
-            {errors.remark2 ? <p className="mt-1 text-sm text-red-500">{errors.remark2.message}</p> : null}
+        <div className="space-y-3">
+          <label className="inline-flex w-fit items-center gap-3">
+            <input className="h-4 w-4 rounded border-border" type="checkbox" {...register("dyeingGuarantees")} />
+            <span className="text-sm muted-text">Dyeing guarantees</span>
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-sm muted-text">Remark 2 Target</span>
-            <select className="form-input" {...register("remark2Target")} disabled={!remark2.trim()}>
-              <option value="CUSTOMER">Customer</option>
-              <option value="MANUFACTURER">Manufacturer</option>
-            </select>
-            <p className="mt-1 text-xs muted-text">
-              Remark 2 will be sent only to the selected party in WhatsApp message.
-            </p>
-            {errors.remark2Target ? (
-              <p className="mt-1 text-sm text-red-500">{errors.remark2Target.message}</p>
+            <span className="mb-1 block text-sm muted-text">Remarks (Optional)</span>
+            <textarea className="form-input min-h-24" {...register("remarks")} />
+            {errors.remarks ? <p className="mt-1 text-sm text-red-500">{errors.remarks.message}</p> : null}
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Customer Remark (Optional)</span>
+            <textarea className="form-input min-h-24" {...register("customerRemark")} />
+            {errors.customerRemark ? (
+              <p className="mt-1 text-sm text-red-500">{errors.customerRemark.message}</p>
+            ) : null}
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Manufacturer Remark (Optional)</span>
+            <textarea className="form-input min-h-24" {...register("manufacturerRemark")} />
+            {errors.manufacturerRemark ? (
+              <p className="mt-1 text-sm text-red-500">{errors.manufacturerRemark.message}</p>
             ) : null}
           </label>
         </div>
@@ -551,6 +562,24 @@ function OrderFormCard({ refreshSignal = 0 }) {
             <span className="mb-1 block text-sm muted-text">Order Date</span>
             <input className="form-input" type="date" {...register("orderDate")} />
             {errors.orderDate ? <p className="mt-1 text-sm text-red-500">{errors.orderDate.message}</p> : null}
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Delivery Date From</span>
+            <input className="form-input" type="date" {...register("deliveryDateFrom")} />
+            {errors.deliveryDateFrom ? (
+              <p className="mt-1 text-sm text-red-500">{errors.deliveryDateFrom.message}</p>
+            ) : null}
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Delivery Date To</span>
+            <input className="form-input" type="date" {...register("deliveryDateTo")} />
+            {errors.deliveryDateTo ? (
+              <p className="mt-1 text-sm text-red-500">{errors.deliveryDateTo.message}</p>
+            ) : null}
           </label>
 
           <div className="rounded-lg border border-border bg-surface p-3">

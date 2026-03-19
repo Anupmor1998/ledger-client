@@ -22,31 +22,43 @@ const orderSchema = yup.object({
     .string()
     .required("Order date is required")
     .matches(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
+  deliveryDateFrom: yup
+    .string()
+    .nullable()
+    .transform((value) => (value === "" ? null : value))
+    .matches(/^\d{4}-\d{2}-\d{2}$/, { message: "Use YYYY-MM-DD format", excludeEmptyString: true }),
+  deliveryDateTo: yup
+    .string()
+    .nullable()
+    .transform((value) => (value === "" ? null : value))
+    .matches(/^\d{4}-\d{2}-\d{2}$/, { message: "Use YYYY-MM-DD format", excludeEmptyString: true })
+    .test(
+      "delivery-range",
+      "Delivery to date must be on or after delivery from date",
+      function validateDeliveryRange(value) {
+        const from = this.parent.deliveryDateFrom;
+        if (!from || !value) {
+          return true;
+        }
+        return new Date(from) <= new Date(value);
+      }
+    ),
+  dyeingGuarantees: yup.boolean().default(false),
   remarks: yup
     .string()
     .trim()
     .nullable()
     .transform((value) => (value === "" ? null : value)),
-  remark2: yup
+  customerRemark: yup
     .string()
     .trim()
     .nullable()
     .transform((value) => (value === "" ? null : value)),
-  remark2Target: yup
+  manufacturerRemark: yup
     .string()
+    .trim()
     .nullable()
-    .transform((value, originalValue) => {
-      if (originalValue === "" || originalValue === null || originalValue === undefined) {
-        return null;
-      }
-      return value;
-    })
-    .oneOf(["CUSTOMER", "MANUFACTURER", null], "Select a valid remark 2 target")
-    .when("remark2", {
-      is: (value) => Boolean(value && String(value).trim()),
-      then: (schema) => schema.required("Remark 2 target is required when remark 2 is provided"),
-      otherwise: (schema) => schema.notRequired(),
-    }),
+    .transform((value) => (value === "" ? null : value)),
   paymentDueOn: yup
     .number()
     .nullable()

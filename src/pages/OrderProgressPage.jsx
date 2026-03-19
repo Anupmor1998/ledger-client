@@ -38,6 +38,18 @@ function formatDate(value) {
   return isValid(date) ? format(date, "dd-MM-yyyy") : "-";
 }
 
+function formatDateRange(from, to) {
+  const hasFrom = Boolean(from);
+  const hasTo = Boolean(to);
+  if (!hasFrom && !hasTo) {
+    return "-";
+  }
+  if (hasFrom && hasTo) {
+    return `${formatDate(from)} to ${formatDate(to)}`;
+  }
+  return hasFrom ? formatDate(from) : formatDate(to);
+}
+
 function formatPartyDisplay(party) {
   if (!party) {
     return { primary: "-", secondary: "" };
@@ -61,6 +73,21 @@ function formatProcessedQuantityDisplay(value, unit) {
     return String(Math.round(num));
   }
   return formatNumber(num);
+}
+
+function joinRemarkParts(parts) {
+  return parts
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function buildMergedRemark(row) {
+  return joinRemarkParts([
+    String(row?.remarks || "").trim(),
+    String(row?.customerRemark || "").trim(),
+    String(row?.manufacturerRemark || "").trim(),
+  ]);
 }
 
 function OrderProgressPage() {
@@ -250,6 +277,18 @@ function OrderProgressPage() {
         },
       },
       {
+        id: "deliveryWindow",
+        header: "Delivery",
+        accessorFn: (row) => formatDateRange(row.deliveryDateFrom, row.deliveryDateTo),
+        enableSorting: false,
+        cell: ({ row }) => (
+          <CopyableText
+            value={formatDateRange(row.original.deliveryDateFrom, row.original.deliveryDateTo)}
+            nowrap
+          />
+        ),
+      },
+      {
         id: "quality",
         header: "Quality",
         accessorFn: (row) => row.quality?.name || "-",
@@ -314,9 +353,11 @@ function OrderProgressPage() {
       {
         id: "remarks",
         header: "Remarks",
-        accessorKey: "remarks",
+        accessorFn: (row) => buildMergedRemark(row),
         enableSorting: false,
-        cell: ({ getValue }) => <CopyableText value={getValue() || "-"} className="max-w-[220px]" truncate />,
+        cell: ({ row }) => (
+          <CopyableText value={buildMergedRemark(row.original) || "-"} className="max-w-[260px]" truncate />
+        ),
       },
       {
         id: "actions",
