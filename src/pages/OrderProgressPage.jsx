@@ -6,6 +6,8 @@ import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
+import { useAppSelector } from "../store/hooks";
+import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { getOrders, updateOrder } from "../lib/api";
 
 function parseListResponse(payload) {
@@ -91,6 +93,9 @@ function buildMergedRemark(row) {
 }
 
 function OrderProgressPage() {
+  const selectedFinancialYearStart = useAppSelector(
+    (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
+  );
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -409,7 +414,9 @@ function OrderProgressPage() {
   return (
     <section className="auth-card p-4 sm:p-6">
       <h2 className="text-xl font-semibold">Order Progress</h2>
-      <p className="mt-1 text-sm muted-text">Only pending orders are shown here.</p>
+      <p className="mt-1 text-sm muted-text">
+        Only pending orders are shown here for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+      </p>
 
       <DataTable
         columns={columns}

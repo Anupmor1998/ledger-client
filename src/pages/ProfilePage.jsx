@@ -6,10 +6,13 @@ import {
   createMyWhatsAppGroup,
   deleteMyWhatsAppGroup,
   getMyWhatsAppGroups,
+  getMyPreferences,
   updateMyProfile,
+  updateMyPreferences,
 } from "../lib/api";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
+import { buildFinancialYearOptions, getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { profileSchema } from "../validation/authSchemas";
 
 function ProfilePage() {
@@ -22,6 +25,11 @@ function ProfilePage() {
   const [groupForm, setGroupForm] = useState({ name: "", inviteLink: "" });
   const [groupSubmitting, setGroupSubmitting] = useState(false);
   const [groupDeletingId, setGroupDeletingId] = useState("");
+  const [selectedFinancialYearStart, setSelectedFinancialYearStart] = useState(
+    user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
+  );
+  const [financialYearSaving, setFinancialYearSaving] = useState(false);
+  const financialYearOptions = buildFinancialYearOptions(8);
 
   const {
     register,
@@ -50,19 +58,34 @@ function ProfilePage() {
   }, [reset, user]);
 
   useEffect(() => {
-    async function loadGroups() {
+    setSelectedFinancialYearStart(user?.selectedFinancialYearStart || getCurrentFinancialYearStart());
+  }, [user?.selectedFinancialYearStart]);
+
+  useEffect(() => {
+    async function loadProfileExtras() {
       try {
-        const data = await getMyWhatsAppGroups();
-        setGroups(Array.isArray(data) ? data : []);
+        const [groupData, preferenceData] = await Promise.all([
+          getMyWhatsAppGroups(),
+          getMyPreferences(),
+        ]);
+        setGroups(Array.isArray(groupData) ? groupData : []);
+        if (preferenceData?.selectedFinancialYearStart) {
+          setSelectedFinancialYearStart(preferenceData.selectedFinancialYearStart);
+          dispatch(
+            setUserProfile({
+              selectedFinancialYearStart: preferenceData.selectedFinancialYearStart,
+            })
+          );
+        }
       } catch (error) {
         const message =
-          error?.response?.data?.message || error?.message || "Unable to load WhatsApp groups.";
+          error?.response?.data?.message || error?.message || "Unable to load profile settings.";
         toast.error(message);
       }
     }
 
-    loadGroups();
-  }, []);
+    loadProfileExtras();
+  }, [dispatch]);
 
   async function onSubmit(values) {
     try {
@@ -90,6 +113,28 @@ function ProfilePage() {
       const message =
         error?.response?.data?.message || error?.message || "Unable to update profile.";
       toast.error(message);
+    }
+  }
+
+  async function handleSaveFinancialYear(event) {
+    event.preventDefault();
+    setFinancialYearSaving(true);
+    try {
+      const updated = await updateMyPreferences({
+        selectedFinancialYearStart: Number(selectedFinancialYearStart),
+      });
+      dispatch(
+        setUserProfile({
+          selectedFinancialYearStart: updated.selectedFinancialYearStart,
+        })
+      );
+      toast.success(`Financial year changed to ${updated.selectedFinancialYearLabel}.`);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || error?.message || "Unable to update financial year.";
+      toast.error(message);
+    } finally {
+      setFinancialYearSaving(false);
     }
   }
 
@@ -138,6 +183,41 @@ function ProfilePage() {
       <p className="mt-1 text-sm muted-text">
         Update your name, email and password.
       </p>
+
+      <div className="mt-4 rounded-lg border border-border p-3 sm:p-4">
+        <h3 className="text-base font-semibold">Financial Year</h3>
+        <p className="mt-1 text-sm muted-text">
+          Orders and reports will show data for the selected financial year.
+        </p>
+
+        <form
+          onSubmit={handleSaveFinancialYear}
+          className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+        >
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Selected Financial Year</span>
+            <select
+              className="form-input min-w-[220px]"
+              value={selectedFinancialYearStart}
+              onChange={(event) => setSelectedFinancialYearStart(Number(event.target.value))}
+            >
+              {financialYearOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button type="submit" className="primary-btn w-full sm:w-auto sm:min-w-[220px]" disabled={financialYearSaving}>
+            {financialYearSaving ? "Saving..." : "Save Financial Year"}
+          </button>
+        </form>
+
+        <p className="mt-2 text-xs muted-text">
+          Active year: {getFinancialYearLabel(selectedFinancialYearStart)}
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
         <label className="block">

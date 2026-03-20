@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { downloadReportFile, getCustomers, getManufacturers, getQualities } from "../lib/api";
+import { useAppSelector } from "../store/hooks";
+import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 
 const reportConfigs = [
   {
@@ -48,6 +50,9 @@ function toItems(payload) {
 }
 
 function ReportsPage() {
+  const selectedFinancialYearStart = useAppSelector(
+    (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
+  );
   const [loadingFilters, setLoadingFilters] = useState(true);
   const [downloadingKey, setDownloadingKey] = useState("");
 
@@ -122,7 +127,9 @@ function ReportsPage() {
     <section className="space-y-4">
       <div className="auth-card p-4 sm:p-6">
         <h2 className="text-xl font-semibold">Reports</h2>
-        <p className="mt-1 text-sm muted-text">Select filters and export Excel reports.</p>
+        <p className="mt-1 text-sm muted-text">
+          Select filters and export Excel reports for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+        </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="block">

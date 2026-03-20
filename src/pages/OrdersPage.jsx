@@ -7,6 +7,8 @@ import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
+import { useAppSelector } from "../store/hooks";
+import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import {
   deleteOrder,
   getCustomers,
@@ -130,6 +132,9 @@ function extractMessageFromWhatsAppLink(link) {
 
 function OrdersPage() {
   const navigate = useNavigate();
+  const selectedFinancialYearStart = useAppSelector(
+    (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
+  );
   const [rows, setRows] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [manufacturers, setManufacturers] = useState([]);
@@ -621,7 +626,12 @@ function OrdersPage() {
   return (
     <section className="auth-card p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">Orders</h2>
+        <div>
+          <h2 className="text-xl font-semibold">Orders</h2>
+          <p className="mt-1 text-sm muted-text">
+            Showing data for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <button type="button" className="ghost-btn" onClick={() => setMobileFiltersOpen(true)}>
             Filters

@@ -7,7 +7,7 @@ import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { getMyPreferences, updateMyPreferences } from "./lib/api";
 import { setupAxiosInterceptors } from "./lib/axiosClient";
-import { setUserTheme } from "./store/slices/authSlice";
+import { setUserProfile, setUserTheme } from "./store/slices/authSlice";
 import store from "./store";
 import "./index.css";
 import "react-toastify/dist/ReactToastify.css";
@@ -67,7 +67,12 @@ function Root() {
         const theme = preference?.theme === "dark" ? "dark" : "light";
         setDark(theme === "dark");
         localStorage.setItem(THEME_STORAGE_KEY, theme);
-        store.dispatch(setUserTheme(theme));
+        store.dispatch(
+          setUserProfile({
+            theme,
+            selectedFinancialYearStart: preference?.selectedFinancialYearStart,
+          })
+        );
       } catch (_error) {
         // Ignore theme sync failures and keep local fallback.
       }
