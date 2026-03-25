@@ -625,18 +625,22 @@ function OrdersPage() {
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold">Orders</h2>
           <p className="mt-1 text-sm muted-text">
             Showing data for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button type="button" className="ghost-btn" onClick={() => setMobileFiltersOpen(true)}>
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
+          <button type="button" className="ghost-btn flex-1 sm:flex-none" onClick={() => setMobileFiltersOpen(true)}>
             Filters
           </button>
-          <button type="button" className="primary-btn w-auto" onClick={() => navigate("/?focus=order")}>
+          <button
+            type="button"
+            className="primary-btn flex-1 px-4 py-3 text-sm sm:w-auto sm:flex-none sm:px-5 sm:py-2.5"
+            onClick={() => navigate("/?focus=order")}
+          >
             Add New Entry
           </button>
         </div>

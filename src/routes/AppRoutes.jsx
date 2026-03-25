@@ -7,6 +7,7 @@ import LoginPage from "../pages/LoginPage";
 import ManufacturersPage from "../pages/ManufacturersPage";
 import OrdersPage from "../pages/OrdersPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
+import ReceivedPaymentsPage from "../pages/ReceivedPaymentsPage";
 import ProfilePage from "../pages/ProfilePage";
 import QualityPage from "../pages/QualityPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
@@ -37,6 +38,7 @@ function AppRoutes({ dark, onToggleTheme }) {
           <Route path="customers" element={<CustomersPage />} />
           <Route path="manufacturers" element={<ManufacturersPage />} />
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="received-payments" element={<ReceivedPaymentsPage />} />
           <Route path="order-progress" element={<OrderProgressPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="quality" element={<QualityPage />} />

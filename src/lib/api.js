@@ -121,6 +121,28 @@ export async function deleteOrder(id) {
   return response.data;
 }
 
+export async function getPaymentReceipts(params = {}) {
+  const response = await axiosClient.get("/payment-receipts", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
+export async function createPaymentReceipt(data) {
+  const response = await axiosClient.post("/payment-receipts", data);
+  return response.data;
+}
+
+export async function updatePaymentReceipt(id, data) {
+  const response = await axiosClient.put(`/payment-receipts/${id}`, data);
+  return response.data;
+}
+
+export async function deletePaymentReceipt(id) {
+  const response = await axiosClient.delete(`/payment-receipts/${id}`);
+  return response.data;
+}
+
 export async function getUsers(params = {}) {
   const response = await axiosClient.get("/users", {
     params: normalizeListParams(params),
