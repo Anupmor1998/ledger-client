@@ -128,13 +128,15 @@ export async function getPaymentReceipts(params = {}) {
   return response.data;
 }
 
-export async function createPaymentReceipt(data) {
-  const response = await axiosClient.post("/payment-receipts", data);
+export async function getPendingPayments(params = {}) {
+  const response = await axiosClient.get("/pending-payments", {
+    params: normalizeListParams(params),
+  });
   return response.data;
 }
 
-export async function updatePaymentReceipt(id, data) {
-  const response = await axiosClient.put(`/payment-receipts/${id}`, data);
+export async function receivePendingPayment(id, data) {
+  const response = await axiosClient.post(`/pending-payments/${id}/receive`, data);
   return response.data;
 }
 
