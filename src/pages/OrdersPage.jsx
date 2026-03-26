@@ -20,6 +20,15 @@ import {
   updateOrder,
 } from "../lib/api";
 
+const INITIAL_ORDER_FILTERS = {
+  status: "",
+  customerId: "",
+  manufacturerId: "",
+  qualityId: "",
+  from: "",
+  to: "",
+};
+
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -147,14 +156,8 @@ function OrdersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
-  const [filters, setFilters] = useState({
-    status: "",
-    customerId: "",
-    manufacturerId: "",
-    qualityId: "",
-    from: "",
-    to: "",
-  });
+  const [filters, setFilters] = useState(INITIAL_ORDER_FILTERS);
+  const [draftFilters, setDraftFilters] = useState(INITIAL_ORDER_FILTERS);
   const queryKey = JSON.stringify({
     search: debouncedSearch,
     pageSize,
@@ -419,6 +422,26 @@ function OrdersPage() {
     }
   }
 
+  function openFiltersModal() {
+    setDraftFilters(filters);
+    setMobileFiltersOpen(true);
+  }
+
+  function resetAppliedFilters() {
+    setFilters(INITIAL_ORDER_FILTERS);
+    setDraftFilters(INITIAL_ORDER_FILTERS);
+    setMobileFiltersOpen(false);
+  }
+
+  const hasActiveFilters = Boolean(
+    filters.status ||
+      filters.customerId ||
+      filters.manufacturerId ||
+      filters.qualityId ||
+      filters.from ||
+      filters.to
+  );
+
   const editCommissionPreview = useMemo(() => {
     const rate = Number(form.rate || 0);
     const quantity = Number(form.quantity || 0);
@@ -641,13 +664,22 @@ function OrdersPage() {
             Showing data for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
           </p>
         </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
-          <button type="button" className="ghost-btn flex-1 sm:flex-none" onClick={() => setMobileFiltersOpen(true)}>
-            Filters
-          </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <button type="button" className="ghost-btn w-full sm:w-auto" onClick={openFiltersModal}>
+              Filters
+            </button>
+            {hasActiveFilters ? (
+              <button type="button" className="ghost-btn w-full sm:w-auto" onClick={resetAppliedFilters}>
+                Reset Filters
+              </button>
+            ) : (
+              <div className="hidden sm:block" />
+            )}
+          </div>
           <button
             type="button"
-            className="primary-btn flex-1 px-4 py-3 text-sm sm:w-auto sm:flex-none sm:px-5 sm:py-2.5"
+            className="primary-btn w-full px-4 py-3 text-sm sm:w-auto sm:px-5 sm:py-2.5"
             onClick={() => navigate("/?focus=order")}
           >
             Add New Entry
@@ -664,23 +696,17 @@ function OrdersPage() {
               <button
                 type="button"
                 className="ghost-btn"
-                onClick={() => {
-                  setFilters({
-                    status: "",
-                    customerId: "",
-                    manufacturerId: "",
-                    qualityId: "",
-                    from: "",
-                    to: "",
-                  });
-                }}
+                onClick={() => setDraftFilters(INITIAL_ORDER_FILTERS)}
               >
                 Reset
               </button>
               <button
                 type="button"
                 className="primary-btn w-auto"
-                onClick={() => setMobileFiltersOpen(false)}
+                onClick={() => {
+                  setFilters(draftFilters);
+                  setMobileFiltersOpen(false);
+                }}
               >
                 Apply
               </button>
@@ -692,8 +718,10 @@ function OrdersPage() {
               <span className="mb-1 block text-sm muted-text">Status</span>
               <select
                 className="form-input"
-                value={filters.status}
-                onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}
+                value={draftFilters.status}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, status: event.target.value }))
+                }
               >
                 <option value="">All</option>
                 <option value="PENDING">Pending</option>
@@ -706,8 +734,10 @@ function OrdersPage() {
               <span className="mb-1 block text-sm muted-text">Customer</span>
               <select
                 className="form-input"
-                value={filters.customerId}
-                onChange={(event) => setFilters((prev) => ({ ...prev, customerId: event.target.value }))}
+                value={draftFilters.customerId}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, customerId: event.target.value }))
+                }
               >
                 <option value="">All</option>
             {customers.map((customer) => (
@@ -725,9 +755,9 @@ function OrdersPage() {
               <span className="mb-1 block text-sm muted-text">Manufacturer</span>
               <select
                 className="form-input"
-                value={filters.manufacturerId}
+                value={draftFilters.manufacturerId}
                 onChange={(event) =>
-                  setFilters((prev) => ({ ...prev, manufacturerId: event.target.value }))
+                  setDraftFilters((prev) => ({ ...prev, manufacturerId: event.target.value }))
                 }
               >
                 <option value="">All</option>
@@ -746,8 +776,10 @@ function OrdersPage() {
               <span className="mb-1 block text-sm muted-text">Quality</span>
               <select
                 className="form-input"
-                value={filters.qualityId}
-                onChange={(event) => setFilters((prev) => ({ ...prev, qualityId: event.target.value }))}
+                value={draftFilters.qualityId}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, qualityId: event.target.value }))
+                }
               >
                 <option value="">All</option>
                 {qualities.map((quality) => (
@@ -763,8 +795,8 @@ function OrdersPage() {
               <input
                 className="form-input"
                 type="date"
-                value={filters.from}
-                onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))}
+                value={draftFilters.from}
+                onChange={(event) => setDraftFilters((prev) => ({ ...prev, from: event.target.value }))}
               />
             </label>
 
@@ -773,8 +805,8 @@ function OrdersPage() {
               <input
                 className="form-input"
                 type="date"
-                value={filters.to}
-                onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))}
+                value={draftFilters.to}
+                onChange={(event) => setDraftFilters((prev) => ({ ...prev, to: event.target.value }))}
               />
             </label>
           </div>

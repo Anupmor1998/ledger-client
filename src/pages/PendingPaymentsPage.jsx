@@ -10,6 +10,11 @@ import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 
 const PAYMENT_MODE_OPTIONS = ["CASH", "CHEQUE", "ONLINE", "UPI"];
+const INITIAL_PENDING_FILTERS = {
+  status: "",
+  dueFrom: "",
+  dueTo: "",
+};
 
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
@@ -77,10 +82,20 @@ function PendingPaymentsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
+  const [filters, setFilters] = useState(INITIAL_PENDING_FILTERS);
+  const [draftFilters, setDraftFilters] = useState(INITIAL_PENDING_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [receiveItem, setReceiveItem] = useState(null);
   const [receiveForm, setReceiveForm] = useState(getInitialReceiptForm);
   const [receiveLoading, setReceiveLoading] = useState(false);
-  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting });
+  const queryKey = JSON.stringify({
+    search: debouncedSearch,
+    pageSize,
+    sorting,
+    status: filters.status,
+    dueFrom: filters.dueFrom,
+    dueTo: filters.dueTo,
+  });
   const previousQueryKeyRef = useRef(queryKey);
 
   const loadData = useCallback(async () => {
@@ -91,6 +106,9 @@ function PendingPaymentsPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        status: filters.status,
+        dueFrom: filters.dueFrom,
+        dueTo: filters.dueTo,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
       });
@@ -104,7 +122,7 @@ function PendingPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, sorting]);
+  }, [debouncedSearch, filters.dueFrom, filters.dueTo, filters.status, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -128,6 +146,19 @@ function PendingPaymentsPage() {
       paymentReceivedDate: getTodayDate(),
     });
   }
+
+  function openFiltersModal() {
+    setDraftFilters(filters);
+    setFiltersOpen(true);
+  }
+
+  function resetAppliedFilters() {
+    setFilters(INITIAL_PENDING_FILTERS);
+    setDraftFilters(INITIAL_PENDING_FILTERS);
+    setFiltersOpen(false);
+  }
+
+  const hasActiveFilters = Boolean(filters.status || filters.dueFrom || filters.dueTo);
 
   async function handleReceivePayment() {
     if (!receiveItem) return;
@@ -261,12 +292,101 @@ function PendingPaymentsPage() {
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <div>
-        <h2 className="text-xl font-semibold">Pending Payments</h2>
-        <p className="mt-1 text-sm muted-text">
-          Outstanding order settlements for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Pending Payments</h2>
+          <p className="mt-1 text-sm muted-text">
+            Outstanding order settlements for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+          </p>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <button
+            type="button"
+            className="ghost-btn w-full sm:w-auto"
+            onClick={openFiltersModal}
+          >
+            Filters
+          </button>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              className="ghost-btn w-full sm:w-auto"
+              onClick={resetAppliedFilters}
+            >
+              Reset Filters
+            </button>
+          ) : <div className="hidden sm:block" />}
+        </div>
       </div>
+
+      {filtersOpen ? (
+        <Modal
+          title="Pending Payment Filters"
+          onClose={() => setFiltersOpen(false)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => setDraftFilters(INITIAL_PENDING_FILTERS)}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => {
+                  setFilters(draftFilters);
+                  setFiltersOpen(false);
+                }}
+              >
+                Apply
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Status</span>
+              <select
+                className="form-input"
+                value={draftFilters.status}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, status: event.target.value }))
+                }
+              >
+                <option value="">All</option>
+                <option value="PENDING">Pending</option>
+                <option value="PARTIAL">Partial</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Due From</span>
+              <input
+                className="form-input"
+                type="date"
+                value={draftFilters.dueFrom}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, dueFrom: event.target.value }))
+                }
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Due To</span>
+              <input
+                className="form-input"
+                type="date"
+                value={draftFilters.dueTo}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, dueTo: event.target.value }))
+                }
+              />
+            </label>
+          </div>
+        </Modal>
+      ) : null}
 
       <DataTable
         columns={columns}

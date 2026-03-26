@@ -4,10 +4,20 @@ import { format, isValid, parseISO } from "date-fns";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
+import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
 import { deletePaymentReceipt, getPaymentReceipts } from "../lib/api";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
+
+const PAYMENT_MODE_OPTIONS = ["CASH", "CHEQUE", "ONLINE", "UPI"];
+const INITIAL_RECEIVED_FILTERS = {
+  paymentMode: "",
+  dateFrom: "",
+  dateTo: "",
+  receivedFrom: "",
+  receivedTo: "",
+};
 
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
@@ -56,9 +66,21 @@ function ReceivedPaymentsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
+  const [filters, setFilters] = useState(INITIAL_RECEIVED_FILTERS);
+  const [draftFilters, setDraftFilters] = useState(INITIAL_RECEIVED_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting });
+  const queryKey = JSON.stringify({
+    search: debouncedSearch,
+    pageSize,
+    sorting,
+    paymentMode: filters.paymentMode,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    receivedFrom: filters.receivedFrom,
+    receivedTo: filters.receivedTo,
+  });
   const previousQueryKeyRef = useRef(queryKey);
 
   const loadData = useCallback(async () => {
@@ -69,6 +91,11 @@ function ReceivedPaymentsPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        paymentMode: filters.paymentMode,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        receivedFrom: filters.receivedFrom,
+        receivedTo: filters.receivedTo,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
       });
@@ -82,7 +109,17 @@ function ReceivedPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, sorting]);
+  }, [
+    debouncedSearch,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.paymentMode,
+    filters.receivedFrom,
+    filters.receivedTo,
+    pageIndex,
+    pageSize,
+    sorting,
+  ]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -113,6 +150,25 @@ function ReceivedPaymentsPage() {
       setDeleteLoading(false);
     }
   }
+
+  function openFiltersModal() {
+    setDraftFilters(filters);
+    setFiltersOpen(true);
+  }
+
+  function resetAppliedFilters() {
+    setFilters(INITIAL_RECEIVED_FILTERS);
+    setDraftFilters(INITIAL_RECEIVED_FILTERS);
+    setFiltersOpen(false);
+  }
+
+  const hasActiveFilters = Boolean(
+    filters.paymentMode ||
+      filters.dateFrom ||
+      filters.dateTo ||
+      filters.receivedFrom ||
+      filters.receivedTo
+  );
 
   const columns = useMemo(
     () => [
@@ -194,12 +250,128 @@ function ReceivedPaymentsPage() {
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <div>
-        <h2 className="text-xl font-semibold">Received Payments</h2>
-        <p className="mt-1 text-sm muted-text">
-          History of settlements recorded for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Received Payments</h2>
+          <p className="mt-1 text-sm muted-text">
+            History of settlements recorded for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+          </p>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <button
+            type="button"
+            className="ghost-btn w-full sm:w-auto"
+            onClick={openFiltersModal}
+          >
+            Filters
+          </button>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              className="ghost-btn w-full sm:w-auto"
+              onClick={resetAppliedFilters}
+            >
+              Reset Filters
+            </button>
+          ) : <div className="hidden sm:block" />}
+        </div>
       </div>
+
+      {filtersOpen ? (
+        <Modal
+          title="Received Payment Filters"
+          onClose={() => setFiltersOpen(false)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => setDraftFilters(INITIAL_RECEIVED_FILTERS)}
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => {
+                  setFilters(draftFilters);
+                  setFiltersOpen(false);
+                }}
+              >
+                Apply
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Payment Mode</span>
+              <select
+                className="form-input"
+                value={draftFilters.paymentMode}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, paymentMode: event.target.value }))
+                }
+              >
+                <option value="">All</option>
+                {PAYMENT_MODE_OPTIONS.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Entry Date From</span>
+              <input
+                className="form-input"
+                type="date"
+                value={draftFilters.dateFrom}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, dateFrom: event.target.value }))
+                }
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Entry Date To</span>
+              <input
+                className="form-input"
+                type="date"
+                value={draftFilters.dateTo}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, dateTo: event.target.value }))
+                }
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Received Date From</span>
+              <input
+                className="form-input"
+                type="date"
+                value={draftFilters.receivedFrom}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, receivedFrom: event.target.value }))
+                }
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Received Date To</span>
+              <input
+                className="form-input"
+                type="date"
+                value={draftFilters.receivedTo}
+                onChange={(event) =>
+                  setDraftFilters((prev) => ({ ...prev, receivedTo: event.target.value }))
+                }
+              />
+            </label>
+          </div>
+        </Modal>
+      ) : null}
 
       <DataTable
         columns={columns}
