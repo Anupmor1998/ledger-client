@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
 import CopyableText from "../components/CopyableText";
@@ -80,6 +80,8 @@ function PendingPaymentsPage() {
   const [receiveItem, setReceiveItem] = useState(null);
   const [receiveForm, setReceiveForm] = useState(getInitialReceiptForm);
   const [receiveLoading, setReceiveLoading] = useState(false);
+  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting });
+  const previousQueryKeyRef = useRef(queryKey);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -105,12 +107,17 @@ function PendingPaymentsPage() {
   }, [debouncedSearch, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
-    setPageIndex(0);
-  }, [debouncedSearch]);
+    const queryChanged = previousQueryKeyRef.current !== queryKey;
 
-  useEffect(() => {
+    if (queryChanged && pageIndex !== 0) {
+      previousQueryKeyRef.current = queryKey;
+      setPageIndex(0);
+      return;
+    }
+
+    previousQueryKeyRef.current = queryKey;
     loadData();
-  }, [loadData]);
+  }, [loadData, pageIndex, queryKey]);
 
   function openReceiveModal(item) {
     setReceiveItem(item);

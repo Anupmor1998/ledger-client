@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -105,6 +105,8 @@ function OrderProgressPage() {
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
+  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting });
+  const previousQueryKeyRef = useRef(queryKey);
 
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
@@ -119,10 +121,6 @@ function OrderProgressPage() {
   const [completeLoading, setCompleteLoading] = useState(false);
   const [cancelItem, setCancelItem] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
-
-  useEffect(() => {
-    setPageIndex(0);
-  }, [debouncedSearch]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -148,8 +146,17 @@ function OrderProgressPage() {
   }, [debouncedSearch, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
+    const queryChanged = previousQueryKeyRef.current !== queryKey;
+
+    if (queryChanged && pageIndex !== 0) {
+      previousQueryKeyRef.current = queryKey;
+      setPageIndex(0);
+      return;
+    }
+
+    previousQueryKeyRef.current = queryKey;
     loadData();
-  }, [loadData]);
+  }, [loadData, pageIndex, queryKey]);
 
   function openEdit(item) {
     setEditItem(item);

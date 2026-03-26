@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
@@ -155,6 +155,18 @@ function OrdersPage() {
     from: "",
     to: "",
   });
+  const queryKey = JSON.stringify({
+    search: debouncedSearch,
+    pageSize,
+    sorting,
+    status: filters.status,
+    customerId: filters.customerId,
+    manufacturerId: filters.manufacturerId,
+    qualityId: filters.qualityId,
+    from: filters.from,
+    to: filters.to,
+  });
+  const previousQueryKeyRef = useRef(queryKey);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const [editItem, setEditItem] = useState(null);
@@ -217,18 +229,6 @@ function OrdersPage() {
     loadGroups();
   }, []);
 
-  useEffect(() => {
-    setPageIndex(0);
-  }, [
-    debouncedSearch,
-    filters.status,
-    filters.customerId,
-    filters.manufacturerId,
-    filters.qualityId,
-    filters.from,
-    filters.to,
-  ]);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -259,8 +259,17 @@ function OrdersPage() {
   }, [debouncedSearch, filters, pageIndex, pageSize, sorting]);
 
   useEffect(() => {
+    const queryChanged = previousQueryKeyRef.current !== queryKey;
+
+    if (queryChanged && pageIndex !== 0) {
+      previousQueryKeyRef.current = queryKey;
+      setPageIndex(0);
+      return;
+    }
+
+    previousQueryKeyRef.current = queryKey;
     loadData();
-  }, [loadData]);
+  }, [loadData, pageIndex, queryKey]);
 
   function openEdit(item) {
     setEditItem(item);
