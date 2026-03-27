@@ -3,8 +3,9 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import Modal from "../components/Modal";
 import OrderFormCard from "../components/OrderFormCard";
-import { createParty } from "../lib/api";
+import { checkPartyDuplicates, createParty, resolvePartyDuplicates } from "../lib/api";
 import partySchema from "../validation/partySchema";
 
 const SCROLL_TOP_OFFSET = 96;
@@ -18,11 +19,21 @@ function scrollToSection(element) {
   });
 }
 
+function getPartyPrimaryLabel(item) {
+  return item?.firmName || item?.name || "Unnamed record";
+}
+
 function HomePage() {
   const [status, setStatus] = useState({ error: "" });
   const [orderFormRefreshSignal, setOrderFormRefreshSignal] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const [pendingFocus, setPendingFocus] = useState("");
+  const [duplicateDraft, setDuplicateDraft] = useState(null);
+  const [duplicateCandidates, setDuplicateCandidates] = useState([]);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateKeepId, setDuplicateKeepId] = useState("draft");
+  const [duplicateMergeSelection, setDuplicateMergeSelection] = useState({});
+  const [resolvingDuplicates, setResolvingDuplicates] = useState(false);
   const orderFormRef = useRef(null);
   const partyFormRef = useRef(null);
 
@@ -107,28 +118,67 @@ function HomePage() {
     event.target.value = digitsOnly;
   }
 
+  function resetPartyForm(userType) {
+    reset({
+      userType,
+      firmName: "",
+      name: "",
+      gstNo: "",
+      commissionBase: "PERCENT",
+      commissionPercent: 1,
+      commissionLotRate: "",
+      address: "",
+      email: "",
+      phone: "",
+    });
+  }
+
+  function clearDuplicateState() {
+    setDuplicateDraft(null);
+    setDuplicateCandidates([]);
+    setDuplicateModalOpen(false);
+    setDuplicateKeepId("draft");
+    setDuplicateMergeSelection({});
+  }
+
+  async function saveParty(values) {
+    await createParty(values);
+    const successMessage = `${
+      values.userType === "customer" ? "Customer" : "Manufacturer"
+    } created successfully`;
+    toast.success(successMessage);
+    setOrderFormRefreshSignal((prev) => prev + 1);
+    resetPartyForm(values.userType);
+    clearDuplicateState();
+  }
+
+  function openDuplicateFlow(values, candidates) {
+    const nextSelection = candidates.reduce(
+      (acc, item) => ({
+        ...acc,
+        [item.id]: true,
+      }),
+      { draft: false }
+    );
+
+    setDuplicateDraft(values);
+    setDuplicateCandidates(candidates);
+    setDuplicateKeepId("draft");
+    setDuplicateMergeSelection(nextSelection);
+  }
+
   async function handleCreateParty(values) {
     setStatus({ error: "" });
 
     try {
-      await createParty(values);
-      const successMessage = `${
-        values.userType === "customer" ? "Customer" : "Manufacturer"
-      } created successfully`;
-      toast.success(successMessage);
-      setOrderFormRefreshSignal((prev) => prev + 1);
-      reset({
-        userType: values.userType,
-        firmName: "",
-        name: "",
-        gstNo: "",
-        commissionBase: "PERCENT",
-        commissionPercent: 1,
-        commissionLotRate: "",
-        address: "",
-        email: "",
-        phone: "",
-      });
+      const duplicateResult = await checkPartyDuplicates(values);
+      if (duplicateResult?.hasDuplicates) {
+        openDuplicateFlow(values, duplicateResult.candidates || []);
+        toast.warning("Possible duplicate records found. Review before saving.");
+        return;
+      }
+
+      await saveParty(values);
     } catch (error) {
       const message =
         error?.response?.data?.message ||
@@ -138,6 +188,88 @@ function HomePage() {
       setStatus({ error: message });
     }
   }
+
+  function handleDuplicateKeepChange(nextKeepId) {
+    setDuplicateKeepId(nextKeepId);
+    setDuplicateMergeSelection(() =>
+      duplicateCards.reduce((acc, item) => {
+        acc[item.id] = item.id !== nextKeepId;
+        return acc;
+      }, {})
+    );
+  }
+
+  function handleDuplicateMergeToggle(id) {
+    if (id === duplicateKeepId) {
+      return;
+    }
+
+    setDuplicateMergeSelection((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  }
+
+  async function handleSaveDuplicateAnyway() {
+    if (!duplicateDraft) {
+      return;
+    }
+
+    setStatus({ error: "" });
+    try {
+      await saveParty(duplicateDraft);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to create record. Please check your input and try again.";
+      toast.error(message);
+      setStatus({ error: message });
+    }
+  }
+
+  async function handleResolveDuplicates() {
+    if (!duplicateDraft) {
+      return;
+    }
+
+    const mergeIds = Object.entries(duplicateMergeSelection)
+      .filter(([id, selected]) => id !== duplicateKeepId && Boolean(selected))
+      .map(([id]) => id);
+
+    if (mergeIds.length === 0) {
+      toast.error("Select at least one record to merge.");
+      return;
+    }
+
+    setResolvingDuplicates(true);
+    setStatus({ error: "" });
+    try {
+      const result = await resolvePartyDuplicates({
+        userType: duplicateDraft.userType,
+        draft: duplicateDraft,
+        keepId: duplicateKeepId,
+        mergeIds,
+      });
+      toast.success(result?.message || "Duplicate records merged successfully");
+      setOrderFormRefreshSignal((prev) => prev + 1);
+      resetPartyForm(duplicateDraft.userType);
+      clearDuplicateState();
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to merge duplicate records. Please try again.";
+      toast.error(message);
+      setStatus({ error: message });
+    } finally {
+      setResolvingDuplicates(false);
+    }
+  }
+
+  const duplicateCards = duplicateDraft
+    ? [{ id: "draft", isDraft: true, ...duplicateDraft }, ...duplicateCandidates]
+    : [];
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -284,7 +416,121 @@ function HomePage() {
               : `Create ${userType === "customer" ? "Customer" : "Manufacturer"}`}
           </button>
         </form>
+
+        {duplicateDraft ? (
+          <div className="mt-4 rounded-2xl border border-amber-300/50 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-medium">Possible duplicate records found</p>
+            <p className="mt-1">
+              We found {duplicateCandidates.length} existing{" "}
+              {duplicateDraft.userType === "customer" ? "customer" : "manufacturer"} record
+              {duplicateCandidates.length > 1 ? "s" : ""} that look similar to this new entry.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => setDuplicateModalOpen(true)}
+              >
+                Review Duplicates
+              </button>
+              <button type="button" className="ghost-btn" onClick={handleSaveDuplicateAnyway}>
+                Save Anyway
+              </button>
+              <button type="button" className="ghost-btn" onClick={clearDuplicateState}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
+
+      {duplicateModalOpen && duplicateDraft ? (
+        <Modal
+          title={`Review ${duplicateDraft.userType === "customer" ? "Customer" : "Manufacturer"} Duplicates`}
+          onClose={() => setDuplicateModalOpen(false)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button type="button" className="ghost-btn" onClick={() => setDuplicateModalOpen(false)}>
+                Close
+              </button>
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={handleResolveDuplicates}
+                disabled={resolvingDuplicates}
+              >
+                {resolvingDuplicates ? "Merging..." : "Merge Selected"}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-bg p-3 text-sm">
+              <p className="font-medium">How this works</p>
+              <p className="mt-1">
+                Choose one record to keep, then tick the other records you want to merge into it.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {duplicateCards.map((item) => {
+                const isKeep = duplicateKeepId === item.id;
+                const isSelectedToMerge = Boolean(duplicateMergeSelection[item.id]);
+                const primaryLabel = item.isDraft
+                  ? `New Entry: ${getPartyPrimaryLabel(item)}`
+                  : getPartyPrimaryLabel(item);
+
+                return (
+                  <div key={item.id} className="rounded-2xl border border-border bg-surface p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{primaryLabel}</p>
+                          {item.isDraft ? (
+                            <span className="inline-flex rounded-full bg-accent/10 px-2 py-1 text-xs font-medium text-accent">
+                              New
+                            </span>
+                          ) : null}
+                        </div>
+                        {!item.isDraft && item.firmName && item.name && item.firmName !== item.name ? (
+                          <p className="mt-1 text-sm muted-text">{item.name}</p>
+                        ) : null}
+                        <div className="mt-2 grid gap-1 text-sm muted-text">
+                          <p>Phone: {item.phone || "-"}</p>
+                          {"gstNo" in item ? <p>GST: {item.gstNo || "-"}</p> : null}
+                          <p>Email: {item.email || "-"}</p>
+                          <p>Address: {item.address || "-"}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 sm:min-w-[180px]">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name="duplicate-keep"
+                            checked={isKeep}
+                            onChange={() => handleDuplicateKeepChange(item.id)}
+                          />
+                          <span>Keep this record</span>
+                        </label>
+                        <label className={`flex items-center gap-2 text-sm ${isKeep ? "opacity-50" : ""}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelectedToMerge}
+                            disabled={isKeep}
+                            onChange={() => handleDuplicateMergeToggle(item.id)}
+                          />
+                          <span>Merge into kept record</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }

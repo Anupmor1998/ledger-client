@@ -38,10 +38,35 @@ export async function createParty(data) {
   return response.data;
 }
 
+export async function checkPartyDuplicates(data) {
+  const { userType, ...payload } = data;
+  const endpoint =
+    userType === "manufacturer"
+      ? "/manufacturers/check-duplicates"
+      : "/customers/check-duplicates";
+  const response = await axiosClient.post(endpoint, payload);
+  return response.data;
+}
+
+export async function resolvePartyDuplicates(data) {
+  const { userType, ...payload } = data;
+  const endpoint =
+    userType === "manufacturer"
+      ? "/manufacturers/resolve-duplicates"
+      : "/customers/resolve-duplicates";
+  const response = await axiosClient.post(endpoint, payload);
+  return response.data;
+}
+
 export async function getCustomers(params = {}) {
   const response = await axiosClient.get("/customers", {
     params: normalizeListParams(params),
   });
+  return response.data;
+}
+
+export async function getCustomerDuplicateGroups() {
+  const response = await axiosClient.get("/customers/duplicate-groups");
   return response.data;
 }
 
@@ -55,10 +80,27 @@ export async function deleteCustomer(id) {
   return response.data;
 }
 
+export async function mergeCustomer(id, data) {
+  const response = await axiosClient.post(`/customers/${id}/merge`, data);
+  return response.data;
+}
+
+export async function previewMergeCustomer(id, targetId) {
+  const response = await axiosClient.get(`/customers/${id}/merge-preview`, {
+    params: normalizeListParams({ targetId }),
+  });
+  return response.data;
+}
+
 export async function getManufacturers(params = {}) {
   const response = await axiosClient.get("/manufacturers", {
     params: normalizeListParams(params),
   });
+  return response.data;
+}
+
+export async function getManufacturerDuplicateGroups() {
+  const response = await axiosClient.get("/manufacturers/duplicate-groups");
   return response.data;
 }
 
@@ -69,6 +111,18 @@ export async function updateManufacturer(id, data) {
 
 export async function deleteManufacturer(id) {
   const response = await axiosClient.delete(`/manufacturers/${id}`);
+  return response.data;
+}
+
+export async function mergeManufacturer(id, data) {
+  const response = await axiosClient.post(`/manufacturers/${id}/merge`, data);
+  return response.data;
+}
+
+export async function previewMergeManufacturer(id, targetId) {
+  const response = await axiosClient.get(`/manufacturers/${id}/merge-preview`, {
+    params: normalizeListParams({ targetId }),
+  });
   return response.data;
 }
 

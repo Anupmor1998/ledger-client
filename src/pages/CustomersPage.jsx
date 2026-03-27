@@ -1,5 +1,12 @@
 import PartyTableCard from "../components/PartyTableCard";
-import { deleteCustomer, getCustomers, updateCustomer } from "../lib/api";
+import {
+  deleteCustomer,
+  getCustomerDuplicateGroups,
+  getCustomers,
+  mergeCustomer,
+  previewMergeCustomer,
+  updateCustomer,
+} from "../lib/api";
 
 function CustomersPage() {
   return (
@@ -9,6 +16,9 @@ function CustomersPage() {
       fetchFn={getCustomers}
       updateFn={updateCustomer}
       deleteFn={deleteCustomer}
+      mergeFn={mergeCustomer}
+      previewMergeFn={previewMergeCustomer}
+      duplicateGroupsFn={getCustomerDuplicateGroups}
       addEntryPath="/?focus=customer"
     />
   );
