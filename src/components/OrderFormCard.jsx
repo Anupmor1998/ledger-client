@@ -111,6 +111,11 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const rate = Number(watch("rate") || 0);
   const quantity = Number(watch("quantity") || 0);
   const selectedCustomer = selectedCustomerId ? customersById[selectedCustomerId] : null;
+  const selectedManufacturer = selectedManufacturerId
+    ? manufacturersById[selectedManufacturerId]
+    : null;
+  const selectedCustomerAddress = selectedCustomer?.address?.trim() || "";
+  const selectedManufacturerAddress = selectedManufacturer?.address?.trim() || "";
   const selectedCustomerCommissionBase = String(selectedCustomer?.commissionBase || "PERCENT").toUpperCase();
   const selectedCustomerCommissionPercent =
     Number(selectedCustomer?.commissionPercent) > 0
@@ -461,6 +466,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
             options={customerNameOptions}
             placeholder="Search customer by firm name"
             error={errors.customerName?.message}
+            helperText={selectedCustomerAddress ? `Address: ${selectedCustomerAddress}` : ""}
           />
 
           <AutocompleteInput
@@ -471,6 +477,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
             options={manufacturerNameOptions}
             placeholder="Search manufacturer by name"
             error={errors.manufacturerName?.message}
+            helperText={
+              selectedManufacturerAddress ? `Address: ${selectedManufacturerAddress}` : ""
+            }
           />
         </div>
 

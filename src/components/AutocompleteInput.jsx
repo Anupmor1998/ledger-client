@@ -12,6 +12,7 @@ function AutocompleteInput({
   options,
   placeholder,
   error,
+  helperText,
 }) {
   const [open, setOpen] = useState(false);
 
@@ -64,6 +65,7 @@ function AutocompleteInput({
           </div>
         ) : null}
       </div>
+      {!error && helperText ? <p className="mt-1 text-xs muted-text">{helperText}</p> : null}
       {error ? <p className="mt-1 text-sm text-red-500">{error}</p> : null}
     </label>
   );
