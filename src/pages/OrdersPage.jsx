@@ -961,7 +961,7 @@ function OrdersPage() {
 
             <label className="inline-flex w-fit items-center gap-3">
               <input
-                className="h-4 w-4 rounded border-border"
+                className="theme-choice theme-checkbox"
                 type="checkbox"
                 checked={Boolean(form.dyeingGuarantees)}
                 onChange={(event) =>

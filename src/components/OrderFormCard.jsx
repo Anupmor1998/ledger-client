@@ -537,7 +537,11 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
         <div className="space-y-3">
           <label className="inline-flex w-fit items-center gap-3">
-            <input className="h-4 w-4 rounded border-border" type="checkbox" {...register("dyeingGuarantees")} />
+            <input
+              className="theme-choice theme-checkbox"
+              type="checkbox"
+              {...register("dyeingGuarantees")}
+            />
             <span className="text-sm muted-text">Dyeing guarantees</span>
           </label>
 

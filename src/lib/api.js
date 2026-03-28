@@ -189,8 +189,8 @@ export async function getPendingPayments(params = {}) {
   return response.data;
 }
 
-export async function receivePendingPayment(id, data) {
-  const response = await axiosClient.post(`/pending-payments/${id}/receive`, data);
+export async function receivePendingPayments(data) {
+  const response = await axiosClient.post("/pending-payments/receive-bulk", data);
   return response.data;
 }
 

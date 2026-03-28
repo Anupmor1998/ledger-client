@@ -54,6 +54,20 @@ function formatAmount(value) {
   return Number.isFinite(num) ? num.toFixed(2) : "0.00";
 }
 
+function getAllocationSummary(receipt) {
+  const allocations = receipt?.paymentAllocations || [];
+  if (!allocations.length) {
+    return "-";
+  }
+
+  return allocations
+    .map((allocation) => {
+      const orderNo = allocation.pendingPayment?.order?.orderNo || "-";
+      return `Order ${orderNo}: Rs. ${formatAmount(allocation.allocatedAmount)}`;
+    })
+    .join(", ");
+}
+
 function ReceivedPaymentsPage() {
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
@@ -71,6 +85,7 @@ function ReceivedPaymentsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [viewItem, setViewItem] = useState(null);
   const queryKey = JSON.stringify({
     search: debouncedSearch,
     pageSize,
@@ -140,11 +155,12 @@ function ReceivedPaymentsPage() {
     try {
       await deletePaymentReceipt(deleteItem.id);
       await loadData();
-      toast.success("Received payment deleted successfully");
+      toast.success("Payment receipt deleted successfully");
       setDeleteItem(null);
+      setViewItem(null);
     } catch (error) {
       const message =
-        error?.response?.data?.message || error?.message || "Unable to delete received payment.";
+        error?.response?.data?.message || error?.message || "Unable to delete payment receipt.";
       toast.error(message);
     } finally {
       setDeleteLoading(false);
@@ -187,11 +203,24 @@ function ReceivedPaymentsPage() {
         cell: ({ getValue }) => <CopyableText value={getValue()} className="max-w-[220px]" truncate />,
       },
       {
-        id: "orderNo",
-        accessorFn: (row) => row.pendingPayment?.order?.orderNo || "-",
-        header: "Order No",
+        id: "allocationCount",
+        accessorFn: (row) => row.paymentAllocations?.length || 0,
+        header: "Orders Settled",
         enableSorting: false,
-        cell: ({ row }) => <CopyableText value={row.original.pendingPayment?.order?.orderNo || "-"} nowrap />,
+        cell: ({ row }) => <CopyableText value={row.original.paymentAllocations?.length || 0} nowrap />,
+      },
+      {
+        id: "allocationSummary",
+        accessorFn: (row) => getAllocationSummary(row),
+        header: "Applied To",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <CopyableText
+            value={getAllocationSummary(row.original)}
+            className="max-w-[260px]"
+            truncate
+          />
+        ),
       },
       {
         id: "paymentMode",
@@ -203,7 +232,7 @@ function ReceivedPaymentsPage() {
       {
         id: "amount",
         accessorKey: "amount",
-        header: "Amount",
+        header: "Receipt Amount",
         enableSorting: true,
         cell: ({ getValue }) => <CopyableText value={`Rs. ${formatAmount(getValue())}`} nowrap />,
       },
@@ -227,6 +256,18 @@ function ReceivedPaymentsPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-border p-2 hover:bg-bg"
+              onClick={() => setViewItem(row.original)}
+              aria-label="View"
+              title="View"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
             <button
               type="button"
               className="rounded-lg border border-red-400/40 p-2 text-red-500 hover:bg-red-50"
@@ -254,15 +295,12 @@ function ReceivedPaymentsPage() {
         <div>
           <h2 className="text-xl font-semibold">Received Payments</h2>
           <p className="mt-1 text-sm muted-text">
-            History of settlements recorded for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+            Receipt history for FY {getFinancialYearLabel(selectedFinancialYearStart)} with
+            multi-order allocations.
           </p>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-          <button
-            type="button"
-            className="ghost-btn w-full sm:w-auto"
-            onClick={openFiltersModal}
-          >
+          <button type="button" className="ghost-btn w-full sm:w-auto" onClick={openFiltersModal}>
             Filters
           </button>
           {hasActiveFilters ? (
@@ -273,7 +311,9 @@ function ReceivedPaymentsPage() {
             >
               Reset Filters
             </button>
-          ) : <div className="hidden sm:block" />}
+          ) : (
+            <div className="hidden sm:block" />
+          )}
         </div>
       </div>
 
@@ -377,7 +417,7 @@ function ReceivedPaymentsPage() {
         columns={columns}
         data={rows}
         loading={loading}
-        tableMinWidthClass="min-w-[1100px]"
+        tableMinWidthClass="min-w-[1240px]"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
         sorting={sorting}
@@ -393,10 +433,61 @@ function ReceivedPaymentsPage() {
         }}
       />
 
+      {viewItem ? (
+        <Modal
+          title={`Receipt ${viewItem.serialNo}`}
+          onClose={() => setViewItem(null)}
+          footer={
+            <div className="flex justify-end">
+              <button type="button" className="ghost-btn" onClick={() => setViewItem(null)}>
+                Close
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border bg-bg p-3 text-sm">
+              <p className="font-medium">{viewItem.accountName}</p>
+              <p className="mt-1 muted-text">Receipt amount: Rs. {formatAmount(viewItem.amount)}</p>
+              <p className="mt-1 muted-text">Mode: {viewItem.paymentMode}</p>
+              <p className="mt-1 muted-text">Entry date: {formatDate(viewItem.date)}</p>
+              <p className="mt-1 muted-text">
+                Payment received date: {formatDate(viewItem.paymentReceivedDate)}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {(viewItem.paymentAllocations || []).map((allocation) => {
+                const pending = allocation.pendingPayment;
+                return (
+                  <div key={allocation.id} className="rounded-xl border border-border bg-surface p-3">
+                    <p className="font-medium">
+                      Order {pending?.order?.orderNo || "-"} | Pending {pending?.serialNo || "-"}
+                    </p>
+                    <div className="mt-2 space-y-1 text-sm muted-text">
+                      <p>Applied amount: Rs. {formatAmount(allocation.allocatedAmount)}</p>
+                      <p>Original due: Rs. {formatAmount(pending?.amountDue)}</p>
+                      <p>Received so far: Rs. {formatAmount(pending?.amountReceived)}</p>
+                      <p>Discount: Rs. {formatAmount(pending?.discountAmount)}</p>
+                      <p>Discount %: {formatAmount(pending?.discountPercent)}</p>
+                      <p>Balance: Rs. {formatAmount(pending?.balanceAmount)}</p>
+                      <p>Status: {pending?.status || "-"}</p>
+                      {allocation.isFinalSettlement ? (
+                        <p className="text-violet-600">Final settlement applied on this order</p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
       {deleteItem ? (
         <ConfirmDialog
-          title="Delete Received Payment"
-          description={`Delete receipt ${deleteItem.serialNo}? This will reopen the related pending payment balance.`}
+          title="Delete Payment Receipt"
+          description={`Delete receipt ${deleteItem.serialNo}? This will reopen balances on every linked pending payment.`}
           onCancel={() => setDeleteItem(null)}
           onConfirm={handleDelete}
           loading={deleteLoading}
