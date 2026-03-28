@@ -589,15 +589,19 @@ function PartyTableCard({
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold">{title}</h2>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
           {duplicateGroups.length > 0 ? (
-            <button type="button" className="ghost-btn" onClick={openDuplicateGroupsModal}>
+            <button type="button" className="ghost-btn w-full sm:w-auto" onClick={openDuplicateGroupsModal}>
               Review Duplicates ({duplicateGroups.length})
             </button>
           ) : null}
-          <button type="button" className="primary-btn w-auto" onClick={() => navigate(addEntryPath)}>
+          <button
+            type="button"
+            className="primary-btn w-full sm:w-auto"
+            onClick={() => navigate(addEntryPath)}
+          >
             Add New Entry
           </button>
         </div>
@@ -918,6 +922,7 @@ function PartyTableCard({
                             <input
                               type="radio"
                               name={`keep-${group.id}`}
+                              className="theme-choice theme-radio"
                               checked={isKeep}
                               onChange={() => handleGroupKeepChange(group.id, record.id)}
                             />
@@ -926,6 +931,7 @@ function PartyTableCard({
                           <label className={`flex items-center gap-2 text-sm ${isKeep ? "opacity-50" : ""}`}>
                             <input
                               type="checkbox"
+                              className="theme-choice theme-checkbox"
                               checked={isMerged}
                               disabled={isKeep}
                               onChange={() => handleGroupMergeToggle(group.id, record.id)}

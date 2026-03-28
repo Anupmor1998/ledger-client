@@ -508,6 +508,7 @@ function HomePage() {
                           <input
                             type="radio"
                             name="duplicate-keep"
+                            className="theme-choice theme-radio"
                             checked={isKeep}
                             onChange={() => handleDuplicateKeepChange(item.id)}
                           />
@@ -516,6 +517,7 @@ function HomePage() {
                         <label className={`flex items-center gap-2 text-sm ${isKeep ? "opacity-50" : ""}`}>
                           <input
                             type="checkbox"
+                            className="theme-choice theme-checkbox"
                             checked={isSelectedToMerge}
                             disabled={isKeep}
                             onChange={() => handleDuplicateMergeToggle(item.id)}
