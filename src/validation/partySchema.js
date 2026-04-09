@@ -80,6 +80,11 @@ const partySchema = yup.object({
       then: (schema) => schema.required("Address is required"),
       otherwise: (schema) => schema.nullable().transform((value) => (value === "" ? null : value)),
     }),
+  remark: yup
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => (value === "" ? null : value)),
   phone: yup
     .string()
     .trim()

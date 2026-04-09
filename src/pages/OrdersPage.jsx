@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
+import AutocompleteInput from "../components/AutocompleteInput";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
@@ -137,6 +138,24 @@ function extractMessageFromWhatsAppLink(link) {
   const [, query = ""] = String(link).split("?");
   const params = new URLSearchParams(query);
   return params.get("text") || "";
+}
+
+function collectRemarkOptions(customers, manufacturers) {
+  const deduped = new Map();
+
+  [...(customers || []), ...(manufacturers || [])].forEach((party) => {
+    const remark = String(party?.remark || "").trim();
+    if (!remark) return;
+
+    const key = remark.toLowerCase();
+    if (!deduped.has(key)) {
+      deduped.set(key, remark);
+    }
+  });
+
+  return Array.from(deduped.values())
+    .sort((left, right) => left.localeCompare(right))
+    .map((remark) => ({ label: remark, value: remark }));
 }
 
 function OrdersPage() {
@@ -440,6 +459,11 @@ function OrdersPage() {
       filters.qualityId ||
       filters.from ||
       filters.to
+  );
+
+  const remarkOptions = useMemo(
+    () => collectRemarkOptions(customers, manufacturers),
+    [customers, manufacturers]
   );
 
   const editCommissionPreview = useMemo(() => {
@@ -997,37 +1021,39 @@ function OrdersPage() {
               </label>
             </div>
 
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Remarks (Optional)</span>
-              <textarea
-                className="form-input min-h-24"
+            <div className="grid gap-4 md:grid-cols-3">
+              <AutocompleteInput
+                label="Remarks (Optional)"
                 value={form.remarks}
-                onChange={(event) => setForm((prev) => ({ ...prev, remarks: event.target.value }))}
+                onChange={(value) => setForm((prev) => ({ ...prev, remarks: value }))}
+                onSelect={(option) => setForm((prev) => ({ ...prev, remarks: option.value }))}
+                options={remarkOptions}
+                placeholder="Type or pick a saved remark"
               />
-            </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-sm muted-text">Customer Remark (Optional)</span>
-                <textarea
-                  className="form-input min-h-24"
-                  value={form.customerRemark}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, customerRemark: event.target.value }))
-                  }
-                />
-              </label>
+              <AutocompleteInput
+                label="Customer Remark (Optional)"
+                value={form.customerRemark}
+                onChange={(value) => setForm((prev) => ({ ...prev, customerRemark: value }))}
+                onSelect={(option) =>
+                  setForm((prev) => ({ ...prev, customerRemark: option.value }))
+                }
+                options={remarkOptions}
+                placeholder="Type or pick a saved remark"
+              />
 
-              <label className="block">
-                <span className="mb-1 block text-sm muted-text">Manufacturer Remark (Optional)</span>
-                <textarea
-                  className="form-input min-h-24"
-                  value={form.manufacturerRemark}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, manufacturerRemark: event.target.value }))
-                  }
-                />
-              </label>
+              <AutocompleteInput
+                label="Manufacturer Remark (Optional)"
+                value={form.manufacturerRemark}
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, manufacturerRemark: value }))
+                }
+                onSelect={(option) =>
+                  setForm((prev) => ({ ...prev, manufacturerRemark: option.value }))
+                }
+                options={remarkOptions}
+                placeholder="Type or pick a saved remark"
+              />
             </div>
 
             <label className="block">

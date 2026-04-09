@@ -15,6 +15,7 @@ const emptyForm = {
   commissionPercent: "1",
   commissionLotRate: "",
   address: "",
+  remark: "",
   email: "",
   phone: "",
 };
@@ -261,6 +262,7 @@ function PartyTableCard({
           ? ""
           : String(item.commissionLotRate),
       address: item.address || "",
+      remark: item.remark || "",
       email: item.email || "",
       phone: item.phone || "",
     });
@@ -301,6 +303,7 @@ function PartyTableCard({
         firmName: form.firmName.trim() || null,
         name: form.name.trim(),
         address: form.address.trim() || null,
+        remark: form.remark.trim() || null,
         email: form.email.trim() || null,
         phone: form.phone.trim(),
         ...(hasGstField ? { gstNo: form.gstNo.trim() || null } : {}),
@@ -720,6 +723,14 @@ function PartyTableCard({
                 Address {isCustomer ? "" : "(Optional)"}
               </span>
               <textarea className="form-input min-h-24" value={form.address} onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Remark (Optional)</span>
+              <textarea
+                className="form-input min-h-20"
+                value={form.remark}
+                onChange={(event) => setForm((prev) => ({ ...prev, remark: event.target.value }))}
+              />
             </label>
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Phone</span>

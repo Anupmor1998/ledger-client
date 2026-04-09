@@ -56,6 +56,24 @@ function extractMessageFromWhatsAppLink(link) {
   return params.get("text") || "";
 }
 
+function collectRemarkOptions(customersById, manufacturersById) {
+  const deduped = new Map();
+
+  [...Object.values(customersById || {}), ...Object.values(manufacturersById || {})].forEach((party) => {
+    const remark = String(party?.remark || "").trim();
+    if (!remark) return;
+
+    const key = remark.toLowerCase();
+    if (!deduped.has(key)) {
+      deduped.set(key, remark);
+    }
+  });
+
+  return Array.from(deduped.values())
+    .sort((left, right) => left.localeCompare(right))
+    .map((remark) => ({ label: remark, value: remark }));
+}
+
 function OrderFormCard({ refreshSignal = 0 }) {
   const initializedRef = useRef(false);
   const [status, setStatus] = useState({ error: "" });
@@ -75,6 +93,11 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const [whatsappGroups, setWhatsappGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [lotMetersBasis, setLotMetersBasis] = useState(randomLotMeters);
+
+  const remarkOptions = useMemo(
+    () => collectRemarkOptions(customersById, manufacturersById),
+    [customersById, manufacturersById]
+  );
 
   const {
     register,
@@ -108,6 +131,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const manufacturerName = watch("manufacturerName") || "";
   const quantityUnit = watch("quantityUnit") || "TAKKA";
   const qualityName = watch("qualityName") || "";
+  const remarksValue = watch("remarks") || "";
+  const customerRemarkValue = watch("customerRemark") || "";
+  const manufacturerRemarkValue = watch("manufacturerRemark") || "";
   const rate = Number(watch("rate") || 0);
   const quantity = Number(watch("quantity") || 0);
   const selectedCustomer = selectedCustomerId ? customersById[selectedCustomerId] : null;
@@ -544,30 +570,48 @@ function OrderFormCard({ refreshSignal = 0 }) {
             />
             <span className="text-sm muted-text">Dyeing guarantees</span>
           </label>
-
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Remarks (Optional)</span>
-            <textarea className="form-input min-h-24" {...register("remarks")} />
-            {errors.remarks ? <p className="mt-1 text-sm text-red-500">{errors.remarks.message}</p> : null}
-          </label>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Customer Remark (Optional)</span>
-            <textarea className="form-input min-h-24" {...register("customerRemark")} />
-            {errors.customerRemark ? (
-              <p className="mt-1 text-sm text-red-500">{errors.customerRemark.message}</p>
-            ) : null}
-          </label>
+        <div className="grid gap-4 md:grid-cols-3">
+          <AutocompleteInput
+            label="Remarks (Optional)"
+            value={remarksValue}
+            onChange={(value) => setValue("remarks", value, { shouldValidate: true, shouldDirty: true })}
+            onSelect={(option) =>
+              setValue("remarks", option.value, { shouldValidate: true, shouldDirty: true })
+            }
+            options={remarkOptions}
+            placeholder="Type or pick a saved remark"
+            error={errors.remarks?.message}
+          />
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Manufacturer Remark (Optional)</span>
-            <textarea className="form-input min-h-24" {...register("manufacturerRemark")} />
-            {errors.manufacturerRemark ? (
-              <p className="mt-1 text-sm text-red-500">{errors.manufacturerRemark.message}</p>
-            ) : null}
-          </label>
+          <AutocompleteInput
+            label="Customer Remark (Optional)"
+            value={customerRemarkValue}
+            onChange={(value) =>
+              setValue("customerRemark", value, { shouldValidate: true, shouldDirty: true })
+            }
+            onSelect={(option) =>
+              setValue("customerRemark", option.value, { shouldValidate: true, shouldDirty: true })
+            }
+            options={remarkOptions}
+            placeholder="Type or pick a saved remark"
+            error={errors.customerRemark?.message}
+          />
+
+          <AutocompleteInput
+            label="Manufacturer Remark (Optional)"
+            value={manufacturerRemarkValue}
+            onChange={(value) =>
+              setValue("manufacturerRemark", value, { shouldValidate: true, shouldDirty: true })
+            }
+            onSelect={(option) =>
+              setValue("manufacturerRemark", option.value, { shouldValidate: true, shouldDirty: true })
+            }
+            options={remarkOptions}
+            placeholder="Type or pick a saved remark"
+            error={errors.manufacturerRemark?.message}
+          />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
