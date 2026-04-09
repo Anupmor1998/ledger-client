@@ -30,5 +30,8 @@
     "react-router-dom": "^7.13.0",
     "react-toastify": "^11.0.5",
     "yup": "^1.7.1"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
   }
 }
