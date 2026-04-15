@@ -4,8 +4,11 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import {
   createMyWhatsAppGroup,
+  createMyRemarkTemplate,
+  deleteMyRemarkTemplate,
   deleteMyWhatsAppGroup,
   getMyWhatsAppGroups,
+  getMyRemarkTemplates,
   getMyPreferences,
   updateMyProfile,
   updateMyPreferences,
@@ -25,6 +28,10 @@ function ProfilePage() {
   const [groupForm, setGroupForm] = useState({ name: "", inviteLink: "" });
   const [groupSubmitting, setGroupSubmitting] = useState(false);
   const [groupDeletingId, setGroupDeletingId] = useState("");
+  const [remarkTemplates, setRemarkTemplates] = useState([]);
+  const [remarkForm, setRemarkForm] = useState("");
+  const [remarkSubmitting, setRemarkSubmitting] = useState(false);
+  const [remarkDeletingId, setRemarkDeletingId] = useState("");
   const [selectedFinancialYearStart, setSelectedFinancialYearStart] = useState(
     user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
@@ -64,11 +71,13 @@ function ProfilePage() {
   useEffect(() => {
     async function loadProfileExtras() {
       try {
-        const [groupData, preferenceData] = await Promise.all([
+        const [groupData, preferenceData, remarkTemplateData] = await Promise.all([
           getMyWhatsAppGroups(),
           getMyPreferences(),
+          getMyRemarkTemplates(),
         ]);
         setGroups(Array.isArray(groupData) ? groupData : []);
+        setRemarkTemplates(Array.isArray(remarkTemplateData) ? remarkTemplateData : []);
         if (preferenceData?.selectedFinancialYearStart) {
           setSelectedFinancialYearStart(preferenceData.selectedFinancialYearStart);
           dispatch(
@@ -135,6 +144,43 @@ function ProfilePage() {
       toast.error(message);
     } finally {
       setFinancialYearSaving(false);
+    }
+  }
+
+  async function handleAddRemarkTemplate(event) {
+    event.preventDefault();
+    const text = remarkForm.trim();
+    if (!text) {
+      toast.error("Remark text is required.");
+      return;
+    }
+    setRemarkSubmitting(true);
+    try {
+      const created = await createMyRemarkTemplate({ text });
+      setRemarkTemplates((prev) => [...prev, created]);
+      setRemarkForm("");
+      toast.success("Remark added.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || error?.message || "Unable to add saved remark.";
+      toast.error(message);
+    } finally {
+      setRemarkSubmitting(false);
+    }
+  }
+
+  async function handleDeleteRemarkTemplate(id) {
+    setRemarkDeletingId(id);
+    try {
+      await deleteMyRemarkTemplate(id);
+      setRemarkTemplates((prev) => prev.filter((template) => template.id !== id));
+      toast.success("Remark removed.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || error?.message || "Unable to remove saved remark.";
+      toast.error(message);
+    } finally {
+      setRemarkDeletingId("");
     }
   }
 
@@ -217,6 +263,63 @@ function ProfilePage() {
         <p className="mt-2 text-xs muted-text">
           Active year: {getFinancialYearLabel(selectedFinancialYearStart)}
         </p>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-border p-3 sm:p-4">
+        <h3 className="text-base font-semibold">Saved Remarks</h3>
+        <p className="mt-1 text-sm muted-text">
+          Add reusable remarks here. They will appear in all order remark autocomplete fields, and
+          you can still type a custom remark anytime.
+        </p>
+
+        <form onSubmit={handleAddRemarkTemplate} className="mt-3 space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Add Remark</span>
+            <textarea
+              className="form-input min-h-24"
+              value={remarkForm}
+              onChange={(event) => setRemarkForm(event.target.value)}
+            />
+          </label>
+
+          <button type="submit" className="primary-btn sm:w-auto" disabled={remarkSubmitting}>
+            {remarkSubmitting ? "Adding..." : "Add Remark"}
+          </button>
+        </form>
+
+        <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1 sm:max-h-72">
+          {remarkTemplates.length === 0 ? (
+            <p className="text-sm muted-text">No saved remarks yet.</p>
+          ) : (
+            remarkTemplates.map((template) => (
+              <div
+                key={template.id}
+                className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-border p-2"
+              >
+                <p className="min-w-0 text-sm whitespace-pre-wrap">{template.text}</p>
+                <button
+                  type="button"
+                  className="rounded-lg border border-red-400/40 p-2 text-red-500 hover:bg-red-50"
+                  onClick={() => handleDeleteRemarkTemplate(template.id)}
+                  disabled={remarkDeletingId === template.id}
+                  aria-label="Delete remark"
+                  title="Delete remark"
+                >
+                  {remarkDeletingId === template.id ? (
+                    <span className="text-xs">...</span>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                      <path d="M4 7h16" />
+                      <path d="M9 7V5h6v2" />
+                      <path d="M7 7l1 12h8l1-12" />
+                      <path d="M10 11v6M14 11v6" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
@@ -375,7 +478,7 @@ function ProfilePage() {
           </div>
         </form>
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1 sm:max-h-72">
           {groups.length === 0 ? (
             <p className="text-sm muted-text">No groups added yet.</p>
           ) : (

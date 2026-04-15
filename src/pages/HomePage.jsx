@@ -55,7 +55,6 @@ function HomePage() {
       commissionPercent: 1,
       commissionLotRate: "",
       address: "",
-      remark: "",
       email: "",
       phone: "",
     },
@@ -129,7 +128,6 @@ function HomePage() {
       commissionPercent: 1,
       commissionLotRate: "",
       address: "",
-      remark: "",
       email: "",
       phone: "",
     });
@@ -388,16 +386,6 @@ function HomePage() {
             </span>
             <textarea className="form-input min-h-24" {...register("address")} />
             {errors.address ? <p className="mt-1 text-sm text-red-500">{errors.address.message}</p> : null}
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Remark (Optional)</span>
-            <textarea
-              className="form-input min-h-20"
-              placeholder="Common remark you want to reuse in orders"
-              {...register("remark")}
-            />
-            {errors.remark ? <p className="mt-1 text-sm text-red-500">{errors.remark.message}</p> : null}
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">

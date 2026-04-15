@@ -3,6 +3,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import {
+  getMyRemarkTemplates,
   createOrder,
   getCustomers,
   getManufacturers,
@@ -56,24 +57,6 @@ function extractMessageFromWhatsAppLink(link) {
   return params.get("text") || "";
 }
 
-function collectRemarkOptions(customersById, manufacturersById) {
-  const deduped = new Map();
-
-  [...Object.values(customersById || {}), ...Object.values(manufacturersById || {})].forEach((party) => {
-    const remark = String(party?.remark || "").trim();
-    if (!remark) return;
-
-    const key = remark.toLowerCase();
-    if (!deduped.has(key)) {
-      deduped.set(key, remark);
-    }
-  });
-
-  return Array.from(deduped.values())
-    .sort((left, right) => left.localeCompare(right))
-    .map((remark) => ({ label: remark, value: remark }));
-}
-
 function OrderFormCard({ refreshSignal = 0 }) {
   const initializedRef = useRef(false);
   const [status, setStatus] = useState({ error: "" });
@@ -91,13 +74,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const [selectedQualityId, setSelectedQualityId] = useState("");
   const [whatsappModalData, setWhatsappModalData] = useState(null);
   const [whatsappGroups, setWhatsappGroups] = useState([]);
+  const [remarkOptions, setRemarkOptions] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [lotMetersBasis, setLotMetersBasis] = useState(randomLotMeters);
-
-  const remarkOptions = useMemo(
-    () => collectRemarkOptions(customersById, manufacturersById),
-    [customersById, manufacturersById]
-  );
 
   const {
     register,
@@ -321,6 +300,22 @@ function OrderFormCard({ refreshSignal = 0 }) {
     loadGroups();
   }, []);
 
+  useEffect(() => {
+    async function loadRemarkTemplates() {
+      try {
+        const templates = await getMyRemarkTemplates();
+        const options = (Array.isArray(templates) ? templates : []).map((template) => ({
+          label: template.text,
+          value: template.text,
+        }));
+        setRemarkOptions(options);
+      } catch {
+        setRemarkOptions([]);
+      }
+    }
+    loadRemarkTemplates();
+  }, [refreshSignal]);
+
   function handleCustomerNameInput(value) {
     setValue("customerName", value, { shouldValidate: true, shouldDirty: true });
     const match = findOptionByLabel(customerNameOptions, value);
@@ -509,8 +504,8 @@ function OrderFormCard({ refreshSignal = 0 }) {
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-5">
-          <div className="md:col-span-1">
+        <div className="grid gap-4 md:grid-cols-12">
+          <div className="md:col-span-5">
             <AutocompleteInput
               label="Quality"
               value={qualityName}
@@ -522,13 +517,13 @@ function OrderFormCard({ refreshSignal = 0 }) {
             />
           </div>
 
-          <label className="block">
+          <label className="block md:col-span-2">
             <span className="mb-1 block text-sm muted-text">Rate</span>
             <input className="form-input" type="number" step="0.01" min="0" {...register("rate")} />
             {errors.rate ? <p className="mt-1 text-sm text-red-500">{errors.rate.message}</p> : null}
           </label>
 
-          <label className="block">
+          <label className="block md:col-span-2">
             <span className="mb-1 block text-sm muted-text">Quantity</span>
             <input
               className="form-input"
@@ -540,7 +535,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
             {errors.quantity ? <p className="mt-1 text-sm text-red-500">{errors.quantity.message}</p> : null}
           </label>
 
-          <label className="block">
+          <label className="block md:col-span-1">
             <span className="mb-1 block text-sm muted-text">Unit</span>
             <select className="form-input" {...register("quantityUnit")}>
               <option value="TAKKA">Takka</option>
@@ -552,7 +547,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
             ) : null}
           </label>
 
-          <label className="block">
+          <label className="block md:col-span-2">
             <span className="mb-1 block text-sm muted-text">Payment Dhara (Days)</span>
             <input className="form-input" type="number" min="0" step="1" {...register("paymentDueOn")} />
             {errors.paymentDueOn ? (
@@ -581,8 +576,10 @@ function OrderFormCard({ refreshSignal = 0 }) {
               setValue("remarks", option.value, { shouldValidate: true, shouldDirty: true })
             }
             options={remarkOptions}
-            placeholder="Type or pick a saved remark"
+            placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom remark"}
             error={errors.remarks?.message}
+            multiline
+            inputClassName="min-h-24"
           />
 
           <AutocompleteInput
@@ -595,8 +592,10 @@ function OrderFormCard({ refreshSignal = 0 }) {
               setValue("customerRemark", option.value, { shouldValidate: true, shouldDirty: true })
             }
             options={remarkOptions}
-            placeholder="Type or pick a saved remark"
+            placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom customer remark"}
             error={errors.customerRemark?.message}
+            multiline
+            inputClassName="min-h-24"
           />
 
           <AutocompleteInput
@@ -609,8 +608,10 @@ function OrderFormCard({ refreshSignal = 0 }) {
               setValue("manufacturerRemark", option.value, { shouldValidate: true, shouldDirty: true })
             }
             options={remarkOptions}
-            placeholder="Type or pick a saved remark"
+            placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom manufacturer remark"}
             error={errors.manufacturerRemark?.message}
+            multiline
+            inputClassName="min-h-24"
           />
         </div>
 

@@ -13,6 +13,8 @@ function AutocompleteInput({
   placeholder,
   error,
   helperText,
+  multiline = false,
+  inputClassName = "",
 }) {
   const [open, setOpen] = useState(false);
 
@@ -31,23 +33,39 @@ function AutocompleteInput({
     <label className="block">
       <span className="mb-1 block text-sm muted-text">{label}</span>
       <div className="relative">
-        <input
-          className="form-input"
-          value={value}
-          placeholder={placeholder}
-          onFocus={() => setOpen(true)}
-          onChange={(event) => {
-            onChange(event.target.value);
-            setOpen(true);
-          }}
-          onBlur={() => {
-            setTimeout(() => setOpen(false), 120);
-          }}
-          autoComplete="off"
-        />
+        {multiline ? (
+          <textarea
+            className={`form-input ${inputClassName}`.trim()}
+            value={value}
+            placeholder={placeholder}
+            onFocus={() => setOpen(true)}
+            onChange={(event) => {
+              onChange(event.target.value);
+              setOpen(true);
+            }}
+            onBlur={() => {
+              setTimeout(() => setOpen(false), 120);
+            }}
+          />
+        ) : (
+          <input
+            className={`form-input ${inputClassName}`.trim()}
+            value={value}
+            placeholder={placeholder}
+            onFocus={() => setOpen(true)}
+            onChange={(event) => {
+              onChange(event.target.value);
+              setOpen(true);
+            }}
+            onBlur={() => {
+              setTimeout(() => setOpen(false), 120);
+            }}
+            autoComplete="off"
+          />
+        )}
 
         {open && filteredOptions.length > 0 ? (
-          <div className="absolute z-40 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-border bg-surface shadow-lg">
+          <div className="absolute left-0 right-0 top-[calc(100%-1px)] z-40 mt-0 max-h-52 overflow-auto rounded-b-lg border border-border bg-surface shadow-lg">
             {filteredOptions.map((option) => (
               <button
                 key={`${option.value}-${option.label}`}

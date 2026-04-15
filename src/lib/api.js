@@ -211,6 +211,21 @@ export async function getMyPreferences() {
   return response.data;
 }
 
+export async function getMyRemarkTemplates() {
+  const response = await axiosClient.get("/users/me/remark-templates");
+  return response.data;
+}
+
+export async function createMyRemarkTemplate(data) {
+  const response = await axiosClient.post("/users/me/remark-templates", data);
+  return response.data;
+}
+
+export async function deleteMyRemarkTemplate(id) {
+  const response = await axiosClient.delete(`/users/me/remark-templates/${id}`);
+  return response.data;
+}
+
 export async function updateMyProfile(data) {
   const response = await axiosClient.put("/users/me", data);
   return response.data;

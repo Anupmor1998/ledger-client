@@ -13,6 +13,7 @@ import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/fi
 import {
   deleteOrder,
   getCustomers,
+  getMyRemarkTemplates,
   getMyWhatsAppGroups,
   getQualities,
   getManufacturers,
@@ -140,24 +141,6 @@ function extractMessageFromWhatsAppLink(link) {
   return params.get("text") || "";
 }
 
-function collectRemarkOptions(customers, manufacturers) {
-  const deduped = new Map();
-
-  [...(customers || []), ...(manufacturers || [])].forEach((party) => {
-    const remark = String(party?.remark || "").trim();
-    if (!remark) return;
-
-    const key = remark.toLowerCase();
-    if (!deduped.has(key)) {
-      deduped.set(key, remark);
-    }
-  });
-
-  return Array.from(deduped.values())
-    .sort((left, right) => left.localeCompare(right))
-    .map((remark) => ({ label: remark, value: remark }));
-}
-
 function OrdersPage() {
   const navigate = useNavigate();
   const selectedFinancialYearStart = useAppSelector(
@@ -215,6 +198,7 @@ function OrdersPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [whatsappModalData, setWhatsappModalData] = useState(null);
   const [whatsappGroups, setWhatsappGroups] = useState([]);
+  const [remarkOptions, setRemarkOptions] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [messageLoadingId, setMessageLoadingId] = useState("");
 
@@ -249,6 +233,22 @@ function OrdersPage() {
       }
     }
     loadGroups();
+  }, []);
+
+  useEffect(() => {
+    async function loadRemarkTemplates() {
+      try {
+        const templates = await getMyRemarkTemplates();
+        const options = (Array.isArray(templates) ? templates : []).map((template) => ({
+          label: template.text,
+          value: template.text,
+        }));
+        setRemarkOptions(options);
+      } catch {
+        setRemarkOptions([]);
+      }
+    }
+    loadRemarkTemplates();
   }, []);
 
   const loadData = useCallback(async () => {
@@ -459,11 +459,6 @@ function OrdersPage() {
       filters.qualityId ||
       filters.from ||
       filters.to
-  );
-
-  const remarkOptions = useMemo(
-    () => collectRemarkOptions(customers, manufacturers),
-    [customers, manufacturers]
   );
 
   const editCommissionPreview = useMemo(() => {
@@ -911,17 +906,31 @@ function OrdersPage() {
               </select>
             </label>
 
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Quality</span>
-              <input
-                className="form-input"
-                value={form.qualityName}
-                onChange={(event) => setForm((prev) => ({ ...prev, qualityName: event.target.value }))}
-              />
-            </label>
+            <div className="grid gap-3 sm:grid-cols-5">
+              <label className="block sm:col-span-3">
+                <span className="mb-1 block text-sm muted-text">Quality</span>
+                <input
+                  className="form-input"
+                  value={form.qualityName}
+                  onChange={(event) => setForm((prev) => ({ ...prev, qualityName: event.target.value }))}
+                />
+              </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-sm muted-text">Quantity</span>
+                <input
+                  className="form-input"
+                  type="number"
+                  step="0.001"
+                  value={form.quantity}
+                  onChange={(event) => setForm((prev) => ({ ...prev, quantity: event.target.value }))}
+                />
+              </label>
+
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-5">
+              <label className="block sm:col-span-2">
                 <span className="mb-1 block text-sm muted-text">Rate</span>
                 <input
                   className="form-input"
@@ -932,36 +941,37 @@ function OrdersPage() {
                 />
               </label>
 
-              <label className="block">
-                <span className="mb-1 block text-sm muted-text">Quantity</span>
+              <label className="block sm:col-span-1">
+                <span className="mb-1 block text-sm muted-text">Unit</span>
+                <select
+                  className="form-input"
+                  value={form.quantityUnit}
+                  onChange={(event) => {
+                    const nextUnit = event.target.value;
+                    setForm((prev) => ({ ...prev, quantityUnit: nextUnit }));
+                    if (nextUnit === "LOT" || nextUnit === "TAKKA") {
+                      setLotMetersBasis(randomLotMeters());
+                    }
+                  }}
+                >
+                  <option value="TAKKA">Takka</option>
+                  <option value="LOT">Lot</option>
+                  <option value="METER">Meter</option>
+                </select>
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="mb-1 block text-sm muted-text">Payment Dhara (Days)</span>
                 <input
                   className="form-input"
                   type="number"
-                  step="0.001"
-                  value={form.quantity}
-                  onChange={(event) => setForm((prev) => ({ ...prev, quantity: event.target.value }))}
+                  min="0"
+                  step="1"
+                  value={form.paymentDueOn}
+                  onChange={(event) => setForm((prev) => ({ ...prev, paymentDueOn: event.target.value }))}
                 />
               </label>
             </div>
-
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Unit</span>
-              <select
-                className="form-input"
-                value={form.quantityUnit}
-                onChange={(event) => {
-                  const nextUnit = event.target.value;
-                  setForm((prev) => ({ ...prev, quantityUnit: nextUnit }));
-                  if (nextUnit === "LOT" || nextUnit === "TAKKA") {
-                    setLotMetersBasis(randomLotMeters());
-                  }
-                }}
-              >
-                <option value="TAKKA">Takka</option>
-                <option value="LOT">Lot</option>
-                <option value="METER">Meter</option>
-              </select>
-            </label>
 
             <div className="rounded-lg border border-border bg-surface p-3">
               <p className="text-xs muted-text">Commission Amount (Preview)</p>
@@ -970,18 +980,6 @@ function OrdersPage() {
                 <p className="mt-1 text-xs muted-text">Lot meter basis: {round2(lotMetersBasis).toFixed(2)}</p>
               ) : null}
             </div>
-
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Payment Dhara (Days)</span>
-              <input
-                className="form-input"
-                type="number"
-                min="0"
-                step="1"
-                value={form.paymentDueOn}
-                onChange={(event) => setForm((prev) => ({ ...prev, paymentDueOn: event.target.value }))}
-              />
-            </label>
 
             <label className="inline-flex w-fit items-center gap-3">
               <input
@@ -1028,7 +1026,9 @@ function OrdersPage() {
                 onChange={(value) => setForm((prev) => ({ ...prev, remarks: value }))}
                 onSelect={(option) => setForm((prev) => ({ ...prev, remarks: option.value }))}
                 options={remarkOptions}
-                placeholder="Type or pick a saved remark"
+                placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom remark"}
+                multiline
+                inputClassName="min-h-24"
               />
 
               <AutocompleteInput
@@ -1039,7 +1039,9 @@ function OrdersPage() {
                   setForm((prev) => ({ ...prev, customerRemark: option.value }))
                 }
                 options={remarkOptions}
-                placeholder="Type or pick a saved remark"
+                placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom customer remark"}
+                multiline
+                inputClassName="min-h-24"
               />
 
               <AutocompleteInput
@@ -1052,7 +1054,9 @@ function OrdersPage() {
                   setForm((prev) => ({ ...prev, manufacturerRemark: option.value }))
                 }
                 options={remarkOptions}
-                placeholder="Type or pick a saved remark"
+                placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom manufacturer remark"}
+                multiline
+                inputClassName="min-h-24"
               />
             </div>
 
