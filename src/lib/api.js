@@ -133,6 +133,16 @@ export async function getQualities(params = {}) {
   return response.data;
 }
 
+export async function archiveQuality(id) {
+  const response = await axiosClient.post(`/qualities/${id}/archive`);
+  return response.data;
+}
+
+export async function restoreQuality(id) {
+  const response = await axiosClient.post(`/qualities/${id}/restore`);
+  return response.data;
+}
+
 export async function createQuality(data) {
   const response = await axiosClient.post("/qualities", data);
   return response.data;

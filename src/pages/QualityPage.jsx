@@ -5,7 +5,14 @@ import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
-import { createQuality, deleteQuality, getQualities, updateQuality } from "../lib/api";
+import {
+  archiveQuality,
+  createQuality,
+  deleteQuality,
+  getQualities,
+  restoreQuality,
+  updateQuality,
+} from "../lib/api";
 
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
@@ -41,7 +48,8 @@ function QualityPage() {
   const [searchInput, setSearchInput] = useState("");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
-  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting });
+  const [showArchived, setShowArchived] = useState(false);
+  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting, showArchived });
   const previousQueryKeyRef = useRef(queryKey);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -54,6 +62,8 @@ function QualityPage() {
 
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [archiveItem, setArchiveItem] = useState(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -63,6 +73,7 @@ function QualityPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        includeArchived: showArchived,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
       });
@@ -76,7 +87,7 @@ function QualityPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, sorting]);
+  }, [debouncedSearch, pageIndex, pageSize, showArchived, sorting]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -155,6 +166,34 @@ function QualityPage() {
     }
   }
 
+  async function handleArchive() {
+    if (!archiveItem) return;
+
+    setArchiveLoading(true);
+    try {
+      await archiveQuality(archiveItem.id);
+      await loadData();
+      toast.success("Quality archived successfully");
+      setArchiveItem(null);
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Unable to archive quality.";
+      toast.error(message);
+    } finally {
+      setArchiveLoading(false);
+    }
+  }
+
+  const handleRestore = useCallback(async (item) => {
+    try {
+      await restoreQuality(item.id);
+      await loadData();
+      toast.success("Quality restored successfully");
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Unable to restore quality.";
+      toast.error(message);
+    }
+  }, [loadData]);
+
   const columns = useMemo(
     () => [
       {
@@ -163,6 +202,28 @@ function QualityPage() {
         header: "Name",
         enableSorting: true,
         cell: ({ getValue }) => <CopyableText value={getValue()} />,
+      },
+      {
+        id: "status",
+        header: "Status",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span
+            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+              row.original.isActive
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-amber-50 text-amber-700"
+            }`}
+          >
+            {row.original.isActive ? "Active" : "Archived"}
+          </span>
+        ),
+      },
+      {
+        id: "orderCount",
+        header: "Used In Orders",
+        enableSorting: false,
+        cell: ({ row }) => <CopyableText value={String(row.original.orderCount || 0)} nowrap />,
       },
       {
         id: "actions",
@@ -182,31 +243,73 @@ function QualityPage() {
                 <path d="M13 7l4 4" />
               </svg>
             </button>
-            <button
-              type="button"
-              className="rounded-lg border border-red-400/40 p-2 text-red-500 hover:bg-red-50"
-              onClick={() => setDeleteItem(row.original)}
-              aria-label="Delete"
-              title="Delete"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
-                <path d="M4 7h16" />
-                <path d="M9 7V5h6v2" />
-                <path d="M7 7l1 12h8l1-12" />
-                <path d="M10 11v6M14 11v6" />
-              </svg>
-            </button>
+            {row.original.isActive ? (
+              row.original.orderCount > 0 ? (
+                <button
+                  type="button"
+                  className="rounded-lg border border-amber-400/40 p-2 text-amber-600 hover:bg-amber-50"
+                  onClick={() => setArchiveItem(row.original)}
+                  aria-label="Archive"
+                  title="Archive"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                    <path d="M4 7h16" />
+                    <path d="M6 7l1 12h10l1-12" />
+                    <path d="M9 11h6" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="rounded-lg border border-red-400/40 p-2 text-red-500 hover:bg-red-50"
+                  onClick={() => setDeleteItem(row.original)}
+                  aria-label="Delete"
+                  title="Delete"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                    <path d="M4 7h16" />
+                    <path d="M9 7V5h6v2" />
+                    <path d="M7 7l1 12h8l1-12" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                </button>
+              )
+            ) : (
+              <button
+                type="button"
+                className="rounded-lg border border-emerald-400/40 p-2 text-emerald-600 hover:bg-emerald-50"
+                onClick={() => handleRestore(row.original)}
+                aria-label="Restore"
+                title="Restore"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                  <path d="M4 12a8 8 0 101.9-5.2" />
+                  <path d="M4 4v5h5" />
+                </svg>
+              </button>
+            )}
           </div>
         ),
       },
     ],
-    []
+    [handleRestore]
   );
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">Quality</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold">Quality</h2>
+          <label className="inline-flex items-center gap-2 text-sm muted-text">
+            <input
+              className="theme-choice theme-checkbox"
+              type="checkbox"
+              checked={showArchived}
+              onChange={(event) => setShowArchived(event.target.checked)}
+            />
+            <span>Show Archived</span>
+          </label>
+        </div>
         <button
           type="button"
           className="primary-btn w-auto inline-flex items-center gap-2"
@@ -307,6 +410,16 @@ function QualityPage() {
           onCancel={() => setDeleteItem(null)}
           onConfirm={handleDelete}
           loading={deleteLoading}
+        />
+      ) : null}
+
+      {archiveItem ? (
+        <ConfirmDialog
+          title="Archive Quality"
+          description={`${archiveItem.name} is used in existing orders, so it will be archived instead of deleted. Archived qualities stay in old orders but won't show in new order dropdowns.`}
+          onCancel={() => setArchiveItem(null)}
+          onConfirm={handleArchive}
+          loading={archiveLoading}
         />
       ) : null}
     </section>

@@ -209,7 +209,7 @@ function OrdersPage() {
         const [customerData, manufacturerData, qualityData] = await Promise.all([
           getCustomers(),
           getManufacturers(),
-          getQualities(),
+          getQualities({ includeArchived: true }),
         ]);
         setCustomers(
           sortByText(Array.isArray(customerData) ? customerData : customerData?.items || [], (item) =>

@@ -76,7 +76,7 @@ function ReportsPage() {
         const [customerData, manufacturerData, qualityData] = await Promise.all([
           getCustomers(),
           getManufacturers(),
-          getQualities(),
+          getQualities({ includeArchived: true }),
         ]);
 
         setCustomers(sortByText(toItems(customerData), (item) => item?.firmName || item?.name));
