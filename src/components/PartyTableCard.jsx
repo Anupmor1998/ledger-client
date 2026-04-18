@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useDebounce from "../hooks/useDebounce";
+import { sortByText } from "../utils/sort";
 import ConfirmDialog from "./ConfirmDialog";
 import CopyableText from "./CopyableText";
 import DataTable from "./DataTable";
@@ -182,7 +183,10 @@ function PartyTableCard({
         }
 
         const parsed = parseListResponse(payload);
-        const options = parsed.items.filter((item) => item.id !== mergeItem.id);
+        const options = sortByText(
+          parsed.items.filter((item) => item.id !== mergeItem.id),
+          (item) => item?.firmName || item?.name
+        );
         setMergeOptions(options);
       } catch (error) {
         if (!cancelled) {
@@ -270,7 +274,9 @@ function PartyTableCard({
     setMergeItem(item);
     setMergeSearch("");
     setMergeTargetId("");
-    setMergeOptions(rows.filter((row) => row.id !== item.id));
+    setMergeOptions(
+      sortByText(rows.filter((row) => row.id !== item.id), (row) => row?.firmName || row?.name)
+    );
     setMergePreview(null);
   }
 

@@ -12,6 +12,7 @@ import {
   getQualities,
 } from "../lib/api";
 import orderSchema from "../validation/orderSchema";
+import { sortByText, sortOptionsByLabel } from "../utils/sort";
 import AutocompleteInput from "./AutocompleteInput";
 import Modal from "./Modal";
 
@@ -24,10 +25,12 @@ function normalize(value) {
 }
 
 function mapToOptions(list, labelKey) {
-  return (list || []).map((item) => ({
-    label: item[labelKey],
-    value: item.id,
-  }));
+  return sortOptionsByLabel(
+    (list || []).map((item) => ({
+      label: item[labelKey],
+      value: item.id,
+    }))
+  );
 }
 
 function getPartyDisplayName(party) {
@@ -194,24 +197,35 @@ function OrderFormCard({ refreshSignal = 0 }) {
   async function loadPartyOptions() {
     const [customers, manufacturers] = await Promise.all([getCustomers(), getManufacturers()]);
 
-    const customerList = customers || [];
-    const manufacturerList = manufacturers || [];
+    const customerList = sortByText(customers || [], (item) => getPartyDisplayName(item));
+    const manufacturerList = sortByText(manufacturers || [], (item) => item?.name);
 
     setCustomersById(Object.fromEntries(customerList.map((item) => [item.id, item])));
     setManufacturersById(Object.fromEntries(manufacturerList.map((item) => [item.id, item])));
 
     setCustomerNameOptions(
-      customerList.map((item) => ({
-        label: getPartyDisplayName(item),
-        value: item.id,
-      }))
+      sortOptionsByLabel(
+        customerList.map((item) => ({
+          label: getPartyDisplayName(item),
+          value: item.id,
+          helperText: item?.address?.trim() || "",
+        }))
+      )
     );
-    setManufacturerNameOptions(mapToOptions(manufacturerList, "name"));
+    setManufacturerNameOptions(
+      sortOptionsByLabel(
+        manufacturerList.map((item) => ({
+          label: item.name,
+          value: item.id,
+          helperText: item?.address?.trim() || "",
+        }))
+      )
+    );
   }
 
   async function loadQualityOptions() {
     const qualities = await getQualities();
-    const qualityList = qualities || [];
+    const qualityList = sortByText(qualities || [], (item) => item?.name);
     const mapped = mapToOptions(qualityList, "name");
     setQualityOptions(mapped);
     return mapped;
@@ -292,7 +306,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
     async function loadGroups() {
       try {
         const groups = await getMyWhatsAppGroups();
-        setWhatsappGroups(Array.isArray(groups) ? groups : []);
+        setWhatsappGroups(sortByText(Array.isArray(groups) ? groups : [], (group) => group?.name));
       } catch {
         setWhatsappGroups([]);
       }
@@ -304,10 +318,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
     async function loadRemarkTemplates() {
       try {
         const templates = await getMyRemarkTemplates();
-        const options = (Array.isArray(templates) ? templates : []).map((template) => ({
-          label: template.text,
-          value: template.text,
-        }));
+        const options = sortOptionsByLabel(
+          (Array.isArray(templates) ? templates : []).map((template) => ({
+            label: template.text,
+            value: template.text,
+          }))
+        );
         setRemarkOptions(options);
       } catch {
         setRemarkOptions([]);
@@ -538,9 +554,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
           <label className="block md:col-span-1">
             <span className="mb-1 block text-sm muted-text">Unit</span>
             <select className="form-input" {...register("quantityUnit")}>
-              <option value="TAKKA">Takka</option>
               <option value="LOT">Lot</option>
               <option value="METER">Meter</option>
+              <option value="TAKKA">Takka</option>
             </select>
             {errors.quantityUnit ? (
               <p className="mt-1 text-sm text-red-500">{errors.quantityUnit.message}</p>

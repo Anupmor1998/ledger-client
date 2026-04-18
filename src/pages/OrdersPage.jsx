@@ -10,6 +10,7 @@ import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
+import { sortByText, sortOptionsByLabel } from "../utils/sort";
 import {
   deleteOrder,
   getCustomers,
@@ -210,9 +211,20 @@ function OrdersPage() {
           getManufacturers(),
           getQualities(),
         ]);
-        setCustomers(Array.isArray(customerData) ? customerData : customerData?.items || []);
-        setManufacturers(Array.isArray(manufacturerData) ? manufacturerData : manufacturerData?.items || []);
-        setQualities(Array.isArray(qualityData) ? qualityData : qualityData?.items || []);
+        setCustomers(
+          sortByText(Array.isArray(customerData) ? customerData : customerData?.items || [], (item) =>
+            formatPartyDisplay(item).primary
+          )
+        );
+        setManufacturers(
+          sortByText(
+            Array.isArray(manufacturerData) ? manufacturerData : manufacturerData?.items || [],
+            (item) => formatPartyDisplay(item).primary
+          )
+        );
+        setQualities(
+          sortByText(Array.isArray(qualityData) ? qualityData : qualityData?.items || [], (item) => item?.name)
+        );
       } catch (error) {
         const message =
           error?.response?.data?.message || error?.message || "Unable to load filter data.";
@@ -227,7 +239,7 @@ function OrdersPage() {
     async function loadGroups() {
       try {
         const groups = await getMyWhatsAppGroups();
-        setWhatsappGroups(Array.isArray(groups) ? groups : []);
+        setWhatsappGroups(sortByText(Array.isArray(groups) ? groups : [], (group) => group?.name));
       } catch {
         setWhatsappGroups([]);
       }
@@ -239,10 +251,12 @@ function OrdersPage() {
     async function loadRemarkTemplates() {
       try {
         const templates = await getMyRemarkTemplates();
-        const options = (Array.isArray(templates) ? templates : []).map((template) => ({
-          label: template.text,
-          value: template.text,
-        }));
+        const options = sortOptionsByLabel(
+          (Array.isArray(templates) ? templates : []).map((template) => ({
+            label: template.text,
+            value: template.text,
+          }))
+        );
         setRemarkOptions(options);
       } catch {
         setRemarkOptions([]);
@@ -954,9 +968,9 @@ function OrdersPage() {
                     }
                   }}
                 >
-                  <option value="TAKKA">Takka</option>
                   <option value="LOT">Lot</option>
                   <option value="METER">Meter</option>
+                  <option value="TAKKA">Takka</option>
                 </select>
               </label>
 

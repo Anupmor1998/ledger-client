@@ -16,6 +16,7 @@ import {
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
 import { buildFinancialYearOptions, getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
+import { sortByText } from "../utils/sort";
 import { profileSchema } from "../validation/authSchemas";
 
 function ProfilePage() {
@@ -76,8 +77,10 @@ function ProfilePage() {
           getMyPreferences(),
           getMyRemarkTemplates(),
         ]);
-        setGroups(Array.isArray(groupData) ? groupData : []);
-        setRemarkTemplates(Array.isArray(remarkTemplateData) ? remarkTemplateData : []);
+        setGroups(sortByText(Array.isArray(groupData) ? groupData : [], (group) => group?.name));
+        setRemarkTemplates(
+          sortByText(Array.isArray(remarkTemplateData) ? remarkTemplateData : [], (template) => template?.text)
+        );
         if (preferenceData?.selectedFinancialYearStart) {
           setSelectedFinancialYearStart(preferenceData.selectedFinancialYearStart);
           dispatch(
@@ -157,7 +160,7 @@ function ProfilePage() {
     setRemarkSubmitting(true);
     try {
       const created = await createMyRemarkTemplate({ text });
-      setRemarkTemplates((prev) => [...prev, created]);
+      setRemarkTemplates((prev) => sortByText([...prev, created], (template) => template?.text));
       setRemarkForm("");
       toast.success("Remark added.");
     } catch (error) {
@@ -196,7 +199,7 @@ function ProfilePage() {
     setGroupSubmitting(true);
     try {
       const created = await createMyWhatsAppGroup({ name, inviteLink });
-      setGroups((prev) => [...prev, created]);
+      setGroups((prev) => sortByText([...prev, created], (group) => group?.name));
       setGroupForm({ name: "", inviteLink: "" });
       toast.success("WhatsApp group added.");
     } catch (error) {

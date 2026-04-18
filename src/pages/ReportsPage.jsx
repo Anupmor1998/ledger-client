@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { downloadReportFile, getCustomers, getManufacturers, getQualities } from "../lib/api";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
+import { sortByText } from "../utils/sort";
 
 const reportConfigs = [
   {
@@ -78,9 +79,9 @@ function ReportsPage() {
           getQualities(),
         ]);
 
-        setCustomers(toItems(customerData));
-        setManufacturers(toItems(manufacturerData));
-        setQualities(toItems(qualityData));
+        setCustomers(sortByText(toItems(customerData), (item) => item?.firmName || item?.name));
+        setManufacturers(sortByText(toItems(manufacturerData), (item) => item?.firmName || item?.name));
+        setQualities(sortByText(toItems(qualityData), (item) => item?.name));
       } catch (error) {
         const message =
           error?.response?.data?.message || error?.message || "Unable to load report filters.";
