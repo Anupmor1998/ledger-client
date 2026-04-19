@@ -23,7 +23,7 @@ function ForgotPasswordPage() {
 
     try {
       await forgotPassword(values);
-      const successMessage = "If the email exists, a reset link has been sent. Please check your inbox.";
+      const successMessage = "We've sent you an email with a password reset link.";
       toast.success(successMessage);
       setStatus({
         error: "",
@@ -74,3 +74,4 @@ function ForgotPasswordPage() {
 }
 
 export default ForgotPasswordPage;
+
