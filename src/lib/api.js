@@ -221,6 +221,33 @@ export async function getMyPreferences() {
   return response.data;
 }
 
+export async function previewYearTransfer(params = {}) {
+  const response = await axiosClient.get("/users/me/year-transfer/preview", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
+export async function getYearTransferBatches() {
+  const response = await axiosClient.get("/users/me/year-transfer/batches");
+  return response.data;
+}
+
+export async function getYearTransferBatchDetails(id) {
+  const response = await axiosClient.get(`/users/me/year-transfer/batches/${id}`);
+  return response.data;
+}
+
+export async function undoYearTransferBatch(id) {
+  const response = await axiosClient.post(`/users/me/year-transfer/batches/${id}/undo`);
+  return response.data;
+}
+
+export async function executeYearTransfer(data) {
+  const response = await axiosClient.post("/users/me/year-transfer", data);
+  return response.data;
+}
+
 export async function getMyRemarkTemplates() {
   const response = await axiosClient.get("/users/me/remark-templates");
   return response.data;

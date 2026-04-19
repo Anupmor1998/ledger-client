@@ -13,13 +13,25 @@ export function getFinancialYearLabel(startYear) {
   return `${year}-${nextShortYear}`;
 }
 
-export function buildFinancialYearOptions(range = 6) {
+export function buildFinancialYearOptions(range = 6, futureRange = 0) {
   const current = getCurrentFinancialYearStart();
-  return Array.from({ length: range }, (_, index) => {
-    const startYear = current - index;
-    return {
+  const options = [];
+
+  for (let offset = futureRange; offset >= 1; offset -= 1) {
+    const startYear = current + offset;
+    options.push({
       value: startYear,
       label: getFinancialYearLabel(startYear),
-    };
-  });
+    });
+  }
+
+  for (let index = 0; index < range; index += 1) {
+    const startYear = current - index;
+    options.push({
+      value: startYear,
+      label: getFinancialYearLabel(startYear),
+    });
+  }
+
+  return options;
 }
