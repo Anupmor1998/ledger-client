@@ -911,10 +911,8 @@ function OrdersPage() {
                 <option value="">Select manufacturer</option>
                 {manufacturers.map((manufacturer) => (
                   <option key={manufacturer.id} value={manufacturer.id}>
-                    {formatPartyDisplay(manufacturer).primary}
-                    {formatPartyDisplay(manufacturer).secondary
-                      ? ` / ${formatPartyDisplay(manufacturer).secondary}`
-                      : ""}
+                    {manufacturer.name}
+                    {manufacturer.firmName ? ` (${manufacturer.firmName})` : ""}
                   </option>
                 ))}
               </select>

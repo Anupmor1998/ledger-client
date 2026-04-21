@@ -37,6 +37,15 @@ function getPartyDisplayName(party) {
   return party?.firmName || party?.name || "";
 }
 
+function getManufacturerDisplayLabel(manufacturer) {
+  if (!manufacturer) {
+    return "";
+  }
+  return manufacturer.firmName
+    ? `${manufacturer.name} (${manufacturer.firmName})`
+    : manufacturer.name || "";
+}
+
 const QUANTITY_UNITS = ["TAKKA", "LOT", "METER"];
 const TAKKA_PER_LOT = 12;
 const LOT_MIN_METERS = 1450;
@@ -191,7 +200,10 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     setSelectedManufacturerId(manufacturerId);
     clearErrors(["manufacturerName"]);
-    setValue("manufacturerName", manufacturer.name, { shouldValidate: true, shouldDirty: true });
+    setValue("manufacturerName", manufacturer.name || "", {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
   }
 
   async function loadPartyOptions() {
@@ -215,7 +227,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
     setManufacturerNameOptions(
       sortOptionsByLabel(
         manufacturerList.map((item) => ({
-          label: item.name,
+          label: getManufacturerDisplayLabel(item),
           value: item.id,
           helperText: item?.address?.trim() || "",
         }))
