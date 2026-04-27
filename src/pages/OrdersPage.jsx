@@ -91,6 +91,10 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
+function roundCurrency(value) {
+  return Math.round(Number(value || 0));
+}
+
 function randomLotMeters() {
   return LOT_MIN_METERS + Math.random() * (LOT_MAX_METERS - LOT_MIN_METERS);
 }
@@ -490,7 +494,7 @@ function OrdersPage() {
     const commissionLotRate = Number(selectedCustomer?.commissionLotRate || 0);
 
     if (commissionBase === "LOT") {
-      return round2(quantity * commissionLotRate);
+      return roundCurrency(quantity * commissionLotRate);
     }
 
     const meter =
@@ -499,7 +503,7 @@ function OrdersPage() {
         : form.quantityUnit === "LOT"
         ? quantity * lotMetersBasis
         : quantity * (lotMetersBasis / TAKKA_PER_LOT);
-    return round2((meter * rate + meter * rate * GST_RATE) * (commissionPercent / 100));
+    return roundCurrency((meter * rate + meter * rate * GST_RATE) * (commissionPercent / 100));
   }, [customers, form.customerId, form.quantity, form.quantityUnit, form.rate, lotMetersBasis]);
 
   const columns = useMemo(
@@ -619,7 +623,7 @@ function OrdersPage() {
         header: "Commission Amount",
         accessorKey: "commissionAmount",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={`Rs. ${Number(getValue() || 0).toFixed(2)}`} nowrap />,
+        cell: ({ getValue }) => <CopyableText value={`Rs. ${Math.round(Number(getValue() || 0))}`} nowrap />,
       },
       {
         id: "paymentDueOn",
@@ -987,7 +991,7 @@ function OrdersPage() {
 
             <div className="rounded-lg border border-border bg-surface p-3">
               <p className="text-xs muted-text">Commission Amount (Preview)</p>
-              <p className="mt-1 text-lg font-semibold">Rs. {editCommissionPreview.toFixed(2)}</p>
+              <p className="mt-1 text-lg font-semibold">Rs. {Math.round(Number(editCommissionPreview || 0))}</p>
               {(form.quantityUnit === "LOT" || form.quantityUnit === "TAKKA") && Number(form.quantity) > 0 ? (
                 <p className="mt-1 text-xs muted-text">Lot meter basis: {round2(lotMetersBasis).toFixed(2)}</p>
               ) : null}

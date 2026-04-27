@@ -62,6 +62,10 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
+function roundCurrency(value) {
+  return Math.round(Number(value || 0));
+}
+
 function extractMessageFromWhatsAppLink(link) {
   if (!link) return "";
   const [, query = ""] = String(link).split("?");
@@ -145,7 +149,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
     }
 
     if (selectedCustomerCommissionBase === "LOT") {
-      return round2(quantity * selectedCustomerLotRate);
+      return roundCurrency(quantity * selectedCustomerLotRate);
     }
 
     const meter =
@@ -157,7 +161,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     const baseAmount = meter * rate;
     const gstAmount = baseAmount * GST_RATE;
-    return round2((baseAmount + gstAmount) * (selectedCustomerCommissionPercent / 100));
+    return roundCurrency((baseAmount + gstAmount) * (selectedCustomerCommissionPercent / 100));
   }, [
     rate,
     quantity,
@@ -671,7 +675,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
           <div className="rounded-lg border border-border bg-surface p-3">
             <p className="text-xs muted-text">Commission Amount (Preview)</p>
             <p className="mt-1 text-lg font-semibold">
-              Rs. {Number.isFinite(commissionPreview) ? commissionPreview.toFixed(2) : "0.00"}
+              Rs. {Number.isFinite(commissionPreview) ? commissionPreview : 0}
             </p>
             <p className="mt-1 text-xs muted-text">
               Base:{" "}

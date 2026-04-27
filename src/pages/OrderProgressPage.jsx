@@ -67,6 +67,10 @@ function formatNumber(value) {
   return Number.isInteger(num) ? String(num) : num.toFixed(2);
 }
 
+function formatCommission(value) {
+  return String(Math.round(Number(value || 0)));
+}
+
 function formatProcessedQuantityDisplay(value, unit) {
   const num = Number(value || 0);
   if (!Number.isFinite(num)) return "0";
@@ -199,14 +203,13 @@ function OrderProgressPage() {
   }
 
   async function markCompleted(order, processedQuantityOverride) {
-    const processedQuantity =
-      processedQuantityOverride !== undefined
-        ? Number(processedQuantityOverride)
-        : Number(order.processedQuantity || 0);
-
     setCompleteLoading(true);
     try {
-      await updateOrder(order.id, { status: "COMPLETED", processedQuantity });
+      const payload =
+        processedQuantityOverride !== undefined
+          ? { status: "COMPLETED", processedQuantity: Number(processedQuantityOverride) }
+          : { status: "COMPLETED" };
+      await updateOrder(order.id, payload);
       await loadData();
       toast.success("Order marked as completed");
       setEditItem(null);
@@ -353,7 +356,7 @@ function OrderProgressPage() {
         header: "Commission (Processed)",
         accessorKey: "progressCommissionAmount",
         enableSorting: false,
-        cell: ({ getValue }) => <CopyableText value={`Rs. ${Number(getValue() || 0).toFixed(2)}`} nowrap />,
+        cell: ({ getValue }) => <CopyableText value={`Rs. ${formatCommission(getValue())}`} nowrap />,
       },
       {
         id: "paymentDueOn",
