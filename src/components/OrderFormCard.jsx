@@ -431,6 +431,10 @@ function OrderFormCard({ refreshSignal = 0 }) {
       rate: Number(values.rate),
       quantity: Number(values.quantity),
       quantityUnit: values.quantityUnit,
+      lotMeters:
+        values.quantityUnit === "LOT" || values.quantityUnit === "TAKKA"
+          ? round2(lotMetersBasis)
+          : null,
       paymentDueOn:
         values.paymentDueOn === "" || values.paymentDueOn === null
           ? null

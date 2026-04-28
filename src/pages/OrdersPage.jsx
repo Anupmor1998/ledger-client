@@ -375,6 +375,10 @@ function OrdersPage() {
       rate: Number(form.rate),
       quantity: Number(form.quantity),
       quantityUnit: form.quantityUnit,
+      lotMeters:
+        form.quantityUnit === "LOT" || form.quantityUnit === "TAKKA"
+          ? round2(lotMetersBasis)
+          : null,
       paymentDueOn:
         form.paymentDueOn === "" || form.paymentDueOn === null ? null : Number(form.paymentDueOn),
       deliveryDateFrom: form.deliveryDateFrom || null,
