@@ -202,12 +202,13 @@ function OrderProgressPage() {
     }
   }
 
-  async function markCompleted(order, processedQuantityOverride) {
+  async function markCompleted(order, mode = "full") {
     setCompleteLoading(true);
     try {
+      const currentProcessedQuantity = Number(order?.processedQuantity || 0);
       const payload =
-        processedQuantityOverride !== undefined
-          ? { status: "COMPLETED", processedQuantity: Number(processedQuantityOverride) }
+        mode === "current"
+          ? { status: "COMPLETED", processedQuantity: currentProcessedQuantity }
           : { status: "COMPLETED" };
       await updateOrder(order.id, payload);
       await loadData();
@@ -515,28 +516,65 @@ function OrderProgressPage() {
         </Modal>
       ) : null}
 
-      {completionPromptOrder ? (
-        <ConfirmDialog
-          title="Order Fulfilled"
-          description="The ordered quantity is fulfilled. Would you like to mark this order as complete?"
-          confirmLabel="Mark Order As Complete"
-          cancelLabel="Later"
-          onCancel={() => setCompletionPromptOrder(null)}
-          onConfirm={() => markCompleted(completionPromptOrder)}
-          loading={completeLoading}
-        />
-      ) : null}
-
-      {completeItem ? (
-        <ConfirmDialog
+      {completionPromptOrder || completeItem ? (
+        <Modal
           title="Complete Order"
-          description={`Mark order ${completeItem.orderNo} as completed?`}
-          confirmLabel="Mark Completed"
-          cancelLabel="Cancel"
-          onCancel={() => setCompleteItem(null)}
-          onConfirm={() => markCompleted(completeItem)}
-          loading={completeLoading}
-        />
+          onClose={() => {
+            setCompletionPromptOrder(null);
+            setCompleteItem(null);
+          }}
+          footer={
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setCompletionPromptOrder(null);
+                  setCompleteItem(null);
+                }}
+                disabled={completeLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => markCompleted(completionPromptOrder || completeItem, "current")}
+                disabled={completeLoading}
+              >
+                {completeLoading ? "Saving..." : "Complete With Current Processed Qty"}
+              </button>
+              <button
+                type="button"
+                className="primary-btn w-auto"
+                onClick={() => markCompleted(completionPromptOrder || completeItem, "full")}
+                disabled={completeLoading}
+              >
+                {completeLoading ? "Saving..." : "Complete Full Order"}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm muted-text">
+              {completionPromptOrder
+                ? "The ordered quantity is fulfilled. Choose how you want to complete this order."
+                : `Choose how you want to complete order ${(completeItem || {}).orderNo}.`}
+            </p>
+            <div className="rounded-xl border border-border/70 bg-bg/40 p-3">
+              <p className="text-sm font-medium text-text">Complete With Current Processed Qty</p>
+              <p className="mt-1 text-xs muted-text">
+                Keeps the current processed quantity and only changes the status to completed.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-bg/40 p-3">
+              <p className="text-sm font-medium text-text">Complete Full Order</p>
+              <p className="mt-1 text-xs muted-text">
+                Treats the remaining quantity as processed and sets processed quantity to the full order quantity.
+              </p>
+            </div>
+          </div>
+        </Modal>
       ) : null}
 
       {cancelItem ? (

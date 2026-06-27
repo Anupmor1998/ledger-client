@@ -75,6 +75,11 @@ export async function updateCustomer(id, data) {
   return response.data;
 }
 
+export async function previewCustomerCommissionRecalculation(id) {
+  const response = await axiosClient.get(`/customers/${id}/commission-recalculation-preview`);
+  return response.data;
+}
+
 export async function deleteCustomer(id) {
   const response = await axiosClient.delete(`/customers/${id}`);
   return response.data;

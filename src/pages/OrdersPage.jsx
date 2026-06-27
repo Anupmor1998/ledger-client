@@ -95,6 +95,20 @@ function roundCurrency(value) {
   return Math.round(Number(value || 0));
 }
 
+function computeLotQuantity(quantity, quantityUnit, lotMetersBasis) {
+  const normalizedUnit = String(quantityUnit || "").toUpperCase();
+  if (normalizedUnit === "LOT") {
+    return quantity;
+  }
+  if (normalizedUnit === "TAKKA") {
+    return quantity / TAKKA_PER_LOT;
+  }
+  if (!Number.isFinite(lotMetersBasis) || lotMetersBasis <= 0) {
+    return 0;
+  }
+  return quantity / lotMetersBasis;
+}
+
 function randomLotMeters() {
   return LOT_MIN_METERS + Math.random() * (LOT_MAX_METERS - LOT_MIN_METERS);
 }
@@ -201,6 +215,8 @@ function OrdersPage() {
 
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [reopenItem, setReopenItem] = useState(null);
+  const [reopenLoading, setReopenLoading] = useState(false);
   const [whatsappModalData, setWhatsappModalData] = useState(null);
   const [whatsappGroups, setWhatsappGroups] = useState([]);
   const [remarkOptions, setRemarkOptions] = useState([]);
@@ -376,7 +392,11 @@ function OrdersPage() {
       quantity: Number(form.quantity),
       quantityUnit: form.quantityUnit,
       lotMeters:
-        form.quantityUnit === "LOT" || form.quantityUnit === "TAKKA"
+        form.quantityUnit === "LOT" ||
+        form.quantityUnit === "TAKKA" ||
+        (form.quantityUnit === "METER" &&
+          String(customers.find((customer) => customer.id === form.customerId)?.commissionBase || "PERCENT")
+            .toUpperCase() === "LOT")
           ? round2(lotMetersBasis)
           : null,
       paymentDueOn:
@@ -418,6 +438,23 @@ function OrdersPage() {
       toast.error(message);
     } finally {
       setDeleteLoading(false);
+    }
+  }
+
+  async function handleReopenOrder() {
+    if (!reopenItem) return;
+
+    setReopenLoading(true);
+    try {
+      await updateOrder(reopenItem.id, { status: "PENDING" });
+      await loadData();
+      toast.success("Order reopened successfully");
+      setReopenItem(null);
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Unable to reopen order.";
+      toast.error(message);
+    } finally {
+      setReopenLoading(false);
     }
   }
 
@@ -498,7 +535,9 @@ function OrdersPage() {
     const commissionLotRate = Number(selectedCustomer?.commissionLotRate || 0);
 
     if (commissionBase === "LOT") {
-      return roundCurrency(quantity * commissionLotRate);
+      return roundCurrency(
+        computeLotQuantity(quantity, form.quantityUnit, lotMetersBasis) * commissionLotRate
+      );
     }
 
     const meter =
@@ -675,6 +714,20 @@ function OrdersPage() {
                 <path d="M13 7l4 4" />
               </svg>
             </button>
+            {String(row.original.status || "").toUpperCase() === "COMPLETED" ? (
+              <button
+                type="button"
+                className="rounded-lg border border-amber-400/40 p-2 text-amber-600 hover:bg-amber-50"
+                onClick={() => setReopenItem(row.original)}
+                aria-label="Reopen order"
+                title="Reopen order"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                  <path d="M3 12a9 9 0 1 0 3-6.7" />
+                  <path d="M3 3v6h6" />
+                </svg>
+              </button>
+            ) : null}
             <button
               type="button"
               className="rounded-lg border border-red-400/40 p-2 text-red-500 hover:bg-red-50"
@@ -996,7 +1049,11 @@ function OrdersPage() {
             <div className="rounded-lg border border-border bg-surface p-3">
               <p className="text-xs muted-text">Commission Amount (Preview)</p>
               <p className="mt-1 text-lg font-semibold">Rs. {Math.round(Number(editCommissionPreview || 0))}</p>
-              {(form.quantityUnit === "LOT" || form.quantityUnit === "TAKKA") && Number(form.quantity) > 0 ? (
+              {((form.quantityUnit === "LOT" || form.quantityUnit === "TAKKA") ||
+                (form.quantityUnit === "METER" &&
+                  String(customers.find((customer) => customer.id === form.customerId)?.commissionBase || "PERCENT")
+                    .toUpperCase() === "LOT")) &&
+              Number(form.quantity) > 0 ? (
                 <p className="mt-1 text-xs muted-text">Lot meter basis: {round2(lotMetersBasis).toFixed(2)}</p>
               ) : null}
             </div>
@@ -1100,6 +1157,18 @@ function OrdersPage() {
           onCancel={() => setDeleteItem(null)}
           onConfirm={handleDelete}
           loading={deleteLoading}
+        />
+      ) : null}
+
+      {reopenItem ? (
+        <ConfirmDialog
+          title="Reopen Order"
+          description={`Reopen order ${reopenItem.orderNo}? This will move it back to pending. If payments already exist against it, reopening will be blocked.`}
+          confirmLabel="Reopen"
+          cancelLabel="Cancel"
+          onCancel={() => setReopenItem(null)}
+          onConfirm={handleReopenOrder}
+          loading={reopenLoading}
         />
       ) : null}
 

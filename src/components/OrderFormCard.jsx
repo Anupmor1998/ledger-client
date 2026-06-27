@@ -66,6 +66,19 @@ function roundCurrency(value) {
   return Math.round(Number(value || 0));
 }
 
+function computeLotQuantity(quantity, quantityUnit, lotMetersBasis) {
+  if (quantityUnit === "LOT") {
+    return quantity;
+  }
+  if (quantityUnit === "TAKKA") {
+    return quantity / TAKKA_PER_LOT;
+  }
+  if (!Number.isFinite(lotMetersBasis) || lotMetersBasis <= 0) {
+    return 0;
+  }
+  return quantity / lotMetersBasis;
+}
+
 function extractMessageFromWhatsAppLink(link) {
   if (!link) return "";
   const [, query = ""] = String(link).split("?");
@@ -149,7 +162,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
     }
 
     if (selectedCustomerCommissionBase === "LOT") {
-      return roundCurrency(quantity * selectedCustomerLotRate);
+      return roundCurrency(
+        computeLotQuantity(quantity, quantityUnit, lotMetersBasis) * selectedCustomerLotRate
+      );
     }
 
     const meter =
@@ -432,7 +447,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
       quantity: Number(values.quantity),
       quantityUnit: values.quantityUnit,
       lotMeters:
-        values.quantityUnit === "LOT" || values.quantityUnit === "TAKKA"
+        values.quantityUnit === "LOT" ||
+        values.quantityUnit === "TAKKA" ||
+        (values.quantityUnit === "METER" && selectedCustomerCommissionBase === "LOT")
           ? round2(lotMetersBasis)
           : null,
       paymentDueOn:
@@ -684,10 +701,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
             <p className="mt-1 text-xs muted-text">
               Base:{" "}
               {selectedCustomerCommissionBase === "LOT"
-                ? `LOT (${selectedCustomerLotRate || 0} x Qty)`
+                ? `LOT (${selectedCustomerLotRate || 0} x Lot Qty)`
                 : `${selectedCustomerCommissionPercent}% on (Amount + GST)`}
             </p>
-            {(quantityUnit === "LOT" || quantityUnit === "TAKKA") && quantity > 0 ? (
+            {((quantityUnit === "LOT" || quantityUnit === "TAKKA") ||
+              (quantityUnit === "METER" && selectedCustomerCommissionBase === "LOT")) &&
+            quantity > 0 ? (
               <p className="mt-1 text-xs muted-text">Lot meter basis: {round2(lotMetersBasis).toFixed(2)}</p>
             ) : null}
           </div>

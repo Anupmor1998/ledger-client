@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useDebounce from "../hooks/useDebounce";
 import { sortByText } from "../utils/sort";
+import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
+import { useAppSelector } from "../store/hooks";
 import ConfirmDialog from "./ConfirmDialog";
 import CopyableText from "./CopyableText";
 import DataTable from "./DataTable";
@@ -54,6 +56,7 @@ function PartyTableCard({
   fetchFn,
   updateFn,
   deleteFn,
+  previewCommissionUpdateFn,
   mergeFn,
   previewMergeFn,
   duplicateGroupsFn,
@@ -62,6 +65,9 @@ function PartyTableCard({
   const navigate = useNavigate();
   const isCustomer = entityLabel === "customer";
   const hasGstField = isCustomer;
+  const selectedFinancialYearStart = useAppSelector(
+    (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
+  );
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,6 +80,9 @@ function PartyTableCard({
 
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [applyCommissionToSelectedFinancialYear, setApplyCommissionToSelectedFinancialYear] = useState(false);
+  const [commissionRecalculationPreview, setCommissionRecalculationPreview] = useState(null);
+  const [commissionRecalculationPreviewLoading, setCommissionRecalculationPreviewLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const [deleteItem, setDeleteItem] = useState(null);
@@ -251,6 +260,8 @@ function PartyTableCard({
 
   function openEdit(item) {
     setEditItem(item);
+    setApplyCommissionToSelectedFinancialYear(false);
+    setCommissionRecalculationPreview(null);
     setForm({
       firmName: item.firmName || "",
       name: item.name || "",
@@ -269,6 +280,68 @@ function PartyTableCard({
       phone: item.phone || "",
     });
   }
+
+  function hasCommissionSettingsChanged() {
+    if (!isCustomer || !editItem) {
+      return false;
+    }
+
+    const nextBase = String(form.commissionBase || "PERCENT").toUpperCase();
+    const currentBase = String(editItem.commissionBase || "PERCENT").toUpperCase();
+    const nextPercent = nextBase === "PERCENT" ? Number(form.commissionPercent || 0) : 1;
+    const currentPercent =
+      currentBase === "PERCENT" ? Number(editItem.commissionPercent || 0) : 1;
+    const nextLotRate = nextBase === "LOT" ? Number(form.commissionLotRate || 0) : 0;
+    const currentLotRate =
+      currentBase === "LOT" ? Number(editItem.commissionLotRate || 0) : 0;
+
+    return (
+      currentBase !== nextBase ||
+      currentPercent !== nextPercent ||
+      currentLotRate !== nextLotRate
+    );
+  }
+
+  const commissionSettingsChanged = hasCommissionSettingsChanged();
+
+  useEffect(() => {
+    if (!isCustomer || !editItem || !previewCommissionUpdateFn || !commissionSettingsChanged) {
+      setCommissionRecalculationPreview(null);
+      setCommissionRecalculationPreviewLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadCommissionPreview() {
+      setCommissionRecalculationPreviewLoading(true);
+      try {
+        const payload = await previewCommissionUpdateFn(editItem.id);
+        if (!cancelled) {
+          setCommissionRecalculationPreview(payload);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCommissionRecalculationPreview(null);
+          const message =
+            error?.response?.data?.message ||
+            error?.message ||
+            "Unable to preview selected FY commission updates.";
+          toast.error(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setCommissionRecalculationPreviewLoading(false);
+        }
+      }
+    }
+
+    loadCommissionPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [commissionSettingsChanged, editItem, isCustomer, previewCommissionUpdateFn]);
 
   function openMerge(item) {
     setMergeItem(item);
@@ -317,14 +390,35 @@ function PartyTableCard({
                 form.commissionBase === "PERCENT" ? Number(form.commissionPercent) : 1,
               commissionLotRate:
                 form.commissionBase === "LOT" ? Number(form.commissionLotRate) : null,
+              applyCommissionToSelectedFinancialYear:
+                applyCommissionToSelectedFinancialYear && commissionSettingsChanged,
             }
           : {}),
       };
 
-      await updateFn(editItem.id, payload);
+      const response = await updateFn(editItem.id, payload);
       await loadData();
-      toast.success(`${entityLabel} updated successfully`);
+      const recalculation = response?.recalculation;
+      if (recalculation) {
+        const parts = [`${entityLabel} updated successfully`];
+        parts.push(
+          `${recalculation.updatedOrders || 0} orders updated in FY ${getFinancialYearLabel(
+            recalculation.selectedFinancialYearStart
+          )}`
+        );
+        if ((recalculation.updatedPendingPayments || 0) > 0) {
+          parts.push(`${recalculation.updatedPendingPayments} pending payments synced`);
+        }
+        if ((recalculation.skippedOrdersWithPayments || 0) > 0) {
+          parts.push(`${recalculation.skippedOrdersWithPayments} orders skipped due to received payments`);
+        }
+        toast.success(parts.join(" • "));
+      } else {
+        toast.success(`${entityLabel} updated successfully`);
+      }
       setEditItem(null);
+      setApplyCommissionToSelectedFinancialYear(false);
+      setCommissionRecalculationPreview(null);
     } catch (error) {
       const message =
         error?.response?.data?.message || error?.message || `Unable to update ${entityLabel}.`;
@@ -719,6 +813,48 @@ function PartyTableCard({
                     </label>
                   )}
                 </div>
+                <label className="flex items-start gap-3 rounded-xl border border-border/70 bg-bg/40 p-3">
+                  <input
+                    type="checkbox"
+                    className="theme-choice theme-checkbox mt-0.5"
+                    checked={applyCommissionToSelectedFinancialYear}
+                    disabled={!commissionSettingsChanged}
+                    onChange={(event) => setApplyCommissionToSelectedFinancialYear(event.target.checked)}
+                  />
+                  <span className="text-sm muted-text">
+                    Apply this commission change to this customer&apos;s existing orders in selected FY{" "}
+                    {getFinancialYearLabel(selectedFinancialYearStart)}.
+                    <span className="mt-1 block text-xs">
+                      Orders with received payments will be skipped to keep payment history safe.
+                    </span>
+                  </span>
+                </label>
+                {commissionSettingsChanged ? (
+                  <div className="rounded-xl border border-border/70 bg-surface/60 p-3 text-sm muted-text">
+                    {commissionRecalculationPreviewLoading ? (
+                      <p>Checking how many selected-FY records will be updated...</p>
+                    ) : commissionRecalculationPreview ? (
+                      <>
+                        <p>
+                          In FY {getFinancialYearLabel(commissionRecalculationPreview.selectedFinancialYearStart)},{" "}
+                          {commissionRecalculationPreview.updatableOrders || 0} orders will be updated.
+                        </p>
+                        <p className="mt-1 text-xs">
+                          Pending payments to sync: {commissionRecalculationPreview.updatablePendingPayments || 0}
+                          {" | "}
+                          Orders skipped due to received payments:{" "}
+                          {commissionRecalculationPreview.skippedOrdersWithPayments || 0}
+                        </p>
+                      </>
+                    ) : (
+                      <p>Unable to preview selected-FY commission updates right now.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs muted-text">
+                    Change the commission base, percent, or lot rate to enable selected-FY recalculation.
+                  </p>
+                )}
               </>
             ) : null}
             <label className="block">
