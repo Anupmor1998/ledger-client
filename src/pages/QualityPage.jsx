@@ -14,6 +14,11 @@ import {
   updateQuality,
 } from "../lib/api";
 
+const QUALITY_SEARCH_FIELD_OPTIONS = [
+  { value: "name", label: "Name" },
+  { value: "status", label: "Status" },
+];
+
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -46,10 +51,17 @@ function QualityPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchInput, setSearchInput] = useState("");
+  const [searchField, setSearchField] = useState("name");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
   const [showArchived, setShowArchived] = useState(false);
-  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting, showArchived });
+  const queryKey = JSON.stringify({
+    search: debouncedSearch,
+    searchField,
+    pageSize,
+    sorting,
+    showArchived,
+  });
   const previousQueryKeyRef = useRef(queryKey);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -73,6 +85,7 @@ function QualityPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        searchField,
         includeArchived: showArchived,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
@@ -87,7 +100,7 @@ function QualityPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, showArchived, sorting]);
+  }, [debouncedSearch, pageIndex, pageSize, searchField, showArchived, sorting]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -328,6 +341,9 @@ function QualityPage() {
         loading={loading}
         searchValue={searchInput}
         onSearchChange={setSearchInput}
+        searchFieldValue={searchField}
+        onSearchFieldChange={setSearchField}
+        searchFieldOptions={QUALITY_SEARCH_FIELD_OPTIONS}
         sorting={sorting}
         onSortingChange={setSorting}
         pageIndex={pageIndex}

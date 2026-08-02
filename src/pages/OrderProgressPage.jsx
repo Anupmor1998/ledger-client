@@ -10,6 +10,22 @@ import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { getOrders, updateOrder } from "../lib/api";
 
+const ORDER_PROGRESS_SEARCH_FIELD_OPTIONS = [
+  { value: "orderNo", label: "Order No" },
+  { value: "orderDate", label: "Order Date" },
+  { value: "customerName", label: "Customer Name" },
+  { value: "customerFirmName", label: "Customer Firm" },
+  { value: "manufacturerName", label: "Manufacturer Name" },
+  { value: "manufacturerFirmName", label: "Manufacturer Firm" },
+  { value: "qualityName", label: "Quality" },
+  { value: "quantity", label: "Quantity" },
+  { value: "processedQuantity", label: "Processed Qty" },
+  { value: "processedMeter", label: "Processed Meter" },
+  { value: "commissionAmount", label: "Commission Amount" },
+  { value: "paymentDueOn", label: "Payment Dhara" },
+  { value: "remarks", label: "Remarks" },
+];
+
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -107,14 +123,16 @@ function OrderProgressPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchInput, setSearchInput] = useState("");
+  const [searchField, setSearchField] = useState("orderNo");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
-  const queryKey = JSON.stringify({ search: debouncedSearch, pageSize, sorting });
+  const queryKey = JSON.stringify({ search: debouncedSearch, searchField, pageSize, sorting });
   const previousQueryKeyRef = useRef(queryKey);
 
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
-    processedQuantityToAdd: "",
+    processedQuantityValue: "",
+    processedQuantityMode: "SET",
     processedQuantityAddUnit: "TAKKA",
     manufacturerFirmName: "",
   });
@@ -135,6 +153,7 @@ function OrderProgressPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        searchField,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
       });
@@ -147,7 +166,7 @@ function OrderProgressPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, sorting]);
+  }, [debouncedSearch, pageIndex, pageSize, searchField, sorting]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -165,7 +184,8 @@ function OrderProgressPage() {
   function openEdit(item) {
     setEditItem(item);
     setForm({
-      processedQuantityToAdd: "",
+      processedQuantityValue: formatNumber(item.processedQuantity || 0),
+      processedQuantityMode: "SET",
       processedQuantityAddUnit: item.quantityUnit || "TAKKA",
       manufacturerFirmName: item.manufacturer?.firmName || "",
     });
@@ -174,17 +194,27 @@ function OrderProgressPage() {
   async function saveProgress() {
     if (!editItem) return;
 
-    if (!Number.isFinite(Number(form.processedQuantityToAdd)) || Number(form.processedQuantityToAdd) < 0) {
-      toast.error("Add processed quantity must be a number and cannot be negative.");
+    if (!Number.isFinite(Number(form.processedQuantityValue)) || Number(form.processedQuantityValue) < 0) {
+      toast.error("Processed quantity must be a number and cannot be negative.");
       return;
     }
     setSaving(true);
     try {
-      const updatedOrder = await updateOrder(editItem.id, {
-        processedQuantityAdd: Number(form.processedQuantityToAdd || 0),
-        processedQuantityAddUnit: String(form.processedQuantityAddUnit || editItem.quantityUnit || "TAKKA"),
-        manufacturerFirmName: String(form.manufacturerFirmName || "").trim() || null,
-      });
+      const processedQuantityValue = Number(form.processedQuantityValue || 0);
+      const payload =
+        String(form.processedQuantityMode || "SET").toUpperCase() === "ADD"
+          ? {
+              processedQuantityAdd: processedQuantityValue,
+              processedQuantityAddUnit: String(
+                form.processedQuantityAddUnit || editItem.quantityUnit || "TAKKA"
+              ),
+              manufacturerFirmName: String(form.manufacturerFirmName || "").trim() || null,
+            }
+          : {
+              processedQuantity: processedQuantityValue,
+              manufacturerFirmName: String(form.manufacturerFirmName || "").trim() || null,
+            };
+      const updatedOrder = await updateOrder(editItem.id, payload);
       toast.success("Order progress updated");
       setEditItem(null);
       if (
@@ -436,6 +466,9 @@ function OrderProgressPage() {
         tableMinWidthClass="min-w-[1380px]"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
+        searchFieldValue={searchField}
+        onSearchFieldChange={setSearchField}
+        searchFieldOptions={ORDER_PROGRESS_SEARCH_FIELD_OPTIONS}
         sorting={sorting}
         onSortingChange={setSorting}
         pageIndex={pageIndex}
@@ -466,42 +499,78 @@ function OrderProgressPage() {
         >
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-sm muted-text">Add Processed Quantity</span>
+              <span className="mb-1 block text-sm muted-text">Processed Quantity</span>
               <input
                 className="form-input"
                 type="number"
                 min="0"
                 step="0.01"
-                value={form.processedQuantityToAdd}
+                value={form.processedQuantityValue}
                 onChange={(event) =>
-                  setForm((prev) => ({ ...prev, processedQuantityToAdd: event.target.value }))
+                  setForm((prev) => ({ ...prev, processedQuantityValue: event.target.value }))
                 }
               />
-              <p className="mt-1 text-xs muted-text">Use meter or order unit as needed.</p>
-            </label>
-
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Processed Unit</span>
-              <select
-                className="form-input"
-                value={form.processedQuantityAddUnit}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, processedQuantityAddUnit: event.target.value }))
-                }
-              >
-                <option value={editItem.quantityUnit || "TAKKA"}>{editItem.quantityUnit || "TAKKA"}</option>
-                {(editItem.quantityUnit || "").toUpperCase() !== "METER" ? <option value="METER">METER</option> : null}
-              </select>
               <p className="mt-1 text-xs muted-text">
-                Ordered quantity: {formatNumber(editItem.quantity)} {editItem.quantityUnit}
-                {" | "}
-                Current processed:{" "}
-                {formatProcessedQuantityDisplay(editItem.processedQuantity, editItem.quantityUnit)}{" "}
-                {editItem.quantityUnit}
-                {" | "}
-                {formatNumber(editItem.processedMeter)} METER
+                Enter the total processed quantity to replace the current value, or switch to add mode below.
               </p>
             </label>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                  String(form.processedQuantityMode || "SET").toUpperCase() === "SET"
+                    ? "border-accent bg-accent/10 text-text"
+                    : "border-border hover:bg-bg"
+                }`}
+                onClick={() => setForm((prev) => ({ ...prev, processedQuantityMode: "SET" }))}
+              >
+                <span className="block font-medium">Replace current quantity</span>
+                <span className="mt-0.5 block text-xs muted-text">
+                  Use this to correct a wrong entry after reopening an order.
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                  String(form.processedQuantityMode || "SET").toUpperCase() === "ADD"
+                    ? "border-accent bg-accent/10 text-text"
+                    : "border-border hover:bg-bg"
+                }`}
+                onClick={() => setForm((prev) => ({ ...prev, processedQuantityMode: "ADD" }))}
+              >
+                <span className="block font-medium">Add to existing quantity</span>
+                <span className="mt-0.5 block text-xs muted-text">
+                  Use this only when you are entering extra processed quantity.
+                </span>
+              </button>
+            </div>
+
+            {String(form.processedQuantityMode || "SET").toUpperCase() === "ADD" ? (
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Processed Unit</span>
+                <select
+                  className="form-input"
+                  value={form.processedQuantityAddUnit}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, processedQuantityAddUnit: event.target.value }))
+                  }
+                >
+                  <option value={editItem.quantityUnit || "TAKKA"}>{editItem.quantityUnit || "TAKKA"}</option>
+                  {(editItem.quantityUnit || "").toUpperCase() !== "METER" ? <option value="METER">METER</option> : null}
+                </select>
+              </label>
+            ) : null}
+
+            <p className="text-xs muted-text">
+              Ordered quantity: {formatNumber(editItem.quantity)} {editItem.quantityUnit}
+              {" | "}
+              Current processed:{" "}
+              {formatProcessedQuantityDisplay(editItem.processedQuantity, editItem.quantityUnit)}{" "}
+              {editItem.quantityUnit}
+              {" | "}
+              {formatNumber(editItem.processedMeter)} METER
+            </p>
 
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Manufacturer Firm Name (Optional)</span>

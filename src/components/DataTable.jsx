@@ -10,6 +10,10 @@ function DataTable({
   loading,
   searchValue,
   onSearchChange,
+  searchFieldValue = "",
+  onSearchFieldChange,
+  searchFieldOptions = [],
+  searchPlaceholder = "",
   sorting,
   onSortingChange,
   pageIndex,
@@ -46,16 +50,38 @@ function DataTable({
   }
 
   const rows = table.getRowModel().rows;
+  const hasSearchFieldOptions = Array.isArray(searchFieldOptions) && searchFieldOptions.length > 0;
+  const selectedSearchFieldLabel =
+    searchFieldOptions.find((option) => option.value === searchFieldValue)?.label ||
+    searchFieldOptions[0]?.label ||
+    "Search";
 
   return (
     <div className="mt-4 space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <input
-          className="form-input sm:max-w-xs"
-          placeholder="Search..."
-          value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
+        <div className="flex w-full flex-col gap-2 sm:max-w-xl sm:flex-row sm:items-center">
+          {hasSearchFieldOptions ? (
+            <select
+              className="form-input sm:w-52"
+              value={searchFieldValue}
+              onChange={(event) =>
+                onSearchFieldChange ? onSearchFieldChange(event.target.value) : undefined
+              }
+            >
+              {searchFieldOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <input
+            className="form-input w-full"
+            placeholder={searchPlaceholder || `Search ${selectedSearchFieldLabel.toLowerCase()}...`}
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </div>
 
         <div className="flex items-center gap-2 text-sm">
           <span className="muted-text">Rows</span>

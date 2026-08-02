@@ -10,6 +10,19 @@ import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 
 const PAYMENT_MODE_OPTIONS = ["CASH", "CHEQUE", "ONLINE", "UPI"];
+const PENDING_PAYMENT_SEARCH_FIELD_OPTIONS = [
+  { value: "accountName", label: "Account Name" },
+  { value: "serialNo", label: "Pending No" },
+  { value: "customerName", label: "Customer Name" },
+  { value: "customerFirmName", label: "Customer Firm" },
+  { value: "orderNo", label: "Order No" },
+  { value: "amountDue", label: "Original Due" },
+  { value: "amountReceived", label: "Received" },
+  { value: "discountAmount", label: "Discount" },
+  { value: "balanceAmount", label: "Balance" },
+  { value: "status", label: "Status" },
+  { value: "dueDate", label: "Due Date" },
+];
 const INITIAL_PENDING_FILTERS = {
   status: "",
   dueFrom: "",
@@ -85,6 +98,7 @@ function PendingPaymentsPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchInput, setSearchInput] = useState("");
+  const [searchField, setSearchField] = useState("accountName");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
   const [filters, setFilters] = useState(INITIAL_PENDING_FILTERS);
@@ -96,6 +110,7 @@ function PendingPaymentsPage() {
   const [receiveLoading, setReceiveLoading] = useState(false);
   const queryKey = JSON.stringify({
     search: debouncedSearch,
+    searchField,
     pageSize,
     sorting,
     status: filters.status,
@@ -112,6 +127,7 @@ function PendingPaymentsPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        searchField,
         status: filters.status,
         dueFrom: filters.dueFrom,
         dueTo: filters.dueTo,
@@ -129,7 +145,16 @@ function PendingPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, filters.dueFrom, filters.dueTo, filters.status, pageIndex, pageSize, sorting]);
+  }, [
+    debouncedSearch,
+    filters.dueFrom,
+    filters.dueTo,
+    filters.status,
+    pageIndex,
+    pageSize,
+    searchField,
+    sorting,
+  ]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -521,6 +546,9 @@ function PendingPaymentsPage() {
         tableMinWidthClass="min-w-[1180px]"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
+        searchFieldValue={searchField}
+        onSearchFieldChange={setSearchField}
+        searchFieldOptions={PENDING_PAYMENT_SEARCH_FIELD_OPTIONS}
         sorting={sorting}
         onSortingChange={setSorting}
         pageIndex={pageIndex}

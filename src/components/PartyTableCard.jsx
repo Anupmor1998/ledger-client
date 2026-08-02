@@ -68,6 +68,29 @@ function PartyTableCard({
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
+  const searchFieldOptions = useMemo(
+    () =>
+      isCustomer
+        ? [
+            { value: "firmName", label: "Firm Name" },
+            { value: "name", label: "Name" },
+            { value: "gstNo", label: "GST No" },
+            { value: "phone", label: "Phone" },
+            { value: "email", label: "Email" },
+            { value: "address", label: "Address" },
+            { value: "commissionBase", label: "Commission Base" },
+            { value: "commissionPercent", label: "Commission %" },
+            { value: "commissionLotRate", label: "Lot Rate" },
+          ]
+        : [
+            { value: "firmName", label: "Firm Name" },
+            { value: "name", label: "Name" },
+            { value: "phone", label: "Phone" },
+            { value: "email", label: "Email" },
+            { value: "address", label: "Address" },
+          ],
+    [isCustomer]
+  );
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -75,6 +98,7 @@ function PartyTableCard({
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchInput, setSearchInput] = useState("");
+  const [searchField, setSearchField] = useState(isCustomer ? "firmName" : "name");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
 
@@ -110,6 +134,7 @@ function PartyTableCard({
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        searchField,
         sortBy: sort.id,
         sortOrder: sort.desc ? "desc" : "asc",
       });
@@ -124,11 +149,11 @@ function PartyTableCard({
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, entityLabel, fetchFn, pageIndex, pageSize, sorting]);
+  }, [debouncedSearch, entityLabel, fetchFn, pageIndex, pageSize, searchField, sorting]);
 
   useEffect(() => {
     setPageIndex(0);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, searchField]);
 
   useEffect(() => {
     loadData();
@@ -713,6 +738,9 @@ function PartyTableCard({
         loading={loading}
         searchValue={searchInput}
         onSearchChange={setSearchInput}
+        searchFieldValue={searchField}
+        onSearchFieldChange={setSearchField}
+        searchFieldOptions={searchFieldOptions}
         sorting={sorting}
         onSortingChange={setSorting}
         pageIndex={pageIndex}

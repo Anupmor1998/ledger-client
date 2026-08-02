@@ -11,6 +11,17 @@ import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 
 const PAYMENT_MODE_OPTIONS = ["CASH", "CHEQUE", "ONLINE", "UPI"];
+const RECEIVED_PAYMENT_SEARCH_FIELD_OPTIONS = [
+  { value: "accountName", label: "Account Name" },
+  { value: "serialNo", label: "Receipt No" },
+  { value: "customerName", label: "Customer Name" },
+  { value: "customerFirmName", label: "Customer Firm" },
+  { value: "orderNo", label: "Order No" },
+  { value: "paymentMode", label: "Mode" },
+  { value: "amount", label: "Receipt Amount" },
+  { value: "date", label: "Entry Date" },
+  { value: "paymentReceivedDate", label: "Received Date" },
+];
 const INITIAL_RECEIVED_FILTERS = {
   paymentMode: "",
   dateFrom: "",
@@ -78,6 +89,7 @@ function ReceivedPaymentsPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchInput, setSearchInput] = useState("");
+  const [searchField, setSearchField] = useState("accountName");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
   const [filters, setFilters] = useState(INITIAL_RECEIVED_FILTERS);
@@ -88,6 +100,7 @@ function ReceivedPaymentsPage() {
   const [viewItem, setViewItem] = useState(null);
   const queryKey = JSON.stringify({
     search: debouncedSearch,
+    searchField,
     pageSize,
     sorting,
     paymentMode: filters.paymentMode,
@@ -106,6 +119,7 @@ function ReceivedPaymentsPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        searchField,
         paymentMode: filters.paymentMode,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
@@ -133,6 +147,7 @@ function ReceivedPaymentsPage() {
     filters.receivedTo,
     pageIndex,
     pageSize,
+    searchField,
     sorting,
   ]);
 
@@ -420,6 +435,9 @@ function ReceivedPaymentsPage() {
         tableMinWidthClass="min-w-[1240px]"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
+        searchFieldValue={searchField}
+        onSearchFieldChange={setSearchField}
+        searchFieldOptions={RECEIVED_PAYMENT_SEARCH_FIELD_OPTIONS}
         sorting={sorting}
         onSortingChange={setSorting}
         pageIndex={pageIndex}

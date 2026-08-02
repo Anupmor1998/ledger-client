@@ -32,6 +32,26 @@ const INITIAL_ORDER_FILTERS = {
   to: "",
 };
 
+const ORDER_SEARCH_FIELD_OPTIONS = [
+  { value: "orderNo", label: "Order No" },
+  { value: "orderDate", label: "Order Date" },
+  { value: "customerName", label: "Customer Name" },
+  { value: "customerFirmName", label: "Customer Firm" },
+  { value: "manufacturerName", label: "Manufacturer Name" },
+  { value: "manufacturerFirmName", label: "Manufacturer Firm" },
+  { value: "qualityName", label: "Quality" },
+  { value: "quantity", label: "Quantity" },
+  { value: "processedQuantity", label: "Processed Qty" },
+  { value: "processedMeter", label: "Processed Meter" },
+  { value: "rate", label: "Rate" },
+  { value: "commissionAmount", label: "Commission Amount" },
+  { value: "paymentDueOn", label: "Payment Dhara" },
+  { value: "status", label: "Status" },
+  { value: "remarks", label: "Remarks" },
+  { value: "customerRemark", label: "Customer Remark" },
+  { value: "manufacturerRemark", label: "Manufacturer Remark" },
+];
+
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
     return {
@@ -175,12 +195,14 @@ function OrdersPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchInput, setSearchInput] = useState("");
+  const [searchField, setSearchField] = useState("orderNo");
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
   const [filters, setFilters] = useState(INITIAL_ORDER_FILTERS);
   const [draftFilters, setDraftFilters] = useState(INITIAL_ORDER_FILTERS);
   const queryKey = JSON.stringify({
     search: debouncedSearch,
+    searchField,
     pageSize,
     sorting,
     status: filters.status,
@@ -293,6 +315,7 @@ function OrdersPage() {
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
+        searchField,
         status: filters.status,
         customerId: filters.customerId,
         manufacturerId: filters.manufacturerId,
@@ -312,7 +335,7 @@ function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, filters, pageIndex, pageSize, sorting]);
+  }, [debouncedSearch, filters, pageIndex, pageSize, searchField, sorting]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -914,6 +937,9 @@ function OrdersPage() {
         tableMinWidthClass="min-w-[1280px]"
         searchValue={searchInput}
         onSearchChange={setSearchInput}
+        searchFieldValue={searchField}
+        onSearchFieldChange={setSearchField}
+        searchFieldOptions={ORDER_SEARCH_FIELD_OPTIONS}
         sorting={sorting}
         onSortingChange={setSorting}
         pageIndex={pageIndex}
