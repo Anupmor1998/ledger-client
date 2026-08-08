@@ -133,7 +133,7 @@ function OrderProgressPage() {
   const [form, setForm] = useState({
     processedQuantityValue: "",
     processedQuantityMode: "SET",
-    processedQuantityAddUnit: "TAKKA",
+    processedQuantityUnit: "TAKKA",
     manufacturerFirmName: "",
   });
   const [saving, setSaving] = useState(false);
@@ -186,7 +186,7 @@ function OrderProgressPage() {
     setForm({
       processedQuantityValue: formatNumber(item.processedQuantity || 0),
       processedQuantityMode: "SET",
-      processedQuantityAddUnit: item.quantityUnit || "TAKKA",
+      processedQuantityUnit: item.quantityUnit || "TAKKA",
       manufacturerFirmName: item.manufacturer?.firmName || "",
     });
   }
@@ -205,13 +205,12 @@ function OrderProgressPage() {
         String(form.processedQuantityMode || "SET").toUpperCase() === "ADD"
           ? {
               processedQuantityAdd: processedQuantityValue,
-              processedQuantityAddUnit: String(
-                form.processedQuantityAddUnit || editItem.quantityUnit || "TAKKA"
-              ),
+              processedQuantityAddUnit: String(form.processedQuantityUnit || editItem.quantityUnit || "TAKKA"),
               manufacturerFirmName: String(form.manufacturerFirmName || "").trim() || null,
             }
           : {
               processedQuantity: processedQuantityValue,
+              processedQuantityUnit: String(form.processedQuantityUnit || editItem.quantityUnit || "TAKKA"),
               manufacturerFirmName: String(form.manufacturerFirmName || "").trim() || null,
             };
       const updatedOrder = await updateOrder(editItem.id, payload);
@@ -546,21 +545,23 @@ function OrderProgressPage() {
               </button>
             </div>
 
-            {String(form.processedQuantityMode || "SET").toUpperCase() === "ADD" ? (
-              <label className="block">
-                <span className="mb-1 block text-sm muted-text">Processed Unit</span>
-                <select
-                  className="form-input"
-                  value={form.processedQuantityAddUnit}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, processedQuantityAddUnit: event.target.value }))
-                  }
-                >
-                  <option value={editItem.quantityUnit || "TAKKA"}>{editItem.quantityUnit || "TAKKA"}</option>
-                  {(editItem.quantityUnit || "").toUpperCase() !== "METER" ? <option value="METER">METER</option> : null}
-                </select>
-              </label>
-            ) : null}
+            <label className="block">
+              <span className="mb-1 block text-sm muted-text">Processed Unit</span>
+              <select
+                className="form-input"
+                value={form.processedQuantityUnit}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, processedQuantityUnit: event.target.value }))
+                }
+              >
+                <option value="TAKKA">TAKKA</option>
+                <option value="LOT">LOT</option>
+                <option value="METER">METER</option>
+              </select>
+              <p className="mt-1 text-xs muted-text">
+                Use this to enter or correct the processed quantity in takka, lot, or meter.
+              </p>
+            </label>
 
             <p className="text-xs muted-text">
               Ordered quantity: {formatNumber(editItem.quantity)} {editItem.quantityUnit}
