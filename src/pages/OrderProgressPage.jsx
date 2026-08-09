@@ -235,9 +235,14 @@ function OrderProgressPage() {
     setCompleteLoading(true);
     try {
       const currentProcessedQuantity = Number(order?.processedQuantity || 0);
+      const currentProcessedMeter = Number(order?.processedMeter || 0);
       const payload =
         mode === "current"
-          ? { status: "COMPLETED", processedQuantity: currentProcessedQuantity }
+          ? {
+              status: "COMPLETED",
+              processedQuantity: currentProcessedQuantity,
+              processedMeter: currentProcessedMeter,
+            }
           : { status: "COMPLETED" };
       await updateOrder(order.id, payload);
       await loadData();
