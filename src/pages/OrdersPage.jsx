@@ -685,9 +685,9 @@ function OrdersPage() {
         cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
       },
       {
-        id: "commissionAmount",
-        header: "Commission Amount",
-        accessorKey: "commissionAmount",
+        id: "progressCommissionAmount",
+        header: "Commission",
+        accessorKey: "progressCommissionAmount",
         enableSorting: true,
         cell: ({ getValue }) => <CopyableText value={`Rs. ${Math.round(Number(getValue() || 0))}`} nowrap />,
       },

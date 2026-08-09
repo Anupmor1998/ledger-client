@@ -1249,7 +1249,9 @@ function ProfilePage() {
                               Qty: {order.quantity} {order.quantityUnit} | Meter: {Number(order.meter || 0).toFixed(2)}
                             </p>
                             <p className="mt-1 muted-text">
-                              Commission: Rs. {Math.round(Number(order.commissionAmount || 0))} | Status: {order.status}
+                              Commission: Rs.{" "}
+                              {Math.round(Number(order.progressCommissionAmount ?? order.commissionAmount ?? 0))}{" "}
+                              | Status: {order.status}
                             </p>
                           </div>
                         ))
