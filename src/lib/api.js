@@ -185,6 +185,18 @@ export async function getOrderById(id) {
   return response.data;
 }
 
+export async function getOrderActivity(id) {
+  const response = await axiosClient.get(`/orders/${id}/activity`);
+  return response.data;
+}
+
+export async function getOrderActivityFeed(params = {}) {
+  const response = await axiosClient.get("/orders/activity-feed", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
 export async function deleteOrder(id) {
   const response = await axiosClient.delete(`/orders/${id}`);
   return response.data;

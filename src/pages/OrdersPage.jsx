@@ -6,6 +6,7 @@ import AutocompleteInput from "../components/AutocompleteInput";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
+import OrderActivityModal from "../components/OrderActivityModal";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
 import { useAppSelector } from "../store/hooks";
@@ -18,6 +19,7 @@ import {
   getMyWhatsAppGroups,
   getQualities,
   getManufacturers,
+  getOrderActivity,
   getOrderById,
   getOrders,
   updateOrder,
@@ -239,6 +241,7 @@ function OrdersPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [reopenItem, setReopenItem] = useState(null);
   const [reopenLoading, setReopenLoading] = useState(false);
+  const [activityItem, setActivityItem] = useState(null);
   const [whatsappModalData, setWhatsappModalData] = useState(null);
   const [whatsappGroups, setWhatsappGroups] = useState([]);
   const [remarkOptions, setRemarkOptions] = useState([]);
@@ -481,6 +484,10 @@ function OrdersPage() {
     }
   }
 
+  function openActivity(item) {
+    setActivityItem(item);
+  }
+
   function openWhatsAppLink(url) {
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -713,6 +720,18 @@ function OrdersPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-sky-400/40 p-2 text-sky-500 hover:bg-sky-50"
+              onClick={() => openActivity(row.original)}
+              aria-label="View activity"
+              title="View activity"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                <path d="M12 6v6l4 2" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </button>
             <button
               type="button"
               className="rounded-lg border border-emerald-400/40 p-2 text-emerald-500 hover:bg-emerald-50"
@@ -1195,6 +1214,14 @@ function OrdersPage() {
           onCancel={() => setReopenItem(null)}
           onConfirm={handleReopenOrder}
           loading={reopenLoading}
+        />
+      ) : null}
+
+      {activityItem ? (
+        <OrderActivityModal
+          order={activityItem}
+          onClose={() => setActivityItem(null)}
+          getActivity={getOrderActivity}
         />
       ) : null}
 

@@ -4,11 +4,12 @@ import { format, isValid, parseISO } from "date-fns";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
+import OrderActivityModal from "../components/OrderActivityModal";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
-import { getOrders, updateOrder } from "../lib/api";
+import { getOrderActivity, getOrders, updateOrder } from "../lib/api";
 
 const ORDER_PROGRESS_SEARCH_FIELD_OPTIONS = [
   { value: "orderNo", label: "Order No" },
@@ -143,6 +144,7 @@ function OrderProgressPage() {
   const [completeLoading, setCompleteLoading] = useState(false);
   const [cancelItem, setCancelItem] = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [activityItem, setActivityItem] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -229,6 +231,10 @@ function OrderProgressPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function openActivity(item) {
+    setActivityItem(item);
   }
 
   async function markCompleted(order, mode = "full") {
@@ -415,6 +421,18 @@ function OrderProgressPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-sky-400/40 p-2 text-sky-500 hover:bg-sky-50"
+              onClick={() => openActivity(row.original)}
+              aria-label="View activity"
+              title="View activity"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                <path d="M12 6v6l4 2" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </button>
             <button
               type="button"
               className="rounded-lg border border-border p-2 hover:bg-bg"
@@ -650,6 +668,14 @@ function OrderProgressPage() {
             </div>
           </div>
         </Modal>
+      ) : null}
+
+      {activityItem ? (
+        <OrderActivityModal
+          order={activityItem}
+          onClose={() => setActivityItem(null)}
+          getActivity={getOrderActivity}
+        />
       ) : null}
 
       {cancelItem ? (

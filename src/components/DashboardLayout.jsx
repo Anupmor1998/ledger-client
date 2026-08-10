@@ -9,6 +9,7 @@ const navigationItems = [
   { to: "/customers", label: "Customers" },
   { to: "/manufacturers", label: "Manufacturers" },
   { to: "/orders", label: "Orders" },
+  { to: "/order-activity", label: "Order Activity" },
   { to: "/pending-payments", label: "Pending Payments" },
   { to: "/received-payments", label: "Received Payments" },
   { to: "/order-progress", label: "Order Progress" },

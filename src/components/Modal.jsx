@@ -6,6 +6,7 @@ function Modal({
   closeOnBackdrop = true,
   closeOnEsc = false,
   hideCloseButton = false,
+  maxWidthClassName = "max-w-lg",
 }) {
   function handleBackdropMouseDown() {
     if (closeOnBackdrop) {
@@ -29,7 +30,7 @@ function Modal({
       aria-modal="true"
     >
       <div
-        className="my-2 flex w-full max-w-lg flex-col rounded-xl border border-border bg-surface p-4 shadow-xl sm:my-0 sm:max-h-[88vh] sm:p-4 max-h-[92dvh]"
+        className={`my-1 flex w-full flex-col rounded-xl border border-border bg-surface p-3 shadow-xl max-h-[92dvh] sm:my-0 sm:max-h-[88vh] sm:p-4 ${maxWidthClassName}`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
