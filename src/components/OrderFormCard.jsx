@@ -14,6 +14,7 @@ import {
 import orderSchema from "../validation/orderSchema";
 import { sortByText, sortOptionsByLabel } from "../utils/sort";
 import AutocompleteInput from "./AutocompleteInput";
+import SearchableSelect from "./SearchableSelect";
 import Modal from "./Modal";
 
 function getTodayDate() {
@@ -588,17 +589,19 @@ function OrderFormCard({ refreshSignal = 0 }) {
             {errors.quantity ? <p className="mt-1 text-sm text-red-500">{errors.quantity.message}</p> : null}
           </label>
 
-          <label className="block md:col-span-1">
-            <span className="mb-1 block text-sm muted-text">Unit</span>
-            <select className="form-input" {...register("quantityUnit")}>
-              <option value="LOT">Lot</option>
-              <option value="METER">Meter</option>
-              <option value="TAKKA">Takka</option>
-            </select>
-            {errors.quantityUnit ? (
-              <p className="mt-1 text-sm text-red-500">{errors.quantityUnit.message}</p>
-            ) : null}
-          </label>
+          <SearchableSelect
+            label="Unit"
+            value={watch("quantityUnit")}
+            onChange={(nextValue) => setValue("quantityUnit", nextValue, { shouldDirty: true, shouldValidate: true })}
+            options={[
+              { value: "LOT", label: "Lot" },
+              { value: "METER", label: "Meter" },
+              { value: "TAKKA", label: "Takka" },
+            ]}
+            placeholder="Select unit"
+            className="md:col-span-1"
+            error={errors.quantityUnit?.message}
+          />
 
           <label className="block md:col-span-2">
             <span className="mb-1 block text-sm muted-text">Payment Dhara (Days)</span>
@@ -764,18 +767,17 @@ function OrderFormCard({ refreshSignal = 0 }) {
               <div className="rounded-lg border border-border p-3">
                 <p className="text-xs muted-text">Optional: Send to WhatsApp Group</p>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                  <select
-                    className="form-input"
+                  <SearchableSelect
+                    label=""
                     value={selectedGroupId}
-                    onChange={(event) => setSelectedGroupId(event.target.value)}
-                  >
-                    <option value="">Select group (optional)</option>
-                    {whatsappGroups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedGroupId}
+                    options={whatsappGroups.map((group) => ({
+                      value: group.id,
+                      label: group.name,
+                    }))}
+                    placeholder="Select group (optional)"
+                    className="flex-1"
+                  />
                   <button
                     type="button"
                     className="primary-btn w-auto"

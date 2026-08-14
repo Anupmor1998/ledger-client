@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
 import CopyableText from "../components/CopyableText";
 import OrderActivityModal from "../components/OrderActivityModal";
+import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
@@ -420,17 +421,14 @@ function OrderActivityPage() {
 
       <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-bg/50 p-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-center">
-          <select
-            className="form-input w-full lg:w-52"
+          <SearchableSelect
+            label=""
             value={searchField}
-            onChange={(e) => setSearchField(e.target.value)}
-          >
-            {SEARCH_FIELDS.map((field) => (
-              <option key={field.value} value={field.value}>
-                {field.label}
-              </option>
-            ))}
-          </select>
+            onChange={setSearchField}
+            options={SEARCH_FIELDS}
+            placeholder="Search field"
+            className="w-full lg:w-52"
+          />
           <input
             className="form-input w-full lg:min-w-[320px]"
             placeholder={`Search ${searchField === "orderNo" ? "order no" : "activity"}...`}
@@ -440,17 +438,14 @@ function OrderActivityPage() {
         </div>
 
         <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:items-center">
-          <select
-            className="form-input w-full py-2 lg:w-28"
-            value={batchSize}
-            onChange={(e) => setBatchSize(Number(e.target.value))}
-          >
-            {BATCH_SIZES.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            label=""
+            value={String(batchSize)}
+            onChange={(nextValue) => setBatchSize(Number(nextValue))}
+            options={BATCH_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+            placeholder="Rows"
+            className="w-full lg:w-28"
+          />
           <button
             type="button"
             className="ghost-btn w-full whitespace-nowrap lg:w-auto"

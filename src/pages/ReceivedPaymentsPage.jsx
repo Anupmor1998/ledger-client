@@ -4,6 +4,7 @@ import { format, isValid, parseISO } from "date-fns";
 import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
+import SearchableSelect from "../components/SearchableSelect";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
 import { deletePaymentReceipt, getPaymentReceipts } from "../lib/api";
@@ -359,23 +360,18 @@ function ReceivedPaymentsPage() {
           }
         >
           <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Payment Mode</span>
-              <select
-                className="form-input"
-                value={draftFilters.paymentMode}
-                onChange={(event) =>
-                  setDraftFilters((prev) => ({ ...prev, paymentMode: event.target.value }))
-                }
-              >
-                <option value="">All</option>
-                {PAYMENT_MODE_OPTIONS.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {mode}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableSelect
+              label="Payment Mode"
+              value={draftFilters.paymentMode}
+              onChange={(nextValue) =>
+                setDraftFilters((prev) => ({ ...prev, paymentMode: nextValue }))
+              }
+              options={[
+                { value: "", label: "All" },
+                ...PAYMENT_MODE_OPTIONS.map((mode) => ({ value: mode, label: mode })),
+              ]}
+              placeholder="Select payment mode"
+            />
 
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Entry Date From</span>

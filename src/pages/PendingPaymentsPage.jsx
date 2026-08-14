@@ -7,6 +7,7 @@ import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
 import { getPendingPayments, receivePendingPayments } from "../lib/api";
 import { useAppSelector } from "../store/hooks";
+import SearchableSelect from "../components/SearchableSelect";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 
 const PAYMENT_MODE_OPTIONS = ["CASH", "CHEQUE", "ONLINE", "UPI"];
@@ -497,20 +498,17 @@ function PendingPaymentsPage() {
           }
         >
           <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Status</span>
-              <select
-                className="form-input"
-                value={draftFilters.status}
-                onChange={(event) =>
-                  setDraftFilters((prev) => ({ ...prev, status: event.target.value }))
-                }
-              >
-                <option value="">All</option>
-                <option value="PENDING">Pending</option>
-                <option value="PARTIAL">Partial</option>
-              </select>
-            </label>
+            <SearchableSelect
+              label="Status"
+              value={draftFilters.status}
+              onChange={(nextValue) => setDraftFilters((prev) => ({ ...prev, status: nextValue }))}
+              options={[
+                { value: "", label: "All" },
+                { value: "PENDING", label: "Pending" },
+                { value: "PARTIAL", label: "Partial" },
+              ]}
+              placeholder="Select status"
+            />
 
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Due From</span>
@@ -604,22 +602,15 @@ function PendingPaymentsPage() {
                 />
               </label>
 
-              <label className="block">
-                <span className="mb-1 block text-sm muted-text">Mode of Payment</span>
-                <select
-                  className="form-input"
-                  value={receiveForm.paymentMode}
-                  onChange={(event) =>
-                    setReceiveForm((prev) => ({ ...prev, paymentMode: event.target.value }))
-                  }
-                >
-                  {PAYMENT_MODE_OPTIONS.map((mode) => (
-                    <option key={mode} value={mode}>
-                      {mode}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SearchableSelect
+                label="Mode of Payment"
+                value={receiveForm.paymentMode}
+                onChange={(nextValue) =>
+                  setReceiveForm((prev) => ({ ...prev, paymentMode: nextValue }))
+                }
+                options={PAYMENT_MODE_OPTIONS.map((mode) => ({ value: mode, label: mode }))}
+                placeholder="Select payment mode"
+              />
 
               <label className="block sm:col-span-2">
                 <span className="mb-1 block text-sm muted-text">Payment Received Date</span>

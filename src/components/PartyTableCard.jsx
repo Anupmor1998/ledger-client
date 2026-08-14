@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useDebounce from "../hooks/useDebounce";
 import { sortByText } from "../utils/sort";
+import SearchableSelect from "./SearchableSelect";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { useAppSelector } from "../store/hooks";
 import ConfirmDialog from "./ConfirmDialog";
@@ -795,22 +796,21 @@ function PartyTableCard({
                   />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1 block text-sm muted-text">Commission Base</span>
-                    <select
-                      className="form-input"
-                      value={form.commissionBase}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          commissionBase: event.target.value,
-                        }))
-                      }
-                    >
-                      <option value="PERCENT">Percent</option>
-                      <option value="LOT">LOT</option>
-                    </select>
-                  </label>
+                  <SearchableSelect
+                    label="Commission Base"
+                    value={form.commissionBase}
+                    onChange={(nextValue) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        commissionBase: nextValue,
+                      }))
+                    }
+                    options={[
+                      { value: "PERCENT", label: "Percent" },
+                      { value: "LOT", label: "LOT" },
+                    ]}
+                    placeholder="Select commission base"
+                  />
                   {form.commissionBase === "LOT" ? (
                     <label className="block">
                       <span className="mb-1 block text-sm muted-text">Lot Rate</span>
@@ -986,23 +986,25 @@ function PartyTableCard({
 
             <label className="block">
               <span className="mb-1 block text-sm muted-text">Keep this entry</span>
-              <select
-                className="form-input"
+              <SearchableSelect
+                label="Keep this entry"
                 value={mergeTargetId}
-                onChange={(event) => setMergeTargetId(event.target.value)}
+                onChange={setMergeTargetId}
+                options={[
+                  {
+                    value: "",
+                    label: mergeLoading
+                      ? `Loading ${entityLabel} options...`
+                      : `Select the ${entityLabel} entry you want to keep`,
+                  },
+                  ...mergeOptions.map((option) => ({
+                    value: option.id,
+                    label: option.firmName ? `${option.firmName} - ${option.name}` : option.name,
+                  })),
+                ]}
+                placeholder={`Search ${entityLabel}...`}
                 disabled={mergeLoading}
-              >
-                <option value="">
-                  {mergeLoading
-                    ? `Loading ${entityLabel} options...`
-                    : `Select the ${entityLabel} entry you want to keep`}
-                </option>
-                {mergeOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.firmName ? `${option.firmName} - ${option.name}` : option.name}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             {mergeTargetId ? (

@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import OrderFormCard from "../components/OrderFormCard";
+import SearchableSelect from "../components/SearchableSelect";
 import { checkPartyDuplicates, createParty, resolvePartyDuplicates } from "../lib/api";
 import partySchema from "../validation/partySchema";
 
@@ -284,14 +285,17 @@ function HomePage() {
         </p>
 
         <form onSubmit={handleSubmit(handleCreateParty)} className="mt-4 space-y-4">
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">User Type</span>
-            <select className="form-input" {...register("userType")}>
-              <option value="customer">Customer</option>
-              <option value="manufacturer">Manufacturer</option>
-            </select>
-            {errors.userType ? <p className="mt-1 text-sm text-red-500">{errors.userType.message}</p> : null}
-          </label>
+          <SearchableSelect
+            label="User Type"
+            value={userType}
+            onChange={(nextValue) => setValue("userType", nextValue, { shouldDirty: true, shouldValidate: true })}
+            options={[
+              { value: "customer", label: "Customer" },
+              { value: "manufacturer", label: "Manufacturer" },
+            ]}
+            placeholder="Select user type"
+            error={errors.userType?.message}
+          />
 
           {userType === "customer" ? (
             <>
@@ -336,17 +340,19 @@ function HomePage() {
               </label>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-sm muted-text">Commission Base</span>
-                  <select className="form-input" {...register("commissionBase")}>
-                    <option value="PERCENT">Percent</option>
-                    <option value="LOT">LOT</option>
-                  </select>
-                  {errors.commissionBase ? (
-                    <p className="mt-1 text-sm text-red-500">{errors.commissionBase.message}</p>
-                  ) : null}
-                </label>
-
+                <SearchableSelect
+                  label="Commission Base"
+                  value={commissionBase}
+                  onChange={(nextValue) =>
+                    setValue("commissionBase", nextValue, { shouldDirty: true, shouldValidate: true })
+                  }
+                  options={[
+                    { value: "PERCENT", label: "Percent" },
+                    { value: "LOT", label: "LOT" },
+                  ]}
+                  placeholder="Select commission base"
+                  error={errors.commissionBase?.message}
+                />
                 {commissionBase === "LOT" ? (
                   <label className="block">
                     <span className="mb-1 block text-sm muted-text">Lot Rate</span>

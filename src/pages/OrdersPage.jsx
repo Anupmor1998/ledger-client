@@ -8,6 +8,7 @@ import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import OrderActivityModal from "../components/OrderActivityModal";
 import Modal from "../components/Modal";
+import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
@@ -850,81 +851,68 @@ function OrdersPage() {
           }
         >
           <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Status</span>
-              <select
-                className="form-input"
-                value={draftFilters.status}
-                onChange={(event) =>
-                  setDraftFilters((prev) => ({ ...prev, status: event.target.value }))
-                }
-              >
-                <option value="">All</option>
-                <option value="PENDING">Pending</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </label>
+            <SearchableSelect
+              label="Status"
+              value={draftFilters.status}
+              onChange={(nextValue) => setDraftFilters((prev) => ({ ...prev, status: nextValue }))}
+              options={[
+                { value: "", label: "All" },
+                { value: "PENDING", label: "Pending" },
+                { value: "COMPLETED", label: "Completed" },
+                { value: "CANCELLED", label: "Cancelled" },
+              ]}
+              placeholder="Select status"
+            />
 
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Customer</span>
-              <select
-                className="form-input"
-                value={draftFilters.customerId}
-                onChange={(event) =>
-                  setDraftFilters((prev) => ({ ...prev, customerId: event.target.value }))
-                }
-              >
-                <option value="">All</option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {formatPartyDisplay(customer).primary}
-                {formatPartyDisplay(customer).secondary
-                  ? ` / ${formatPartyDisplay(customer).secondary}`
-                  : ""}
-              </option>
-            ))}
-          </select>
-            </label>
+            <SearchableSelect
+              label="Customer"
+              value={draftFilters.customerId}
+              onChange={(nextValue) =>
+                setDraftFilters((prev) => ({ ...prev, customerId: nextValue }))
+              }
+              options={[
+                { value: "", label: "All" },
+                ...customers.map((customer) => ({
+                  value: customer.id,
+                  label: formatPartyDisplay(customer).primary,
+                  helperText: formatPartyDisplay(customer).secondary || "",
+                })),
+              ]}
+              placeholder="Select customer"
+            />
 
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Manufacturer</span>
-              <select
-                className="form-input"
-                value={draftFilters.manufacturerId}
-                onChange={(event) =>
-                  setDraftFilters((prev) => ({ ...prev, manufacturerId: event.target.value }))
-                }
-              >
-                <option value="">All</option>
-            {manufacturers.map((manufacturer) => (
-              <option key={manufacturer.id} value={manufacturer.id}>
-                {formatPartyDisplay(manufacturer).primary}
-                {formatPartyDisplay(manufacturer).secondary
-                  ? ` / ${formatPartyDisplay(manufacturer).secondary}`
-                  : ""}
-              </option>
-            ))}
-          </select>
-            </label>
+            <SearchableSelect
+              label="Manufacturer"
+              value={draftFilters.manufacturerId}
+              onChange={(nextValue) =>
+                setDraftFilters((prev) => ({ ...prev, manufacturerId: nextValue }))
+              }
+              options={[
+                { value: "", label: "All" },
+                ...manufacturers.map((manufacturer) => ({
+                  value: manufacturer.id,
+                  label: formatPartyDisplay(manufacturer).primary,
+                  helperText: formatPartyDisplay(manufacturer).secondary || "",
+                })),
+              ]}
+              placeholder="Select manufacturer"
+            />
 
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Quality</span>
-              <select
-                className="form-input"
-                value={draftFilters.qualityId}
-                onChange={(event) =>
-                  setDraftFilters((prev) => ({ ...prev, qualityId: event.target.value }))
-                }
-              >
-                <option value="">All</option>
-                {qualities.map((quality) => (
-                  <option key={quality.id} value={quality.id}>
-                    {quality.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableSelect
+              label="Quality"
+              value={draftFilters.qualityId}
+              onChange={(nextValue) =>
+                setDraftFilters((prev) => ({ ...prev, qualityId: nextValue }))
+              }
+              options={[
+                { value: "", label: "All" },
+                ...qualities.map((quality) => ({
+                  value: quality.id,
+                  label: quality.name,
+                })),
+              ]}
+              placeholder="Select quality"
+            />
 
             <label className="block">
               <span className="mb-1 block text-sm muted-text">From Date</span>
@@ -988,41 +976,35 @@ function OrdersPage() {
           }
         >
           <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Customer</span>
-              <select
-                className="form-input"
-                value={form.customerId}
-                onChange={(event) => setForm((prev) => ({ ...prev, customerId: event.target.value }))}
-              >
-                <option value="">Select customer</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>
-                    {formatPartyDisplay(customer).primary}
-                    {formatPartyDisplay(customer).secondary
-                      ? ` / ${formatPartyDisplay(customer).secondary}`
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableSelect
+              label="Customer"
+              value={form.customerId}
+              onChange={(nextValue) => setForm((prev) => ({ ...prev, customerId: nextValue }))}
+              options={[
+                { value: "", label: "Select customer" },
+                ...customers.map((customer) => ({
+                  value: customer.id,
+                  label: formatPartyDisplay(customer).primary,
+                  helperText: formatPartyDisplay(customer).secondary || "",
+                })),
+              ]}
+              placeholder="Select customer"
+            />
 
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Manufacturer</span>
-              <select
-                className="form-input"
-                value={form.manufacturerId}
-                onChange={(event) => setForm((prev) => ({ ...prev, manufacturerId: event.target.value }))}
-              >
-                <option value="">Select manufacturer</option>
-                {manufacturers.map((manufacturer) => (
-                  <option key={manufacturer.id} value={manufacturer.id}>
-                    {manufacturer.name}
-                    {manufacturer.firmName ? ` (${manufacturer.firmName})` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableSelect
+              label="Manufacturer"
+              value={form.manufacturerId}
+              onChange={(nextValue) => setForm((prev) => ({ ...prev, manufacturerId: nextValue }))}
+              options={[
+                { value: "", label: "Select manufacturer" },
+                ...manufacturers.map((manufacturer) => ({
+                  value: manufacturer.id,
+                  label: manufacturer.name,
+                  helperText: manufacturer.firmName ? manufacturer.firmName : "",
+                })),
+              ]}
+              placeholder="Select manufacturer"
+            />
 
             <div className="grid gap-3 sm:grid-cols-5">
               <label className="block sm:col-span-3">
@@ -1061,21 +1043,22 @@ function OrdersPage() {
 
               <label className="block sm:col-span-1">
                 <span className="mb-1 block text-sm muted-text">Unit</span>
-                <select
-                  className="form-input"
-                  value={form.quantityUnit}
-                  onChange={(event) => {
-                    const nextUnit = event.target.value;
-                    setForm((prev) => ({ ...prev, quantityUnit: nextUnit }));
-                    if (nextUnit === "LOT" || nextUnit === "TAKKA") {
-                      setLotMetersBasis(randomLotMeters());
-                    }
-                  }}
-                >
-                  <option value="LOT">Lot</option>
-                  <option value="METER">Meter</option>
-                  <option value="TAKKA">Takka</option>
-                </select>
+              <SearchableSelect
+                label="Unit"
+                value={form.quantityUnit}
+                onChange={(nextUnit) => {
+                  setForm((prev) => ({ ...prev, quantityUnit: nextUnit }));
+                  if (nextUnit === "LOT" || nextUnit === "TAKKA") {
+                    setLotMetersBasis(randomLotMeters());
+                  }
+                }}
+                options={[
+                  { value: "LOT", label: "Lot" },
+                  { value: "METER", label: "Meter" },
+                  { value: "TAKKA", label: "Takka" },
+                ]}
+                placeholder="Select unit"
+              />
               </label>
 
               <label className="block sm:col-span-2">
@@ -1268,18 +1251,20 @@ function OrdersPage() {
               <div className="rounded-lg border border-border p-3">
                 <p className="text-xs muted-text">Optional: Send to WhatsApp Group</p>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                  <select
-                    className="form-input"
+                  <SearchableSelect
+                    label=""
                     value={selectedGroupId}
-                    onChange={(event) => setSelectedGroupId(event.target.value)}
-                  >
-                    <option value="">Select group (optional)</option>
-                    {whatsappGroups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedGroupId}
+                    options={[
+                      { value: "", label: "Select group (optional)" },
+                      ...whatsappGroups.map((group) => ({
+                        value: group.id,
+                        label: group.name,
+                      })),
+                    ]}
+                    placeholder="Select group"
+                    className="flex-1"
+                  />
                   <button
                     type="button"
                     className="primary-btn w-auto"

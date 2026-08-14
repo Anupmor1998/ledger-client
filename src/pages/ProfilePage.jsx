@@ -18,6 +18,7 @@ import {
   updateMyProfile,
   updateMyPreferences,
 } from "../lib/api";
+import SearchableSelect from "../components/SearchableSelect";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
 import { buildFinancialYearOptions, getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
@@ -508,20 +509,17 @@ function ProfilePage() {
           onSubmit={handleSaveFinancialYear}
           className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
         >
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Selected Financial Year</span>
-            <select
-              className="form-input min-w-[220px]"
-              value={selectedFinancialYearStart}
-              onChange={(event) => setSelectedFinancialYearStart(Number(event.target.value))}
-            >
-              {financialYearOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Selected Financial Year"
+            value={String(selectedFinancialYearStart)}
+            onChange={(nextValue) => setSelectedFinancialYearStart(Number(nextValue))}
+            options={financialYearOptions.map((option) => ({
+              value: String(option.value),
+              label: option.label,
+            }))}
+            placeholder="Select financial year"
+            className="min-w-[220px]"
+          />
 
           <button type="submit" className="primary-btn w-full sm:w-auto sm:min-w-[220px]" disabled={financialYearSaving}>
             {financialYearSaving ? "Saving..." : "Save Financial Year"}
@@ -601,35 +599,29 @@ function ProfilePage() {
           onSubmit={handleLoadCarryForwardPreview}
           className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
         >
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Source Financial Year</span>
-            <select
-              className="form-input min-w-[220px]"
-              value={carrySourceFinancialYearStart}
-              onChange={(event) => setCarrySourceFinancialYearStart(Number(event.target.value))}
-            >
-              {financialYearOptions.map((option) => (
-                <option key={`source-${option.value}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Source Financial Year"
+            value={String(carrySourceFinancialYearStart)}
+            onChange={(nextValue) => setCarrySourceFinancialYearStart(Number(nextValue))}
+            options={financialYearOptions.map((option) => ({
+              value: String(option.value),
+              label: option.label,
+            }))}
+            placeholder="Select source year"
+            className="min-w-[220px]"
+          />
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Target Financial Year</span>
-            <select
-              className="form-input min-w-[220px]"
-              value={carryTargetFinancialYearStart}
-              onChange={(event) => setCarryTargetFinancialYearStart(Number(event.target.value))}
-            >
-              {financialYearOptions.map((option) => (
-                <option key={`target-${option.value}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Target Financial Year"
+            value={String(carryTargetFinancialYearStart)}
+            onChange={(nextValue) => setCarryTargetFinancialYearStart(Number(nextValue))}
+            options={financialYearOptions.map((option) => ({
+              value: String(option.value),
+              label: option.label,
+            }))}
+            placeholder="Select target year"
+            className="min-w-[220px]"
+          />
 
           <button type="submit" className="primary-btn w-full sm:w-auto" disabled={carryPreviewLoading}>
             {carryPreviewLoading ? "Loading..." : "Load Transferable Records"}

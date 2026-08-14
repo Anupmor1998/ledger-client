@@ -3,6 +3,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import SearchableSelect from "./SearchableSelect";
 
 function DataTable({
   columns,
@@ -61,19 +62,16 @@ function DataTable({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full flex-col gap-2 sm:max-w-xl sm:flex-row sm:items-center">
           {hasSearchFieldOptions ? (
-            <select
-              className="form-input sm:w-52"
+            <SearchableSelect
+              label=""
               value={searchFieldValue}
-              onChange={(event) =>
-                onSearchFieldChange ? onSearchFieldChange(event.target.value) : undefined
+              onChange={(nextValue) =>
+                onSearchFieldChange ? onSearchFieldChange(nextValue) : undefined
               }
-            >
-              {searchFieldOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={searchFieldOptions}
+              placeholder="Field"
+              className="sm:w-52"
+            />
           ) : null}
           <input
             className="form-input w-full"
@@ -85,17 +83,14 @@ function DataTable({
 
         <div className="flex items-center gap-2 text-sm">
           <span className="muted-text">Rows</span>
-          <select
-            className="form-input w-24 py-2"
-            value={pageSize}
-            onChange={(event) => onPageSizeChange(Number(event.target.value))}
-          >
-            {[5, 10, 20, 50].map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            label=""
+            value={String(pageSize)}
+            onChange={(nextValue) => onPageSizeChange(Number(nextValue))}
+            options={[5, 10, 20, 50].map((size) => ({ value: String(size), label: String(size) }))}
+            placeholder="Rows"
+            className="w-24"
+          />
         </div>
       </div>
 

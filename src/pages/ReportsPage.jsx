@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { format, parseISO, subMonths } from "date-fns";
 import { toast } from "react-toastify";
 import { downloadReportFile, getCustomers, getManufacturers, getQualities } from "../lib/api";
+import SearchableSelect from "../components/SearchableSelect";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { sortByText } from "../utils/sort";
@@ -257,32 +258,24 @@ function ReportsPage() {
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">User Type</span>
-            <select
-              className="form-input"
-              value={filters.userType}
-              onChange={(event) => updateFilter("userType", event.target.value)}
-            >
-              <option value="CUSTOMER">Customer</option>
-              <option value="MANUFACTURER">Manufacturer</option>
-            </select>
-          </label>
+          <SearchableSelect
+            label="User Type"
+            value={filters.userType}
+            onChange={(nextValue) => updateFilter("userType", nextValue)}
+            options={[
+              { value: "CUSTOMER", label: "Customer" },
+              { value: "MANUFACTURER", label: "Manufacturer" },
+            ]}
+            placeholder="Select user type"
+          />
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Group By</span>
-            <select
-              className="form-input"
-              value={filters.groupBy}
-              onChange={(event) => updateFilter("groupBy", event.target.value)}
-            >
-              {groupByOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Group By"
+            value={filters.groupBy}
+            onChange={(nextValue) => updateFilter("groupBy", nextValue)}
+            options={groupByOptions}
+            placeholder="Select group"
+          />
 
           <div className="relative block md:col-span-2 xl:col-span-1" ref={rangePickerRef}>
             <span className="mb-1 block text-sm muted-text">Date Range</span>
@@ -411,66 +404,59 @@ function ReportsPage() {
           </div>
 
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Particular Customer</span>
-            <select
-              className="form-input"
-              value={filters.customerId}
-              onChange={(event) => updateFilter("customerId", event.target.value)}
-            >
-              <option value="">All</option>
-              {customers.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.firmName || item.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Particular Customer"
+            value={filters.customerId}
+            onChange={(nextValue) => updateFilter("customerId", nextValue)}
+            options={[
+              { value: "", label: "All" },
+              ...customers.map((item) => ({
+                value: item.id,
+                label: item.firmName || item.name,
+              })),
+            ]}
+            placeholder="Select customer"
+          />
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Particular Manufacturer</span>
-            <select
-              className="form-input"
-              value={filters.manufacturerId}
-              onChange={(event) => updateFilter("manufacturerId", event.target.value)}
-            >
-              <option value="">All</option>
-              {manufacturers.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.firmName || item.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Particular Manufacturer"
+            value={filters.manufacturerId}
+            onChange={(nextValue) => updateFilter("manufacturerId", nextValue)}
+            options={[
+              { value: "", label: "All" },
+              ...manufacturers.map((item) => ({
+                value: item.id,
+                label: item.firmName || item.name,
+              })),
+            ]}
+            placeholder="Select manufacturer"
+          />
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Quality</span>
-            <select
-              className="form-input"
-              value={filters.qualityId}
-              onChange={(event) => updateFilter("qualityId", event.target.value)}
-            >
-              <option value="">All</option>
-              {qualities.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            label="Quality"
+            value={filters.qualityId}
+            onChange={(nextValue) => updateFilter("qualityId", nextValue)}
+            options={[
+              { value: "", label: "All" },
+              ...qualities.map((item) => ({
+                value: item.id,
+                label: item.name,
+              })),
+            ]}
+            placeholder="Select quality"
+          />
 
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Order Status</span>
-            <select
-              className="form-input"
-              value={filters.status}
-              onChange={(event) => updateFilter("status", event.target.value)}
-            >
-              <option value="">All</option>
-              <option value="PENDING">Pending</option>
-              <option value="COMPLETED">Completed</option>
-            </select>
-          </label>
+          <SearchableSelect
+            label="Order Status"
+            value={filters.status}
+            onChange={(nextValue) => updateFilter("status", nextValue)}
+            options={[
+              { value: "", label: "All" },
+              { value: "PENDING", label: "Pending" },
+              { value: "COMPLETED", label: "Completed" },
+            ]}
+            placeholder="Select status"
+          />
         </div>
 
         <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">

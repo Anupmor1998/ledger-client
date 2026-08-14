@@ -6,6 +6,7 @@ import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import OrderActivityModal from "../components/OrderActivityModal";
 import Modal from "../components/Modal";
+import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
@@ -568,23 +569,20 @@ function OrderProgressPage() {
               </button>
             </div>
 
-            <label className="block">
-              <span className="mb-1 block text-sm muted-text">Processed Unit</span>
-              <select
-                className="form-input"
-                value={form.processedQuantityUnit}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, processedQuantityUnit: event.target.value }))
-                }
-              >
-                <option value="TAKKA">TAKKA</option>
-                <option value="LOT">LOT</option>
-                <option value="METER">METER</option>
-              </select>
-              <p className="mt-1 text-xs muted-text">
-                Use this to enter or correct the processed quantity in takka, lot, or meter.
-              </p>
-            </label>
+            <SearchableSelect
+              label="Processed Unit"
+              value={form.processedQuantityUnit}
+              onChange={(nextValue) =>
+                setForm((prev) => ({ ...prev, processedQuantityUnit: nextValue }))
+              }
+              options={[
+                { value: "TAKKA", label: "TAKKA" },
+                { value: "LOT", label: "LOT" },
+                { value: "METER", label: "METER" },
+              ]}
+              placeholder="Select unit"
+              helperText="Use this to enter or correct the processed quantity in takka, lot, or meter."
+            />
 
             <p className="text-xs muted-text">
               Ordered quantity: {formatNumber(editItem.quantity)} {editItem.quantityUnit}
