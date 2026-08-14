@@ -82,6 +82,24 @@ function getPresetLabel(preset) {
   }
 }
 
+function getDefaultGroupBy(userType) {
+  return "QUALITY";
+}
+
+function getGroupByOptions(userType) {
+  if (userType === "MANUFACTURER") {
+    return [
+      { value: "QUALITY", label: "Quality" },
+      { value: "CUSTOMER", label: "Customer" },
+    ];
+  }
+
+  return [
+    { value: "QUALITY", label: "Quality" },
+    { value: "MANUFACTURER", label: "Manufacturer" },
+  ];
+}
+
 function ReportsPage() {
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
@@ -104,6 +122,7 @@ function ReportsPage() {
     qualityId: "",
     status: "",
     userType: "CUSTOMER",
+    groupBy: "QUALITY",
   });
 
   useEffect(() => {
@@ -167,12 +186,23 @@ function ReportsPage() {
       qualityId: filters.qualityId,
       status: filters.status,
       userType: filters.userType,
+      groupBy: filters.groupBy,
     }),
     [filters]
   );
 
   function updateFilter(key, value) {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => {
+      if (key === "userType") {
+        return {
+          ...prev,
+          userType: value,
+          groupBy: getDefaultGroupBy(value),
+        };
+      }
+
+      return { ...prev, [key]: value };
+    });
   }
 
   function applyDatePreset(preset) {
@@ -214,6 +244,8 @@ function ReportsPage() {
     }
   }
 
+  const groupByOptions = getGroupByOptions(filters.userType);
+
   return (
     <section className="space-y-4">
       <div className="auth-card p-4 sm:p-6">
@@ -232,6 +264,21 @@ function ReportsPage() {
             >
               <option value="CUSTOMER">Customer</option>
               <option value="MANUFACTURER">Manufacturer</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-sm muted-text">Group By</span>
+            <select
+              className="form-input"
+              value={filters.groupBy}
+              onChange={(event) => updateFilter("groupBy", event.target.value)}
+            >
+              {groupByOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
 
