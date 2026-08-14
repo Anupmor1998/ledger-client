@@ -7,6 +7,7 @@ import LoginPage from "../pages/LoginPage";
 import ManufacturersPage from "../pages/ManufacturersPage";
 import OrdersPage from "../pages/OrdersPage";
 import OrderActivityPage from "../pages/OrderActivityPage";
+import DashboardOverviewPage from "../pages/DashboardOverviewPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
 import PendingPaymentsPage from "../pages/PendingPaymentsPage";
 import ReceivedPaymentsPage from "../pages/ReceivedPaymentsPage";
@@ -37,6 +38,7 @@ function AppRoutes({ dark, onToggleTheme }) {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<DashboardLayout dark={dark} onToggleTheme={onToggleTheme} />}>
           <Route index element={<HomePage />} />
+          <Route path="dashboard" element={<DashboardOverviewPage />} />
           <Route path="customers" element={<CustomersPage />} />
           <Route path="manufacturers" element={<ManufacturersPage />} />
           <Route path="orders" element={<OrdersPage />} />

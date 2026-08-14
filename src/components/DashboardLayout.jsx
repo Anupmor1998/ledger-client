@@ -6,6 +6,7 @@ import { logout } from "../store/slices/authSlice";
 
 const navigationItems = [
   { to: "/", label: "Dashboard", end: true },
+  { to: "/dashboard", label: "Analytics" },
   { to: "/customers", label: "Customers" },
   { to: "/manufacturers", label: "Manufacturers" },
   { to: "/orders", label: "Orders" },
@@ -61,7 +62,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
 
   return (
     <div className="app-shell min-h-screen">
-      <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 md:gap-6">
+      <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 overflow-x-hidden md:gap-6">
         <aside className="hidden w-64 shrink-0 md:flex md:flex-col">
           <div className="sticky top-4 rounded-2xl border border-border bg-surface p-4 shadow-lg">
             <p className="text-xs uppercase tracking-wider muted-text">Navigation</p>
@@ -84,7 +85,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col pb-8 pt-3 sm:pt-4">
+        <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-8 pt-3 sm:pt-4">
           <header className="sticky top-0 z-30 rounded-xl border border-border bg-surface/90 px-4 py-3 backdrop-blur md:px-5">
             <div className="flex items-center justify-between gap-3">
               <h1 className="text-base font-semibold sm:text-lg">Ledger App</h1>
@@ -129,7 +130,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
             </div>
           </header>
 
-          <main className="mt-4 min-w-0">
+          <main className="mt-4 min-w-0 overflow-x-hidden">
             <Outlet />
           </main>
         </div>

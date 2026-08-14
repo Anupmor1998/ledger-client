@@ -31,6 +31,13 @@ export async function resetPassword(data) {
   return response.data;
 }
 
+export async function getDashboardSummary(params = {}) {
+  const response = await axiosClient.get("/dashboard/summary", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
 export async function createParty(data) {
   const { userType, ...payload } = data;
   const endpoint = userType === "manufacturer" ? "/manufacturers" : "/customers";

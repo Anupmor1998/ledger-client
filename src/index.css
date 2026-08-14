@@ -32,12 +32,14 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
   scrollbar-color: color-mix(in srgb, var(--color-muted) 55%, transparent) color-mix(in srgb, var(--color-border) 55%, transparent);
   scrollbar-width: thin;
 }
 
 #app {
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 *::-webkit-scrollbar {
@@ -65,6 +67,7 @@ body {
 @layer components {
   .app-shell {
     @apply min-h-screen bg-bg text-text transition-colors;
+    overflow-x: clip;
     background-image: radial-gradient(
         circle at 10% 10%,
         color-mix(in srgb, var(--color-accent-soft) 60%, transparent),
