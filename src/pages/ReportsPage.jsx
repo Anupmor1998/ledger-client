@@ -83,18 +83,20 @@ function getPresetLabel(preset) {
 }
 
 function getDefaultGroupBy(userType) {
-  return "QUALITY";
+  return "DATE";
 }
 
 function getGroupByOptions(userType) {
   if (userType === "MANUFACTURER") {
     return [
+      { value: "DATE", label: "Date" },
       { value: "QUALITY", label: "Quality" },
       { value: "CUSTOMER", label: "Customer" },
     ];
   }
 
   return [
+    { value: "DATE", label: "Date" },
     { value: "QUALITY", label: "Quality" },
     { value: "MANUFACTURER", label: "Manufacturer" },
   ];
@@ -122,7 +124,7 @@ function ReportsPage() {
     qualityId: "",
     status: "",
     userType: "CUSTOMER",
-    groupBy: "QUALITY",
+    groupBy: "DATE",
   });
 
   useEffect(() => {
