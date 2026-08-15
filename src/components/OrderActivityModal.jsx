@@ -94,7 +94,7 @@ function OrderActivityModal({ order, onClose, getActivity }) {
             <div className="rounded-xl border border-border bg-surface p-3">
               <p className="text-xs uppercase tracking-wide muted-text">Commission amount</p>
               <p className="mt-1 text-sm font-medium">
-                Rs. {Math.round(Number(order.progressCommissionAmount ?? order.commissionAmount ?? 0))}
+                Rs. {Number(order.progressCommissionAmount ?? order.commissionAmount ?? 0).toFixed(2)}
               </p>
               <p className="text-xs muted-text">Calculated from the current processed value</p>
             </div>

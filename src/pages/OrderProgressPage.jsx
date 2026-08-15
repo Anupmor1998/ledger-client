@@ -86,7 +86,7 @@ function formatNumber(value) {
 }
 
 function formatCommission(value) {
-  return String(Math.round(Number(value || 0)));
+  return Number(value || 0).toFixed(2);
 }
 
 function formatProcessedQuantityDisplay(value, unit) {
@@ -381,7 +381,7 @@ function OrderProgressPage() {
               nowrap
             />
             <span className="mt-0.5 block text-xs muted-text">
-              {`${formatNumber(row.original.processedMeter)} METER`}
+              {`${Number(row.original.processedMeter || 0).toFixed(2)} METER`}
             </span>
           </div>
         ),

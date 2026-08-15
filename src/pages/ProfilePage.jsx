@@ -1242,7 +1242,7 @@ function ProfilePage() {
                             </p>
                             <p className="mt-1 muted-text">
                               Commission: Rs.{" "}
-                              {Math.round(Number(order.progressCommissionAmount ?? order.commissionAmount ?? 0))}{" "}
+                              {Number(order.progressCommissionAmount ?? order.commissionAmount ?? 0).toFixed(2)}{" "}
                               | Status: {order.status}
                             </p>
                           </div>

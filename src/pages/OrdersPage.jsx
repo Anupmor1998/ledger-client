@@ -680,7 +680,7 @@ function OrdersPage() {
               nowrap
             />
             <span className="mt-0.5 block text-xs muted-text">
-              {`${formatNumber(row.original.processedMeter)} METER`}
+              {`${Number(row.original.processedMeter || 0).toFixed(2)} METER`}
             </span>
           </div>
         ),
@@ -697,7 +697,7 @@ function OrdersPage() {
         header: "Commission",
         accessorKey: "progressCommissionAmount",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={`Rs. ${Math.round(Number(getValue() || 0))}`} nowrap />,
+        cell: ({ getValue }) => <CopyableText value={`Rs. ${Number(getValue() || 0).toFixed(2)}`} nowrap />,
       },
       {
         id: "paymentDueOn",
