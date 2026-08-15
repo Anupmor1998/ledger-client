@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { format, isValid, parseISO } from "date-fns";
-import CopyableText from "../components/CopyableText";
+import OrderActivityAccordionRow from "../components/OrderActivityAccordionRow";
 import OrderActivityModal from "../components/OrderActivityModal";
 import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
@@ -19,20 +18,9 @@ const SEARCH_FIELDS = [
   { value: "qualityName", label: "Quality" },
 ];
 
-const ACTION_META = {
-  CREATED: { label: "Created", tone: "border-emerald-400/40 bg-emerald-500/10 text-emerald-600" },
-  UPDATED: { label: "Updated", tone: "border-blue-400/40 bg-blue-500/10 text-blue-600" },
-  PROGRESS_UPDATED: { label: "Progress changed", tone: "border-cyan-400/40 bg-cyan-500/10 text-cyan-600" },
-  COMPLETED: { label: "Completed", tone: "border-emerald-400/40 bg-emerald-500/10 text-emerald-600" },
-  REOPENED: { label: "Reopened", tone: "border-amber-400/40 bg-amber-500/10 text-amber-600" },
-  CANCELLED: { label: "Cancelled", tone: "border-red-400/40 bg-red-500/10 text-red-600" },
-  DELETED: { label: "Deleted", tone: "border-red-400/40 bg-red-500/10 text-red-600" },
-  CARRIED_FORWARD: { label: "Carried forward", tone: "border-violet-400/40 bg-violet-500/10 text-violet-600" },
-};
-
 const BATCH_SIZES = [10, 20, 50];
-const COLLAPSED_HEIGHT = 72;
-const EXPANDED_HEIGHT = 168;
+const COLLAPSED_HEIGHT = 104;
+const EXPANDED_HEIGHT = 260;
 
 function parseListResponse(payload) {
   if (Array.isArray(payload)) {
@@ -51,26 +39,6 @@ function parseListResponse(payload) {
     items: payload?.items || [],
     pagination: payload?.pagination || { total: 0, page: 1, limit: 10, totalPages: 1 },
   };
-}
-
-function formatDateTime(value) {
-  if (!value) return "-";
-  const date = typeof value === "string" ? parseISO(value) : new Date(value);
-  return isValid(date) ? format(date, "dd-MM-yyyy, HH:mm") : "-";
-}
-
-function formatPartyName(party) {
-  if (!party) return "-";
-  return party.firmName || party.name || "-";
-}
-
-function getActionMeta(action) {
-  return ACTION_META[action] || { label: action || "Activity", tone: "border-border bg-bg text-foreground" };
-}
-
-function getChangedFields(activity) {
-  const fields = activity?.metadata?.changedFields;
-  return Array.isArray(fields) ? fields : [];
 }
 
 function estimateRowHeight(activity, expanded, heightMap) {
@@ -108,135 +76,6 @@ function findIndexByScroll(prefix, scrollTop) {
   }
 
   return Math.max(0, low - 1);
-}
-
-function getActivitySummary(activity) {
-  const action = activity?.action || "";
-  const orderNo = activity?.order?.orderNo ? `Order #${activity.order.orderNo}` : "Order";
-  const customer = formatPartyName(activity?.order?.customer);
-  const manufacturer = formatPartyName(activity?.order?.manufacturer);
-  const quality = activity?.order?.quality?.name || "-";
-
-  if (action === "PROGRESS_UPDATED") {
-    return `${orderNo} progress was changed for ${customer}, handled by ${manufacturer} (${quality}).`;
-  }
-  if (action === "COMPLETED") {
-    return `${orderNo} was marked completed for ${customer}.`;
-  }
-  if (action === "REOPENED") {
-    return `${orderNo} was reopened so work could continue.`;
-  }
-  if (action === "CANCELLED") {
-    return `${orderNo} was cancelled.`;
-  }
-  if (action === "CARRIED_FORWARD") {
-    return `${orderNo} was carried forward into the new financial year.`;
-  }
-  if (action === "CREATED") {
-    return `${orderNo} was created for ${customer}.`;
-  }
-  return `${orderNo} was updated.`;
-}
-
-function CompactActivityRow({ activity, expanded, onToggle, onOpenTimeline, onMeasure, financialYearStart }) {
-  const rowRef = useRef(null);
-  const changedFields = useMemo(() => getChangedFields(activity), [activity]);
-  const actionMeta = useMemo(() => getActionMeta(activity.action), [activity.action]);
-  const order = activity.order || null;
-  const customerName = formatPartyName(order?.customer);
-  const manufacturerName = formatPartyName(order?.manufacturer);
-
-  useEffect(() => {
-    const node = rowRef.current;
-    if (!node) return undefined;
-
-    let raf = 0;
-    const measure = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => onMeasure(activity.id, Math.ceil(node.getBoundingClientRect().height)));
-    };
-
-    measure();
-
-    if (typeof ResizeObserver === "undefined") {
-      return () => cancelAnimationFrame(raf);
-    }
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => {
-      cancelAnimationFrame(raf);
-      observer.disconnect();
-    };
-  }, [activity.id, expanded, onMeasure]);
-
-  return (
-    <article ref={rowRef} className="rounded-xl border border-border bg-surface px-2 py-2 sm:px-3 sm:py-2.5">
-      <button
-        type="button"
-        onClick={() => onToggle(activity.id)}
-        className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-left xl:flex-nowrap"
-        aria-expanded={expanded}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          className={`h-4 w-4 shrink-0 fill-none stroke-current stroke-2 transition-transform ${
-            expanded ? "rotate-90" : "rotate-0"
-          }`}
-        >
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-
-        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] sm:text-[11px] font-medium uppercase tracking-wide ${actionMeta.tone}`}>
-          {actionMeta.label}
-        </span>
-
-        <span className="hidden shrink-0 rounded-full border border-border bg-bg px-2 py-0.5 text-[10px] xl:inline-flex xl:text-[11px] uppercase tracking-wide muted-text">
-          {formatDateTime(activity.createdAt)}
-        </span>
-
-        <span className="hidden shrink-0 rounded-full border border-border bg-bg px-2 py-0.5 text-[10px] sm:inline-flex sm:text-[11px] uppercase tracking-wide muted-text">
-          FY {order?.fyStartYear || financialYearStart}
-        </span>
-
-        <span className="shrink-0 rounded-full border border-border bg-bg px-2 py-0.5 text-[10px] sm:text-[11px] uppercase tracking-wide muted-text">
-          #{order?.orderNo ?? "-"}
-        </span>
-
-        <span className="min-w-0 flex-1 truncate text-xs sm:text-sm font-medium">
-          <span className="xl:hidden">{customerName}</span>
-          <span className="hidden xl:inline">
-            {customerName} | {manufacturerName} | {order?.quality?.name || "-"}
-          </span>
-        </span>
-
-        <span className="hidden shrink-0 text-xs muted-text xl:inline">{changedFields.length || 0} changes</span>
-      </button>
-
-      {expanded ? (
-        <div className="mt-2 grid gap-2 border-t border-border pt-2 sm:grid-cols-[1.5fr_1fr_1fr]">
-          <div className="rounded-lg border border-border bg-bg/40 px-3 py-2 text-sm">
-            <p className="text-[11px] uppercase tracking-wide muted-text">What happened</p>
-            <p className="mt-1 text-sm">{getActivitySummary(activity)}</p>
-          </div>
-          <div className="rounded-lg border border-border bg-bg/40 px-3 py-2 text-sm">
-            <p className="text-[11px] uppercase tracking-wide muted-text">Changed fields</p>
-            <p className="mt-1 text-sm">{changedFields.slice(0, 4).join(", ") || "No tracked field diff."}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded-lg border border-sky-400/40 px-3 py-2 text-sm text-sky-500 hover:bg-sky-50"
-              onClick={() => onOpenTimeline(order)}
-              disabled={!order?.id}
-            >
-              Timeline
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </article>
-  );
 }
 
 function OrderActivityPage() {
@@ -360,7 +199,7 @@ function OrderActivityPage() {
 
   const { startIndex, endIndex } = useMemo(() => {
     if (items.length === 0) return { startIndex: 0, endIndex: -1 };
-    const overscan = 6;
+    const overscan = 4;
     const start = Math.max(0, findIndexByScroll(prefix, scrollTop) - overscan);
     const visibleBottom = scrollTop + viewportHeight;
     let end = start;
@@ -375,7 +214,7 @@ function OrderActivityPage() {
   const bottomSpacer = Math.max(0, totalHeight - (prefix[endIndex + 1] || totalHeight));
 
   const handleMeasure = useCallback((id, height) => {
-    const nextHeight = Math.max(64, Number(height || 0));
+    const nextHeight = Math.max(COLLAPSED_HEIGHT, Number(height || 0));
     if (heightMapRef.current.get(id) !== nextHeight) {
       heightMapRef.current.set(id, nextHeight);
       setExpandedMap((current) => ({ ...current }));
@@ -399,7 +238,7 @@ function OrderActivityPage() {
           </div>
           <h2 className="mt-2 text-xl font-semibold">Order Activity</h2>
           <p className="mt-1 max-w-2xl text-sm muted-text">
-            Compact, expandable activity log for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+            Compact, understandable activity log for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
           </p>
         </div>
 
@@ -462,7 +301,9 @@ function OrderActivityPage() {
         className="mt-4 h-[calc(100dvh-280px)] min-h-[22rem] overflow-y-auto rounded-2xl border border-border bg-surface p-2 sm:h-[calc(100dvh-320px)] sm:min-h-[24rem]"
       >
         {loading && items.length === 0 ? (
-          <div className="rounded-xl border border-border bg-bg p-4 text-sm muted-text">Loading activity feed...</div>
+          <div className="rounded-xl border border-border bg-bg p-4 text-sm muted-text">
+            Loading activity feed...
+          </div>
         ) : items.length === 0 ? (
           <div className="rounded-xl border border-border bg-bg p-4 text-sm muted-text">
             No order activity found for the selected filters.
@@ -471,7 +312,7 @@ function OrderActivityPage() {
           <div style={{ height: totalHeight, position: "relative" }}>
             <div style={{ transform: `translateY(${topSpacer}px)` }} className="space-y-2">
               {visibleItems.map((activity) => (
-                <CompactActivityRow
+                <OrderActivityAccordionRow
                   key={activity.id}
                   activity={activity}
                   expanded={Boolean(expandedMap[activity.id])}

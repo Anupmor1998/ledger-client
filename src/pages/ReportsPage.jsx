@@ -250,8 +250,8 @@ function ReportsPage() {
   const groupByOptions = getGroupByOptions(filters.userType);
 
   return (
-    <section className="space-y-4">
-      <div className="auth-card p-4 sm:p-6">
+    <section className="flex min-h-[calc(100dvh-7rem)] flex-col gap-4">
+      <div className="auth-card flex flex-1 flex-col p-4 sm:p-6">
         <h2 className="text-xl font-semibold">Reports</h2>
         <p className="mt-1 text-sm muted-text">
           Select filters and export Excel reports for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
@@ -298,7 +298,7 @@ function ReportsPage() {
                   className="fixed inset-0 z-40 bg-slate-950/65 backdrop-blur-[2px] md:hidden"
                   onClick={() => setIsRangePickerOpen(false)}
                 />
-                <div className="z-50 overflow-y-auto rounded-t-3xl border border-white/15 bg-bg p-4 shadow-2xl max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[86vh] max-md:shadow-[0_-18px_40px_rgba(15,23,42,0.35)] md:absolute md:left-0 md:right-0 md:top-full md:mt-2 md:rounded-2xl md:bg-surface-elevated">
+                <div className="z-50 overflow-y-auto rounded-t-3xl border border-white/15 bg-bg p-4 shadow-2xl max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[86vh] max-md:shadow-[0_-18px_40px_rgba(15,23,42,0.35)] md:absolute md:left-0 md:right-0 md:top-full md:mt-2 md:max-h-[calc(100dvh-14rem)] md:rounded-2xl md:bg-surface-elevated">
                   <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/15 md:hidden" />
                   <div className="flex items-center justify-between gap-3">
                     <div>
