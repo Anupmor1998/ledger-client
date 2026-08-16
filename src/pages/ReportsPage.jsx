@@ -230,14 +230,41 @@ function ReportsPage() {
     setIsRangePickerOpen((prev) => !prev);
   }
 
-  async function handleDownload() {
+  async function handleDownloadExcel() {
     const reportTypeLabel =
       filters.userType === "MANUFACTURER" ? "Manufacturer Report" : "Customer Report";
-    setDownloadingKey("order-report");
+    setDownloadingKey("order-report-xlsx");
     try {
       const params = { ...commonParams };
-      await downloadReportFile("order-report.xlsx", params, `${filters.userType.toLowerCase()}-report.xlsx`);
-      toast.success(`${reportTypeLabel} downloaded`);
+      await downloadReportFile(
+        "order-report.xlsx",
+        params,
+        `${filters.userType.toLowerCase()}-report.xlsx`,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      toast.success(`${reportTypeLabel} downloaded as Excel`);
+    } catch (error) {
+      const message =
+        error?.response?.data?.message || error?.message || `Unable to download report.`;
+      toast.error(message);
+    } finally {
+      setDownloadingKey("");
+    }
+  }
+
+  async function handleDownloadPdf() {
+    const reportTypeLabel =
+      filters.userType === "MANUFACTURER" ? "Manufacturer Report" : "Customer Report";
+    setDownloadingKey("order-report-pdf");
+    try {
+      const params = { ...commonParams };
+      await downloadReportFile(
+        "order-report.pdf",
+        params,
+        `${filters.userType.toLowerCase()}-report.pdf`,
+        "application/pdf"
+      );
+      toast.success(`${reportTypeLabel} downloaded as PDF`);
     } catch (error) {
       const message =
         error?.response?.data?.message || error?.message || `Unable to download report.`;
@@ -254,7 +281,7 @@ function ReportsPage() {
       <div className="auth-card flex flex-1 flex-col p-4 sm:p-6">
         <h2 className="text-xl font-semibold">Reports</h2>
         <p className="mt-1 text-sm muted-text">
-          Select filters and export Excel reports for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+          Select filters and export Excel or PDF reports for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -463,14 +490,24 @@ function ReportsPage() {
           <div className="text-sm muted-text">
             {loadingFilters ? "Loading filter options..." : "Ready to export once filters are selected."}
           </div>
-          <button
-            type="button"
-            className="primary-btn w-full sm:w-fit sm:px-6"
-            disabled={downloadingKey === "order-report" || loadingFilters}
-            onClick={handleDownload}
-          >
-            {downloadingKey === "order-report" ? "Preparing..." : "Export Excel"}
-          </button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <button
+              type="button"
+              className="primary-btn w-full sm:w-fit sm:px-6"
+              disabled={downloadingKey === "order-report-xlsx" || loadingFilters}
+              onClick={handleDownloadExcel}
+            >
+              {downloadingKey === "order-report-xlsx" ? "Preparing..." : "Export in Excel"}
+            </button>
+            <button
+              type="button"
+              className="primary-btn w-full bg-primary/80 sm:w-fit sm:px-6"
+              disabled={downloadingKey === "order-report-pdf" || loadingFilters}
+              onClick={handleDownloadPdf}
+            >
+              {downloadingKey === "order-report-pdf" ? "Preparing..." : "Export in PDF"}
+            </button>
+          </div>
         </div>
       </div>
     </section>

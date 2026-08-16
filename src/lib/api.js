@@ -340,7 +340,12 @@ function resolveFilenameFromDisposition(headerValue, fallbackName) {
   return fallbackName;
 }
 
-export async function downloadReportFile(path, params = {}, fallbackName = "report.xlsx") {
+export async function downloadReportFile(
+  path,
+  params = {},
+  fallbackName = "report.xlsx",
+  mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+) {
   const response = await axiosClient.get(`/reports/${path}`, {
     params: normalizeListParams(params),
     responseType: "blob",
@@ -349,8 +354,7 @@ export async function downloadReportFile(path, params = {}, fallbackName = "repo
   const disposition = response.headers?.["content-disposition"];
   const filename = resolveFilenameFromDisposition(disposition, fallbackName);
   const blob = new Blob([response.data], {
-    type:
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    type: mimeType,
   });
   const url = URL.createObjectURL(blob);
 
