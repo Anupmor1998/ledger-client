@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
 import AutocompleteInput from "../components/AutocompleteInput";
@@ -183,26 +183,104 @@ function extractMessageFromWhatsAppLink(link) {
   return params.get("text") || "";
 }
 
+function normalizeOrderQueryPage(value) {
+  const page = Number(value);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+function normalizeOrderQueryPageSize(value, fallback = 10) {
+  const size = Number(value);
+  return Number.isInteger(size) && size > 0 ? size : fallback;
+}
+
+function parseOrderSorting(searchParams) {
+  const sortBy = String(searchParams.get("sortBy") || "createdAt");
+  const sortOrder = String(searchParams.get("sortOrder") || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+  return [{ id: sortBy, desc: sortOrder !== "asc" }];
+}
+
+function parseOrderFilters(searchParams) {
+  return {
+    status: String(searchParams.get("status") || ""),
+    customerId: String(searchParams.get("customerId") || ""),
+    manufacturerId: String(searchParams.get("manufacturerId") || ""),
+    qualityId: String(searchParams.get("qualityId") || ""),
+    from: String(searchParams.get("from") || ""),
+    to: String(searchParams.get("to") || ""),
+  };
+}
+
+function buildOrderSearchParams({
+  searchInput,
+  searchField,
+  pageIndex,
+  pageSize,
+  sorting,
+  filters,
+}) {
+  const params = new URLSearchParams();
+  const trimmedSearch = String(searchInput || "").trim();
+  const sort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : { id: "createdAt", desc: true };
+
+  if (trimmedSearch) params.set("search", trimmedSearch);
+  if (searchField) params.set("searchField", searchField);
+  if (pageIndex > 0) params.set("page", String(pageIndex + 1));
+  if (pageSize && Number(pageSize) !== 10) params.set("limit", String(pageSize));
+  if (sort?.id) params.set("sortBy", String(sort.id));
+  params.set("sortOrder", sort?.desc ? "desc" : "asc");
+
+  Object.entries(filters || {}).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, String(value));
+    }
+  });
+
+  return params;
+}
+
 function OrdersPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
+  const searchParamsKey = searchParams.toString();
+  const initialQueryState = useMemo(() => {
+    const params = new URLSearchParams(searchParamsKey);
+    const initialSearchField = ORDER_SEARCH_FIELD_OPTIONS.some((option) => option.value === params.get("searchField"))
+      ? params.get("searchField")
+      : "orderNo";
+
+    return {
+      searchInput: String(params.get("search") || ""),
+      searchField: initialSearchField,
+      pageIndex: normalizeOrderQueryPage(params.get("page")) - 1,
+      pageSize: normalizeOrderQueryPageSize(params.get("limit"), 10),
+      sorting: parseOrderSorting(params),
+      filters: parseOrderFilters(params),
+    };
+  }, [searchParamsKey]);
   const [rows, setRows] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [manufacturers, setManufacturers] = useState([]);
   const [qualities, setQualities] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [sorting, setSorting] = useState([{ id: "createdAt", desc: true }]);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchInput, setSearchInput] = useState("");
-  const [searchField, setSearchField] = useState("orderNo");
+  const [sorting, setSorting] = useState(initialQueryState.sorting);
+  const [pageIndex, setPageIndex] = useState(initialQueryState.pageIndex);
+  const [pageSize, setPageSize] = useState(initialQueryState.pageSize);
+  const [searchInput, setSearchInput] = useState(initialQueryState.searchInput);
+  const [searchField, setSearchField] = useState(initialQueryState.searchField);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
-  const [filters, setFilters] = useState(INITIAL_ORDER_FILTERS);
-  const [draftFilters, setDraftFilters] = useState(INITIAL_ORDER_FILTERS);
+  const [filters, setFilters] = useState({
+    ...INITIAL_ORDER_FILTERS,
+    ...initialQueryState.filters,
+  });
+  const [draftFilters, setDraftFilters] = useState({
+    ...INITIAL_ORDER_FILTERS,
+    ...initialQueryState.filters,
+  });
   const queryKey = JSON.stringify({
     search: debouncedSearch,
     searchField,
@@ -216,6 +294,7 @@ function OrdersPage() {
     to: filters.to,
   });
   const previousQueryKeyRef = useRef(queryKey);
+  const hydratedSearchParamsRef = useRef(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const [editItem, setEditItem] = useState(null);
@@ -310,6 +389,35 @@ function OrdersPage() {
     }
     loadRemarkTemplates();
   }, []);
+
+  useEffect(() => {
+    if (!hydratedSearchParamsRef.current) {
+      hydratedSearchParamsRef.current = true;
+      return;
+    }
+
+    const nextParams = buildOrderSearchParams({
+      searchInput,
+      searchField,
+      pageIndex,
+      pageSize,
+      sorting,
+      filters,
+    });
+
+    if (nextParams.toString() !== searchParamsKey) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    filters,
+    pageIndex,
+    pageSize,
+    searchField,
+    searchInput,
+    searchParamsKey,
+    setSearchParams,
+    sorting,
+  ]);
 
   const loadData = useCallback(async () => {
     setLoading(true);

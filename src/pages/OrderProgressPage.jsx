@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -114,22 +115,72 @@ function buildMergedRemark(row) {
   ]);
 }
 
+function normalizeProgressQueryPage(value) {
+  const page = Number(value);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+function normalizeProgressQueryPageSize(value, fallback = 10) {
+  const size = Number(value);
+  return Number.isInteger(size) && size > 0 ? size : fallback;
+}
+
+function parseProgressSorting(searchParams) {
+  const sortBy = String(searchParams.get("sortBy") || "createdAt");
+  const sortOrder = String(searchParams.get("sortOrder") || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+  return [{ id: sortBy, desc: sortOrder !== "asc" }];
+}
+
+function buildProgressSearchParams({ searchInput, searchField, pageIndex, pageSize, sorting }) {
+  const params = new URLSearchParams();
+  const trimmedSearch = String(searchInput || "").trim();
+  const sort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : { id: "createdAt", desc: true };
+
+  if (trimmedSearch) params.set("search", trimmedSearch);
+  if (searchField) params.set("searchField", searchField);
+  if (pageIndex > 0) params.set("page", String(pageIndex + 1));
+  if (pageSize && Number(pageSize) !== 10) params.set("limit", String(pageSize));
+  if (sort?.id) params.set("sortBy", String(sort.id));
+  params.set("sortOrder", sort?.desc ? "desc" : "asc");
+
+  return params;
+}
+
 function OrderProgressPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
+  const searchParamsKey = searchParams.toString();
+  const initialQueryState = useMemo(() => {
+    const params = new URLSearchParams(searchParamsKey);
+    const initialSearchField = ORDER_PROGRESS_SEARCH_FIELD_OPTIONS.some(
+      (option) => option.value === params.get("searchField")
+    )
+      ? params.get("searchField")
+      : "orderNo";
+
+    return {
+      searchInput: String(params.get("search") || ""),
+      searchField: initialSearchField,
+      pageIndex: normalizeProgressQueryPage(params.get("page")) - 1,
+      pageSize: normalizeProgressQueryPageSize(params.get("limit"), 10),
+      sorting: parseProgressSorting(params),
+    };
+  }, [searchParamsKey]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [sorting, setSorting] = useState([{ id: "createdAt", desc: true }]);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchInput, setSearchInput] = useState("");
-  const [searchField, setSearchField] = useState("orderNo");
+  const [sorting, setSorting] = useState(initialQueryState.sorting);
+  const [pageIndex, setPageIndex] = useState(initialQueryState.pageIndex);
+  const [pageSize, setPageSize] = useState(initialQueryState.pageSize);
+  const [searchInput, setSearchInput] = useState(initialQueryState.searchInput);
+  const [searchField, setSearchField] = useState(initialQueryState.searchField);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
   const queryKey = JSON.stringify({ search: debouncedSearch, searchField, pageSize, sorting });
   const previousQueryKeyRef = useRef(queryKey);
+  const hydratedSearchParamsRef = useRef(false);
 
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({
@@ -183,6 +234,25 @@ function OrderProgressPage() {
     previousQueryKeyRef.current = queryKey;
     loadData();
   }, [loadData, pageIndex, queryKey]);
+
+  useEffect(() => {
+    if (!hydratedSearchParamsRef.current) {
+      hydratedSearchParamsRef.current = true;
+      return;
+    }
+
+    const nextParams = buildProgressSearchParams({
+      searchInput,
+      searchField,
+      pageIndex,
+      pageSize,
+      sorting,
+    });
+
+    if (nextParams.toString() !== searchParamsKey) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [pageIndex, pageSize, searchField, searchInput, searchParamsKey, setSearchParams, sorting]);
 
   function openEdit(item) {
     setEditItem(item);
