@@ -60,6 +60,52 @@ function EmptyChartState({ title, description }) {
   );
 }
 
+function ChartLegend({ payload }) {
+  if (!Array.isArray(payload) || payload.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs muted-text">
+      {payload.map((item) => (
+        <div key={item.value} className="flex items-center gap-2">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ backgroundColor: item.color }}
+            aria-hidden="true"
+          />
+          <span>{item.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !Array.isArray(payload) || payload.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-surface px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-text">{label}</p>
+      <div className="mt-1 space-y-1">
+        {payload.map((item) => (
+          <div key={item.dataKey || item.name} className="flex items-center gap-2 text-xs muted-text">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-sm"
+              style={{ backgroundColor: item.color }}
+              aria-hidden="true"
+            />
+            <span className="font-medium text-text">{item.name || "LOT"}:</span>
+            <span>{Number(item.value || 0)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashboardOverviewPage() {
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -141,9 +187,9 @@ function DashboardOverviewPage() {
   const completedOrders = dashboardSummary?.completedOrderCount || 0;
   const pendingCommission = dashboardSummary?.pendingCommissionAmount || 0;
   const availableFinancialYears = dashboardSummary?.availableFinancialYears || [];
-  const hasDailyOrders = dailyOrdersChart.some((item) => Number(item.value || 0) > 0);
-  const hasMonthlyOrders = monthlyOrdersChart.some((item) => Number(item.value || 0) > 0);
-  const hasYearlyOrders = yearlyOrdersChart.some((item) => Number(item.value || 0) > 0);
+  const hasDailyLots = dailyOrdersChart.some((item) => Number(item.value || 0) > 0);
+  const hasMonthlyLots = monthlyOrdersChart.some((item) => Number(item.value || 0) > 0);
+  const hasYearlyLots = yearlyOrdersChart.some((item) => Number(item.value || 0) > 0);
 
   return (
     <section className="auth-card p-4 sm:p-6">
@@ -206,18 +252,18 @@ function DashboardOverviewPage() {
       <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-3">
         <div className="min-w-0 rounded-2xl border border-border bg-surface p-4">
           <div>
-            <h3 className="font-semibold">Daily Orders</h3>
-            <p className="text-xs muted-text">Recent daily order trend.</p>
+            <h3 className="font-semibold">Daily LOT</h3>
+            <p className="text-xs muted-text">Recent daily LOT trend.</p>
           </div>
           <div className="mt-4 h-72">
             {dashboardLoading ? (
               <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-sm muted-text">
                 Loading chart...
               </div>
-            ) : !hasDailyOrders ? (
+            ) : !hasDailyLots ? (
               <EmptyChartState
-                title="No daily order data"
-                description="There are no orders in this financial year yet, so the daily trend is empty."
+                title="No daily LOT data"
+                description="There are no LOT totals in this financial year yet, so the daily trend is empty."
               />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -225,12 +271,12 @@ function DashboardOverviewPage() {
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend content={<ChartLegend />} />
                   <Line
                     type="monotone"
                     dataKey="value"
-                    name="Orders"
+                    name="LOT"
                     stroke="#0f766e"
                     strokeWidth={3}
                     dot={false}
@@ -243,7 +289,7 @@ function DashboardOverviewPage() {
 
         <div className="min-w-0 rounded-2xl border border-border bg-surface p-4">
           <div>
-            <h3 className="font-semibold">Monthly Orders</h3>
+            <h3 className="font-semibold">Monthly LOT</h3>
             <p className="text-xs muted-text">Last 12 months inside the selected FY.</p>
           </div>
           <div className="mt-4 h-72">
@@ -251,10 +297,10 @@ function DashboardOverviewPage() {
               <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-sm muted-text">
                 Loading chart...
               </div>
-            ) : !hasMonthlyOrders ? (
+            ) : !hasMonthlyLots ? (
               <EmptyChartState
-                title="No monthly order data"
-                description="Monthly order activity will appear here once orders exist for this financial year."
+                title="No monthly LOT data"
+                description="Monthly LOT activity will appear here once orders exist for this financial year."
               />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -262,8 +308,8 @@ function DashboardOverviewPage() {
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
-                  <Tooltip />
-                  <Bar dataKey="value" name="Orders" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="value" name="LOT" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -272,18 +318,18 @@ function DashboardOverviewPage() {
 
         <div className="min-w-0 rounded-2xl border border-border bg-surface p-4">
           <div>
-            <h3 className="font-semibold">Yearly Orders</h3>
-            <p className="text-xs muted-text">Financial year order count trend.</p>
+            <h3 className="font-semibold">Yearly LOT</h3>
+            <p className="text-xs muted-text">Financial year LOT trend.</p>
           </div>
           <div className="mt-4 h-72">
             {dashboardLoading ? (
               <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-sm muted-text">
                 Loading chart...
               </div>
-            ) : !hasYearlyOrders ? (
+            ) : !hasYearlyLots ? (
               <EmptyChartState
-                title="No yearly order data"
-                description="Yearly trend lines will appear after orders exist for one or more financial years."
+                title="No yearly LOT data"
+                description="Yearly trend lines will appear after LOT totals exist for one or more financial years."
               />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -297,11 +343,11 @@ function DashboardOverviewPage() {
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} />
-                  <Tooltip />
+                  <Tooltip content={<ChartTooltip />} />
                   <Area
                     type="monotone"
                     dataKey="value"
-                    name="Orders"
+                    name="LOT"
                     stroke="#8b5cf6"
                     fill="url(#yearlyOrdersFill)"
                     strokeWidth={3}
