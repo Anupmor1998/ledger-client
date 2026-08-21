@@ -131,19 +131,50 @@ function parseProgressSorting(searchParams) {
   return [{ id: sortBy, desc: sortOrder !== "asc" }];
 }
 
-function buildProgressSearchParams({ searchInput, searchField, pageIndex, pageSize, sorting }) {
+function buildProgressSearchParams({ searchInput, searchField, pageIndex, pageSize, sorting, status }) {
   const params = new URLSearchParams();
   const trimmedSearch = String(searchInput || "").trim();
   const sort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : { id: "createdAt", desc: true };
 
   if (trimmedSearch) params.set("search", trimmedSearch);
   if (searchField) params.set("searchField", searchField);
+  if (status) params.set("status", status);
   if (pageIndex > 0) params.set("page", String(pageIndex + 1));
   if (pageSize && Number(pageSize) !== 10) params.set("limit", String(pageSize));
   if (sort?.id) params.set("sortBy", String(sort.id));
   params.set("sortOrder", sort?.desc ? "desc" : "asc");
 
   return params;
+}
+
+function normalizeOrderStatusQuery(value) {
+  const status = String(value || "").trim().toUpperCase();
+  if (!status) {
+    return "PENDING";
+  }
+  return ["PENDING", "COMPLETED", "CANCELLED"].includes(status) ? status : "PENDING";
+}
+
+function buildFollowUpWhatsAppLink(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) {
+    return null;
+  }
+
+  const normalizedPhone = digits.startsWith("91") && digits.length === 12 ? digits : `91${digits.slice(-10)}`;
+  const message = "आज क्या माल निकला और क्या जाएगा";
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+}
+
+function createFollowUpWhatsAppLink(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) {
+    return null;
+  }
+
+  const normalizedPhone = digits.startsWith("91") && digits.length === 12 ? digits : `91${digits.slice(-10)}`;
+  const message = "\u0906\u091c \u0915\u094d\u092f\u093e \u092e\u093e\u0932 \u0928\u093f\u0915\u0932\u093e \u0914\u0930 \u0915\u094d\u092f\u093e \u091c\u093e\u090f\u0917\u093e";
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
 }
 
 function OrderProgressPage() {
@@ -161,6 +192,7 @@ function OrderProgressPage() {
       : "orderNo";
 
     return {
+      status: normalizeOrderStatusQuery(params.get("status")),
       searchInput: String(params.get("search") || ""),
       searchField: initialSearchField,
       pageIndex: normalizeProgressQueryPage(params.get("page")) - 1,
@@ -171,6 +203,7 @@ function OrderProgressPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [statusFilter, setStatusFilter] = useState(initialQueryState.status);
   const [sorting, setSorting] = useState(initialQueryState.sorting);
   const [pageIndex, setPageIndex] = useState(initialQueryState.pageIndex);
   const [pageSize, setPageSize] = useState(initialQueryState.pageSize);
@@ -178,7 +211,7 @@ function OrderProgressPage() {
   const [searchField, setSearchField] = useState(initialQueryState.searchField);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
-  const queryKey = JSON.stringify({ search: debouncedSearch, searchField, pageSize, sorting });
+  const queryKey = JSON.stringify({ search: debouncedSearch, searchField, pageSize, sorting, statusFilter });
   const previousQueryKeyRef = useRef(queryKey);
   const hydratedSearchParamsRef = useRef(false);
 
@@ -203,7 +236,7 @@ function OrderProgressPage() {
     try {
       const sort = sorting[0] || { id: "createdAt", desc: true };
       const payload = await getOrders({
-        status: "PENDING",
+        status: statusFilter,
         page: pageIndex + 1,
         limit: pageSize,
         search: debouncedSearch,
@@ -220,7 +253,7 @@ function OrderProgressPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageIndex, pageSize, searchField, sorting]);
+  }, [debouncedSearch, pageIndex, pageSize, searchField, sorting, statusFilter]);
 
   useEffect(() => {
     const queryChanged = previousQueryKeyRef.current !== queryKey;
@@ -247,12 +280,13 @@ function OrderProgressPage() {
       pageIndex,
       pageSize,
       sorting,
+      status: statusFilter,
     });
 
     if (nextParams.toString() !== searchParamsKey) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [pageIndex, pageSize, searchField, searchInput, searchParamsKey, setSearchParams, sorting]);
+  }, [pageIndex, pageSize, searchField, searchInput, searchParamsKey, setSearchParams, sorting, statusFilter]);
 
   function openEdit(item) {
     setEditItem(item);
@@ -492,6 +526,26 @@ function OrderProgressPage() {
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-emerald-400/40 p-2 text-emerald-600 hover:bg-emerald-50"
+              onClick={() => {
+                const link = createFollowUpWhatsAppLink(row.original.manufacturer?.phone);
+                if (!link) {
+                  toast.error("Manufacturer phone number is missing.");
+                  return;
+                }
+                window.open(link, "_blank", "noopener,noreferrer");
+              }}
+              aria-label="Follow up"
+              title="Follow up"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                <path d="M4 6h16v10H7l-3 3V6Z" />
+                <path d="M8 10h8" />
+                <path d="M8 13h5" />
+              </svg>
+            </button>
             <button
               type="button"
               className="rounded-lg border border-sky-400/40 p-2 text-sky-500 hover:bg-sky-50"

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Area,
@@ -107,6 +108,7 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 function DashboardOverviewPage() {
+  const navigate = useNavigate();
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
@@ -190,6 +192,9 @@ function DashboardOverviewPage() {
   const hasDailyLots = dailyOrdersChart.some((item) => Number(item.value || 0) > 0);
   const hasMonthlyLots = monthlyOrdersChart.some((item) => Number(item.value || 0) > 0);
   const hasYearlyLots = yearlyOrdersChart.some((item) => Number(item.value || 0) > 0);
+  const openPendingOrders = () => {
+    navigate("/order-progress?status=PENDING");
+  };
 
   return (
     <section className="auth-card p-4 sm:p-6">
@@ -226,10 +231,14 @@ function DashboardOverviewPage() {
             <p className="text-xs uppercase tracking-wide muted-text">Total Orders</p>
             <p className="mt-1 text-2xl font-semibold">{dashboardLoading ? "..." : totalOrders}</p>
           </div>
-          <div className="rounded-2xl border border-border bg-bg px-4 py-3">
+          <button
+            type="button"
+            className="rounded-2xl border border-border bg-bg px-4 py-3 text-left transition hover:border-accent/50 hover:bg-accent/5"
+            onClick={openPendingOrders}
+          >
             <p className="text-xs uppercase tracking-wide muted-text">Pending Orders</p>
             <p className="mt-1 text-2xl font-semibold">{dashboardLoading ? "..." : pendingOrders}</p>
-          </div>
+          </button>
           <div className="rounded-2xl border border-border bg-bg px-4 py-3">
             <p className="text-xs uppercase tracking-wide muted-text">Completed Orders</p>
             <p className="mt-1 text-2xl font-semibold">{dashboardLoading ? "..." : completedOrders}</p>
