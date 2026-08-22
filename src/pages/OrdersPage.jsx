@@ -865,7 +865,7 @@ function OrdersPage() {
                 <path d="M13 7l4 4" />
               </svg>
             </button>
-            {String(row.original.status || "").toUpperCase() === "COMPLETED" ? (
+            {["COMPLETED", "CANCELLED"].includes(String(row.original.status || "").toUpperCase()) ? (
               <button
                 type="button"
                 className="rounded-lg border border-amber-400/40 p-2 text-amber-600 hover:bg-amber-50"
