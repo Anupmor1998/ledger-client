@@ -105,8 +105,8 @@ function formatDateRange(from, to) {
 }
 
 const TAKKA_PER_LOT = 12;
-const LOT_MIN_METERS = 1450;
-const LOT_MAX_METERS = 1550;
+const LOT_MIN_METERS = 1400;
+const LOT_MAX_METERS = 1500;
 const GST_RATE = 0.05;
 const DEFAULT_COMMISSION_PERCENT = 1;
 
@@ -133,7 +133,13 @@ function computeLotQuantity(quantity, quantityUnit, lotMetersBasis) {
 }
 
 function randomLotMeters() {
-  return LOT_MIN_METERS + Math.random() * (LOT_MAX_METERS - LOT_MIN_METERS);
+  const quarterSteps = [0.25, 0.5, 0.75];
+  const minWhole = Math.ceil(LOT_MIN_METERS);
+  const maxWhole = Math.floor(LOT_MAX_METERS);
+  const wholePart = Math.floor(Math.random() * (maxWhole - minWhole + 1)) + minWhole;
+  const decimalPart = quarterSteps[Math.floor(Math.random() * quarterSteps.length)];
+  const candidate = wholePart + decimalPart;
+  return candidate > LOT_MAX_METERS ? LOT_MAX_METERS - 0.25 : candidate;
 }
 
 function formatPartyDisplay(party) {
