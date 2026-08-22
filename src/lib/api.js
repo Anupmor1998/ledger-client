@@ -240,6 +240,38 @@ export async function getUsers(params = {}) {
   return response.data;
 }
 
+export async function getAdminCollections() {
+  const response = await axiosClient.get("/admin/collections");
+  return response.data;
+}
+
+export async function getAdminCollectionRecords(collection, params = {}) {
+  const response = await axiosClient.get(`/admin/collections/${collection}`, {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
+export async function getAdminCollectionRecord(collection, id) {
+  const response = await axiosClient.get(`/admin/collections/${collection}/${id}`);
+  return response.data;
+}
+
+export async function createAdminCollectionRecord(collection, data) {
+  const response = await axiosClient.post(`/admin/collections/${collection}`, data);
+  return response.data;
+}
+
+export async function updateAdminCollectionRecord(collection, id, data) {
+  const response = await axiosClient.put(`/admin/collections/${collection}/${id}`, data);
+  return response.data;
+}
+
+export async function deleteAdminCollectionRecord(collection, id) {
+  const response = await axiosClient.delete(`/admin/collections/${collection}/${id}`);
+  return response.data;
+}
+
 export async function getMyPreferences() {
   const response = await axiosClient.get("/users/me/preferences");
   return response.data;

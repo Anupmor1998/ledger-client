@@ -3,30 +3,92 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
+import { getAdminCollections } from "../lib/api";
 
-const baseNavigationItems = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/dashboard", label: "Analytics" },
-  { to: "/customers", label: "Customers" },
-  { to: "/manufacturers", label: "Manufacturers" },
-  { to: "/orders", label: "Orders" },
-  { to: "/order-activity", label: "Order Activity" },
-  { to: "/pending-payments", label: "Pending Payments" },
-  { to: "/received-payments", label: "Received Payments" },
-  { to: "/order-progress", label: "Order Progress" },
-  { to: "/quality", label: "Quality" },
-  { to: "/reports", label: "Reports" },
-  { to: "/profile", label: "Profile" },
-];
+function isFullyReadOnlyCollection(collection) {
+  return (
+    collection?.allowCreate === false &&
+    collection?.allowUpdate === false &&
+    collection?.allowDelete === false
+  );
+}
 
-function DashboardLayout({ dark, onToggleTheme }) {
+function CollectionNavSection({ title, items, emptyText }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs uppercase tracking-wider muted-text">{title}</p>
+        <span className="rounded-full border border-border bg-bg px-2 py-1 text-[10px] uppercase tracking-wide muted-text">
+          {items.length}
+        </span>
+      </div>
+
+      {items.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          {items.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm transition ${
+                  isActive ? "bg-accent text-white" : "hover:bg-surface"
+                }`
+              }
+            >
+              <span className="min-w-0 truncate">{item.label}</span>
+              {item.readOnly ? (
+                <span className="shrink-0 rounded-full border border-current/20 px-2 py-0.5 text-[10px] uppercase tracking-wide opacity-90">
+                  RO
+                </span>
+              ) : null}
+            </NavLink>
+          ))}
+        </div>
+      ) : (
+        <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs muted-text">
+          {emptyText}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function AdminLayout({ dark, onToggleTheme }) {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
-  const navigationItems = useMemo(() => baseNavigationItems, []);
+  const [collections, setCollections] = useState([]);
+  const [loadingCollections, setLoadingCollections] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const location = useLocation();
   const popoverContainerRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCollections() {
+      setLoadingCollections(true);
+      try {
+        const payload = await getAdminCollections();
+        if (cancelled) return;
+        setCollections(Array.isArray(payload?.collections) ? payload.collections : []);
+      } catch (_error) {
+        if (!cancelled) {
+          setCollections([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingCollections(false);
+        }
+      }
+    }
+
+    loadCollections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -51,37 +113,59 @@ function DashboardLayout({ dark, onToggleTheme }) {
   }, [popoverOpen]);
 
   const avatarText = useMemo(() => {
-    const base = user?.name || user?.email || "U";
+    const base = user?.name || user?.email || "A";
     return base.charAt(0).toUpperCase();
   }, [user]);
 
-  const displayName = user?.name || user?.email || "User";
+  const displayName = user?.name || user?.email || "Admin";
 
   function handleLogout() {
     dispatch(logout());
   }
 
+  const collectionLinks = useMemo(
+    () =>
+      collections.map((collection) => ({
+        to: `/admin/${collection.key}`,
+        label: collection.label,
+        readOnly: isFullyReadOnlyCollection(collection),
+      })),
+    [collections]
+  );
+  const editableCollections = useMemo(
+    () => collectionLinks.filter((collection) => !collection.readOnly),
+    [collectionLinks]
+  );
+  const readOnlyCollections = useMemo(
+    () => collectionLinks.filter((collection) => collection.readOnly),
+    [collectionLinks]
+  );
+
   return (
     <div className="app-shell min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 overflow-x-hidden md:gap-6">
-        <aside className="hidden w-64 shrink-0 md:flex md:flex-col">
+        <aside className="hidden w-72 shrink-0 md:flex md:flex-col">
           <div className="sticky top-4 rounded-2xl border border-border bg-surface p-4 shadow-lg">
-            <p className="text-xs uppercase tracking-wider muted-text">Navigation</p>
-            <nav className="mt-3 flex flex-col gap-1">
-              {navigationItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    `rounded-lg px-3 py-2 text-sm transition ${
-                      isActive ? "bg-accent text-white" : "hover:bg-surface"
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wider muted-text">Admin Console</p>
+                <p className="mt-1 text-sm font-semibold">Tables</p>
+              </div>
+              <span className="rounded-full border border-border bg-bg px-2 py-1 text-xs muted-text">
+                {loadingCollections ? "..." : collectionLinks.length}
+              </span>
+            </div>
+            <nav className="mt-3 max-h-[calc(100vh-10rem)] space-y-4 overflow-auto pr-1">
+              <CollectionNavSection
+                title="Editable"
+                items={editableCollections}
+                emptyText="No editable tables available."
+              />
+              <CollectionNavSection
+                title="Read only"
+                items={readOnlyCollections}
+                emptyText="No read-only tables available."
+              />
             </nav>
           </div>
         </aside>
@@ -89,7 +173,10 @@ function DashboardLayout({ dark, onToggleTheme }) {
         <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-8 pt-3 sm:pt-4">
           <header className="sticky top-0 z-30 rounded-xl border border-border bg-surface/90 px-4 py-3 backdrop-blur md:px-5">
             <div className="flex items-center justify-between gap-3">
-              <h1 className="text-base font-semibold sm:text-lg">Ledger App</h1>
+              <div>
+                <p className="text-xs uppercase tracking-wider muted-text">Admin Panel</p>
+                <h1 className="text-base font-semibold sm:text-lg">Ledger App</h1>
+              </div>
 
               <div className="hidden md:block">
                 <div className="relative" ref={popoverContainerRef}>
@@ -97,7 +184,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
                     type="button"
                     onClick={() => setPopoverOpen((prev) => !prev)}
                     className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white"
-                    aria-label="Open user menu"
+                    aria-label="Open admin menu"
                   >
                     {avatarText}
                   </button>
@@ -122,7 +209,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
                 type="button"
                 onClick={() => setMobileOpen(true)}
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-border md:hidden"
-                aria-label="Open menu"
+                aria-label="Open admin menu"
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
                   <path d="M4 7h16M4 12h16M4 17h16" />
@@ -150,7 +237,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
         }`}
       >
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">Menu</p>
+          <p className="text-sm font-semibold">Admin Menu</p>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
@@ -169,25 +256,21 @@ function DashboardLayout({ dark, onToggleTheme }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{displayName}</p>
-            <p className="text-xs muted-text">Signed in</p>
+            <p className="text-xs muted-text">Signed in as admin</p>
           </div>
         </div>
 
-        <nav className="mt-4 flex flex-col gap-1">
-          {navigationItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-2 text-sm transition ${
-                  isActive ? "bg-accent text-white" : "hover:bg-bg"
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+        <nav className="mt-4 space-y-4">
+          <CollectionNavSection
+            title="Editable"
+            items={editableCollections}
+            emptyText="No editable tables available."
+          />
+          <CollectionNavSection
+            title="Read only"
+            items={readOnlyCollections}
+            emptyText="No read-only tables available."
+          />
         </nav>
 
         <div className="mt-4 border-t border-border pt-4">
@@ -205,4 +288,4 @@ function DashboardLayout({ dark, onToggleTheme }) {
   );
 }
 
-export default DashboardLayout;
+export default AdminLayout;

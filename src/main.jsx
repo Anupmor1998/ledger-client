@@ -5,9 +5,9 @@ import { BrowserRouter } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
-import { getMyPreferences, updateMyPreferences } from "./lib/api";
+import { getMyPreferences, getUsers, updateMyPreferences } from "./lib/api";
 import { setupAxiosInterceptors } from "./lib/axiosClient";
-import { setUserProfile, setUserTheme } from "./store/slices/authSlice";
+import { setSession, setUserProfile, setUserTheme } from "./store/slices/authSlice";
 import store from "./store";
 import "./index.css";
 import "react-toastify/dist/ReactToastify.css";
@@ -52,6 +52,28 @@ function Root() {
   useEffect(() => {
     let cancelled = false;
 
+    async function syncSessionFromBackend() {
+      const token = store.getState().auth.token;
+      const user = store.getState().auth.user;
+      if (!token || user?.role) {
+        return;
+      }
+
+      try {
+        const users = await getUsers();
+        if (cancelled) {
+          return;
+        }
+
+        const currentUser = Array.isArray(users) ? users[0] : null;
+        if (currentUser) {
+          store.dispatch(setSession({ token, user: currentUser }));
+        }
+      } catch (_error) {
+        // Keep the cached session if the refresh fails.
+      }
+    }
+
     async function syncThemeFromBackend() {
       const token = store.getState().auth.token;
       if (!token) {
@@ -78,6 +100,7 @@ function Root() {
       }
     }
 
+    syncSessionFromBackend();
     syncThemeFromBackend();
 
     return () => {
