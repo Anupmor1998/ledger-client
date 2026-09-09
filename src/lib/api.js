@@ -38,9 +38,17 @@ export async function getDashboardSummary(params = {}) {
   return response.data;
 }
 
+export async function getAnalytics(params = {}) {
+  const response = await axiosClient.get("/dashboard/analytics", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
 export async function createParty(data) {
   const { userType, ...payload } = data;
-  const endpoint = userType === "manufacturer" ? "/manufacturers" : "/customers";
+  const endpoint =
+    userType === "manufacturer" ? "/manufacturers" : "/customers";
   const response = await axiosClient.post(endpoint, payload);
   return response.data;
 }
@@ -83,7 +91,9 @@ export async function updateCustomer(id, data) {
 }
 
 export async function previewCustomerCommissionRecalculation(id) {
-  const response = await axiosClient.get(`/customers/${id}/commission-recalculation-preview`);
+  const response = await axiosClient.get(
+    `/customers/${id}/commission-recalculation-preview`,
+  );
   return response.data;
 }
 
@@ -224,7 +234,10 @@ export async function getPendingPayments(params = {}) {
 }
 
 export async function receivePendingPayments(data) {
-  const response = await axiosClient.post("/pending-payments/receive-bulk", data);
+  const response = await axiosClient.post(
+    "/pending-payments/receive-bulk",
+    data,
+  );
   return response.data;
 }
 
@@ -253,22 +266,32 @@ export async function getAdminCollectionRecords(collection, params = {}) {
 }
 
 export async function getAdminCollectionRecord(collection, id) {
-  const response = await axiosClient.get(`/admin/collections/${collection}/${id}`);
+  const response = await axiosClient.get(
+    `/admin/collections/${collection}/${id}`,
+  );
   return response.data;
 }
 
 export async function createAdminCollectionRecord(collection, data) {
-  const response = await axiosClient.post(`/admin/collections/${collection}`, data);
+  const response = await axiosClient.post(
+    `/admin/collections/${collection}`,
+    data,
+  );
   return response.data;
 }
 
 export async function updateAdminCollectionRecord(collection, id, data) {
-  const response = await axiosClient.put(`/admin/collections/${collection}/${id}`, data);
+  const response = await axiosClient.put(
+    `/admin/collections/${collection}/${id}`,
+    data,
+  );
   return response.data;
 }
 
 export async function deleteAdminCollectionRecord(collection, id) {
-  const response = await axiosClient.delete(`/admin/collections/${collection}/${id}`);
+  const response = await axiosClient.delete(
+    `/admin/collections/${collection}/${id}`,
+  );
   return response.data;
 }
 
@@ -290,12 +313,16 @@ export async function getYearTransferBatches() {
 }
 
 export async function getYearTransferBatchDetails(id) {
-  const response = await axiosClient.get(`/users/me/year-transfer/batches/${id}`);
+  const response = await axiosClient.get(
+    `/users/me/year-transfer/batches/${id}`,
+  );
   return response.data;
 }
 
 export async function undoYearTransferBatch(id) {
-  const response = await axiosClient.post(`/users/me/year-transfer/batches/${id}/undo`);
+  const response = await axiosClient.post(
+    `/users/me/year-transfer/batches/${id}/undo`,
+  );
   return response.data;
 }
 
@@ -340,7 +367,10 @@ export async function createMyWhatsAppGroup(data) {
 }
 
 export async function updateMyWhatsAppGroup(id, data) {
-  const response = await axiosClient.put(`/users/me/whatsapp-groups/${id}`, data);
+  const response = await axiosClient.put(
+    `/users/me/whatsapp-groups/${id}`,
+    data,
+  );
   return response.data;
 }
 
@@ -376,7 +406,7 @@ export async function downloadReportFile(
   path,
   params = {},
   fallbackName = "report.xlsx",
-  mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ) {
   const response = await axiosClient.get(`/reports/${path}`, {
     params: normalizeListParams(params),
