@@ -357,7 +357,7 @@ function DecliningCustomersSection({
   );
 
   return (
-    <div className="mt-5 rounded-2xl border border-border bg-surface p-4">
+    <div className="mt-5 min-w-0 rounded-2xl border border-border bg-surface p-3.5 sm:p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold">Declining Customers</h3>
@@ -413,38 +413,56 @@ function DecliningCustomersSection({
           </div>
         ) : (
           <>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid min-w-0 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {paginatedCustomers.map((customer) => (
                 <div
                   key={customer.id}
-                  className="flex items-center gap-3 rounded-lg border border-red-400/30 bg-red-500/5 p-3 transition hover:border-red-400/50"
+                  className="min-w-0 rounded-xl border border-red-400/30 bg-red-500/5 p-3 transition hover:border-red-400/50"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-text">
-                      {customer.firmName || customer.name}
-                    </p>
-                    {customer.name && customer.firmName ? (
-                      <p className="truncate text-xs muted-text">
-                        {customer.name}
+                  {/* Top: Firm Name & Drop Badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-text">
+                        {customer.firmName || customer.name}
                       </p>
-                    ) : null}
-                    <p className="mt-1 text-xs muted-text">
-                      Previous:{" "}
+                      {customer.name && customer.name !== customer.firmName ? (
+                        <p className="truncate text-xs muted-text">
+                          {customer.name}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 rounded-full border border-red-400/40 bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-500 whitespace-nowrap">
+                      ↓ {customer.dropPercent}% drop
+                    </span>
+                  </div>
+
+                  {/* Bottom: Previous vs Current comparison */}
+                  <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-red-400/20 pt-2 text-xs">
+                    <span className="text-muted-text">
+                      Prev:{" "}
                       <span className="font-semibold text-text">
                         {customer.previousMonthLot} LOT
-                      </span>{" "}
-                      ({customer.previousMonthOrders} orders)
-                      {" → "}
-                      Current:{" "}
+                      </span>
+                      <span className="text-[11px] opacity-75">
+                        {" "}
+                        ({customer.previousMonthOrders}{" "}
+                        {customer.previousMonthOrders === 1
+                          ? "order"
+                          : "orders"}
+                        )
+                      </span>
+                    </span>
+                    <span className="text-muted-text">
+                      Curr:{" "}
                       <span className="font-semibold text-text">
                         {customer.currentMonthLot} LOT
-                      </span>{" "}
-                      ({customer.currentMonthOrders} orders)
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <span className="inline-block rounded-full border border-red-400/40 bg-red-500/10 px-2.5 py-1 text-xs font-bold text-red-500">
-                      ↓ {customer.dropPercent}% drop
+                      </span>
+                      <span className="text-[11px] opacity-75">
+                        {" "}
+                        ({customer.currentMonthOrders}{" "}
+                        {customer.currentMonthOrders === 1 ? "order" : "orders"}
+                        )
+                      </span>
                     </span>
                   </div>
                 </div>
