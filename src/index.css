@@ -32,14 +32,15 @@ body {
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-tap-highlight-color: transparent;
-  overflow-x: hidden;
-  scrollbar-color: color-mix(in srgb, var(--color-muted) 55%, transparent) color-mix(in srgb, var(--color-border) 55%, transparent);
+  overflow-x: clip;
+  scrollbar-color: color-mix(in srgb, var(--color-muted) 55%, transparent)
+    color-mix(in srgb, var(--color-border) 55%, transparent);
   scrollbar-width: thin;
 }
 
 #app {
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 *::-webkit-scrollbar {
@@ -60,7 +61,11 @@ body {
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-accent) 60%, var(--color-muted) 40%);
+  background: color-mix(
+    in srgb,
+    var(--color-accent) 60%,
+    var(--color-muted) 40%
+  );
   background-clip: content-box;
 }
 
@@ -68,12 +73,17 @@ body {
   .app-shell {
     @apply min-h-screen bg-bg text-text transition-colors;
     overflow-x: clip;
-    background-image: radial-gradient(
+    background-image:
+      radial-gradient(
         circle at 10% 10%,
         color-mix(in srgb, var(--color-accent-soft) 60%, transparent),
         transparent 38%
       ),
-      radial-gradient(circle at 90% 90%, rgba(148, 163, 184, 0.12), transparent 34%);
+      radial-gradient(
+        circle at 90% 90%,
+        rgba(148, 163, 184, 0.12),
+        transparent 34%
+      );
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
   }
@@ -110,13 +120,26 @@ body {
 
   .theme-choice {
     @apply relative h-5 w-5 shrink-0 appearance-none border transition-colors duration-150;
-    border-color: color-mix(in srgb, var(--color-muted) 28%, var(--color-border));
-    background: color-mix(in srgb, var(--color-surface) 92%, var(--color-border));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-surface) 70%, transparent);
+    border-color: color-mix(
+      in srgb,
+      var(--color-muted) 28%,
+      var(--color-border)
+    );
+    background: color-mix(
+      in srgb,
+      var(--color-surface) 92%,
+      var(--color-border)
+    );
+    box-shadow: inset 0 0 0 1px
+      color-mix(in srgb, var(--color-surface) 70%, transparent);
   }
 
   .theme-choice:hover {
-    border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+    border-color: color-mix(
+      in srgb,
+      var(--color-accent) 45%,
+      var(--color-border)
+    );
   }
 
   .theme-choice:focus-visible {
@@ -125,7 +148,11 @@ body {
   }
 
   .theme-choice:disabled {
-    background: color-mix(in srgb, var(--color-border) 35%, var(--color-surface));
+    background: color-mix(
+      in srgb,
+      var(--color-border) 35%,
+      var(--color-surface)
+    );
     border-color: color-mix(in srgb, var(--color-border) 75%, transparent);
     cursor: not-allowed;
   }
@@ -136,8 +163,11 @@ body {
 
   .theme-radio:checked {
     border-color: var(--color-accent);
-    background:
-      radial-gradient(circle, var(--color-accent) 0 44%, transparent 46%);
+    background: radial-gradient(
+      circle,
+      var(--color-accent) 0 44%,
+      transparent 46%
+    );
   }
 
   .theme-checkbox {

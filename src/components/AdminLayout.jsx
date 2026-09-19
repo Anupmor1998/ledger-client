@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
+import { getAdminCollections } from "../lib/api";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
-import { getAdminCollections } from "../lib/api";
+import ThemeToggle from "./ThemeToggle";
 
 function isFullyReadOnlyCollection(collection) {
   return (
@@ -71,7 +71,9 @@ function AdminLayout({ dark, onToggleTheme }) {
       try {
         const payload = await getAdminCollections();
         if (cancelled) return;
-        setCollections(Array.isArray(payload?.collections) ? payload.collections : []);
+        setCollections(
+          Array.isArray(payload?.collections) ? payload.collections : [],
+        );
       } catch (_error) {
         if (!cancelled) {
           setCollections([]);
@@ -130,25 +132,27 @@ function AdminLayout({ dark, onToggleTheme }) {
         label: collection.label,
         readOnly: isFullyReadOnlyCollection(collection),
       })),
-    [collections]
+    [collections],
   );
   const editableCollections = useMemo(
     () => collectionLinks.filter((collection) => !collection.readOnly),
-    [collectionLinks]
+    [collectionLinks],
   );
   const readOnlyCollections = useMemo(
     () => collectionLinks.filter((collection) => collection.readOnly),
-    [collectionLinks]
+    [collectionLinks],
   );
 
   return (
     <div className="app-shell min-h-screen">
-      <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 overflow-x-hidden md:gap-6">
-        <aside className="hidden w-72 shrink-0 md:flex md:flex-col">
-          <div className="sticky top-4 rounded-2xl border border-border bg-surface p-4 shadow-lg">
+      <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 md:gap-6">
+        <aside className="hidden w-72 shrink-0 md:block">
+          <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-lg">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wider muted-text">Admin Console</p>
+                <p className="text-xs uppercase tracking-wider muted-text">
+                  Admin Console
+                </p>
                 <p className="mt-1 text-sm font-semibold">Tables</p>
               </div>
               <span className="rounded-full border border-border bg-bg px-2 py-1 text-xs muted-text">
@@ -174,8 +178,12 @@ function AdminLayout({ dark, onToggleTheme }) {
           <header className="sticky top-0 z-30 rounded-xl border border-border bg-surface/90 px-4 py-3 backdrop-blur md:px-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wider muted-text">Admin Panel</p>
-                <h1 className="text-base font-semibold sm:text-lg">Ledger App</h1>
+                <p className="text-xs uppercase tracking-wider muted-text">
+                  Admin Panel
+                </p>
+                <h1 className="text-base font-semibold sm:text-lg">
+                  Ledger App
+                </h1>
               </div>
 
               <div className="hidden md:block">
@@ -191,7 +199,9 @@ function AdminLayout({ dark, onToggleTheme }) {
 
                   {popoverOpen ? (
                     <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg">
-                      <p className="px-2 py-2 text-sm font-medium">{displayName}</p>
+                      <p className="px-2 py-2 text-sm font-medium">
+                        {displayName}
+                      </p>
                       <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
                       <button
                         type="button"
@@ -211,7 +221,10 @@ function AdminLayout({ dark, onToggleTheme }) {
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-border md:hidden"
                 aria-label="Open admin menu"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 fill-none stroke-current stroke-2"
+                >
                   <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
               </button>
@@ -244,7 +257,10 @@ function AdminLayout({ dark, onToggleTheme }) {
             className="rounded-md border border-border p-2"
             aria-label="Close menu"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4 fill-none stroke-current stroke-2"
+            >
               <path d="M6 6l12 12M18 6l-12 12" />
             </svg>
           </button>
