@@ -428,3 +428,44 @@ export async function downloadReportFile(
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+export async function getNextPaymentSerialNo(params = {}) {
+  const response = await axiosClient.get("/payments/next-serial", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
+export async function getEligibleOrdersForPayment(params = {}) {
+  const response = await axiosClient.get("/payments/orders", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
+export async function createPaymentEntry(data) {
+  const response = await axiosClient.post("/payments", data);
+  return response.data;
+}
+
+export async function getPaymentEntries(params = {}) {
+  const response = await axiosClient.get("/payments", {
+    params: normalizeListParams(params),
+  });
+  return response.data;
+}
+
+export async function getPaymentEntryById(id) {
+  const response = await axiosClient.get(`/payments/${id}`);
+  return response.data;
+}
+
+export async function settleCustomerAccount(id, data = {}) {
+  const response = await axiosClient.post(`/payments/${id}/settle`, data);
+  return response.data;
+}
+
+export async function deletePaymentEntry(id) {
+  const response = await axiosClient.delete(`/payments/${id}`);
+  return response.data;
+}

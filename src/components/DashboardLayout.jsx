@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
+import ThemeToggle from "./ThemeToggle";
 
 const baseNavigationItems = [
   { to: "/", label: "Dashboard", end: true },
@@ -11,8 +11,7 @@ const baseNavigationItems = [
   { to: "/manufacturers", label: "Manufacturers" },
   { to: "/orders", label: "Orders" },
   { to: "/order-activity", label: "Order Activity" },
-  { to: "/pending-payments", label: "Pending Payments" },
-  { to: "/received-payments", label: "Received Payments" },
+  { to: "/payments", label: "Payments" },
   { to: "/order-progress", label: "Order Progress" },
   { to: "/quality", label: "Quality" },
   { to: "/reports", label: "Reports" },
@@ -66,7 +65,9 @@ function DashboardLayout({ dark, onToggleTheme }) {
       <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 overflow-x-hidden md:gap-6">
         <aside className="hidden w-64 shrink-0 md:flex md:flex-col">
           <div className="sticky top-4 rounded-2xl border border-border bg-surface p-4 shadow-lg">
-            <p className="text-xs uppercase tracking-wider muted-text">Navigation</p>
+            <p className="text-xs uppercase tracking-wider muted-text">
+              Navigation
+            </p>
             <nav className="mt-3 flex flex-col gap-1">
               {navigationItems.map((item) => (
                 <NavLink
@@ -104,7 +105,9 @@ function DashboardLayout({ dark, onToggleTheme }) {
 
                   {popoverOpen ? (
                     <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg">
-                      <p className="px-2 py-2 text-sm font-medium">{displayName}</p>
+                      <p className="px-2 py-2 text-sm font-medium">
+                        {displayName}
+                      </p>
                       <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
                       <button
                         type="button"
@@ -124,7 +127,10 @@ function DashboardLayout({ dark, onToggleTheme }) {
                 className="flex h-10 w-10 items-center justify-center rounded-lg border border-border md:hidden"
                 aria-label="Open menu"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 fill-none stroke-current stroke-2"
+                >
                   <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
               </button>
@@ -157,7 +163,10 @@ function DashboardLayout({ dark, onToggleTheme }) {
             className="rounded-md border border-border p-2"
             aria-label="Close menu"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4 fill-none stroke-current stroke-2"
+            >
               <path d="M6 6l12 12M18 6l-12 12" />
             </svg>
           </button>
