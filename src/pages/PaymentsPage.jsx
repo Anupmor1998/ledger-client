@@ -89,6 +89,8 @@ function PaymentsPage() {
   const [settling, setSettling] = useState(false);
   const [deleteCandidateId, setDeleteCandidateId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [overpaymentWarningModalOpen, setOverpaymentWarningModalOpen] =
+    useState(false);
 
   // --- Table List State ---
   const [entries, setEntries] = useState([]);
@@ -114,7 +116,7 @@ function PaymentsPage() {
     async function loadCustomers() {
       try {
         setLoadingCustomers(true);
-        const res = await getCustomers({ limit: 1000 });
+        const res = await getCustomers({ all: true });
         if (active) {
           const list = Array.isArray(res)
             ? res
@@ -141,11 +143,15 @@ function PaymentsPage() {
         firm && person && firm !== person
           ? `${firm} (${person})`
           : firm || person || "Unknown";
+      const extra = [person !== firm ? person : "", c.phone, c.address]
+        .filter(Boolean)
+        .join(" • ");
       return {
         value: c.id,
         label,
         firmName: c.firmName,
         name: c.name,
+        helperText: extra,
       };
     });
   }, [customers]);
@@ -275,27 +281,75 @@ function PaymentsPage() {
   const selectedOrdersTotalCommission = useMemo(() => {
     return eligibleOrders
       .filter((o) => selectedOrderIds.includes(o.id))
-      .reduce((sum, o) => sum + (o.remainingAmount || 0), 0);
+      .reduce(
+        (sum, o) => sum + Number(o.remainingAmount ?? o.commissionAmount ?? 0),
+        0,
+      );
   }, [eligibleOrders, selectedOrderIds]);
 
-  const handleSubmitPayment = async (e) => {
-    e.preventDefault();
-    if (!customerId) {
-      toast.error("Please select a customer.");
-      return;
+  const orderSettlementInfo = useMemo(() => {
+    if (adjustedAgainst !== "ORDER_ID" || selectedOrderIds.length === 0) {
+      return null;
     }
-    const numAmount = Number(amount);
-    if (!numAmount || numAmount <= 0) {
-      toast.error("Please enter a valid amount greater than 0.");
-      return;
-    }
-    if (adjustedAgainst === "ORDER_ID") {
-      if (!selectedOrderIds || selectedOrderIds.length === 0) {
-        toast.error("Please select at least one order to adjust against.");
-        return;
-      }
+    const numAmount = Number(amount || 0);
+    const totalDue = Number(selectedOrdersTotalCommission || 0);
+    if (!numAmount || numAmount <= 0 || totalDue <= 0) {
+      return null;
     }
 
+    if (numAmount < totalDue) {
+      const discountAmount = Math.max(0, totalDue - numAmount);
+      const discountPercent = (discountAmount / totalDue) * 100;
+      return {
+        type: "DISCOUNT",
+        discountAmount,
+        discountPercent,
+        totalDue,
+        numAmount,
+      };
+    }
+
+    if (numAmount > totalDue) {
+      const excessAmount = numAmount - totalDue;
+      return {
+        type: "EXCESS",
+        excessAmount,
+        totalDue,
+        numAmount,
+      };
+    }
+
+    return {
+      type: "EXACT",
+      totalDue,
+      numAmount,
+    };
+  }, [
+    adjustedAgainst,
+    selectedOrderIds.length,
+    amount,
+    selectedOrdersTotalCommission,
+  ]);
+
+  const settledOverlapEntry = useMemo(() => {
+    if (!customerId || !orderDateFrom || !orderDateTo) return null;
+    const from = new Date(orderDateFrom);
+    const to = new Date(orderDateTo);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return null;
+
+    return (
+      entries.find((e) => {
+        if (e.customerId !== customerId || !e.isFullySettled) return false;
+        if (!e.orderDateFrom || !e.orderDateTo) return false;
+        const eFrom = new Date(e.orderDateFrom);
+        const eTo = new Date(e.orderDateTo);
+        return eFrom <= to && eTo >= from;
+      }) || null
+    );
+  }, [customerId, orderDateFrom, orderDateTo, entries]);
+
+  const executeCreatePayment = async () => {
+    const numAmount = Number(amount);
     try {
       setSubmitting(true);
       await createPaymentEntry({
@@ -320,6 +374,7 @@ function PaymentsPage() {
       setRemark("");
       setSelectedOrderIds([]);
       setEligibleOrders([]);
+      setOverpaymentWarningModalOpen(false);
       fetchNextSerial();
       fetchEntries();
     } catch (err) {
@@ -331,6 +386,41 @@ function PaymentsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmitPayment = async (e) => {
+    e.preventDefault();
+    if (!customerId) {
+      toast.error("Please select a customer.");
+      return;
+    }
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) {
+      toast.error("Please enter a valid amount greater than 0.");
+      return;
+    }
+    if (adjustedAgainst === "ORDER_ID") {
+      if (!selectedOrderIds || selectedOrderIds.length === 0) {
+        toast.error("Please select at least one order to adjust against.");
+        return;
+      }
+      if (
+        selectedOrdersTotalCommission > 0 &&
+        numAmount > selectedOrdersTotalCommission
+      ) {
+        setOverpaymentWarningModalOpen(true);
+        return;
+      }
+    }
+
+    if (adjustedAgainst === "PARTIAL" && settledOverlapEntry) {
+      toast.error(
+        `This customer period (${formatDateDisplay(settledOverlapEntry.orderDateFrom)} to ${formatDateDisplay(settledOverlapEntry.orderDateTo)}) is already fully settled (Entry #${settledOverlapEntry.serialNo}). No duplicate payments can be recorded for this period.`,
+      );
+      return;
+    }
+
+    await executeCreatePayment();
   };
 
   const handleSettleAccount = async () => {
@@ -492,8 +582,46 @@ function PaymentsPage() {
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="form-input font-medium"
+                className={`form-input font-medium ${
+                  orderSettlementInfo?.type === "EXCESS"
+                    ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
+                    : ""
+                }`}
               />
+              {orderSettlementInfo?.type === "DISCOUNT" && (
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-950 dark:bg-amber-950/60 dark:border-amber-700/80 dark:text-amber-200">
+                  <span className="text-sm">🏷️</span>
+                  <span>
+                    Settling at{" "}
+                    <strong className="font-bold underline">
+                      {orderSettlementInfo.discountPercent.toFixed(2)}% discount
+                    </strong>{" "}
+                    (Save {formatCurrency(orderSettlementInfo.discountAmount)}{" "}
+                    of {formatCurrency(orderSettlementInfo.totalDue)})
+                  </span>
+                </div>
+              )}
+              {orderSettlementInfo?.type === "EXCESS" && (
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-950 dark:bg-rose-950/60 dark:border-rose-700/80 dark:text-rose-200">
+                  <span className="text-sm">⚠️</span>
+                  <span>
+                    Amount exceeds total commission by{" "}
+                    <strong className="font-bold underline">
+                      {formatCurrency(orderSettlementInfo.excessAmount)}
+                    </strong>{" "}
+                    (Due: {formatCurrency(orderSettlementInfo.totalDue)})
+                  </span>
+                </div>
+              )}
+              {orderSettlementInfo?.type === "EXACT" && (
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-950 dark:bg-emerald-950/60 dark:border-emerald-700/80 dark:text-emerald-200">
+                  <span className="text-sm">✓</span>
+                  <span>
+                    Exactly matches total commission due (
+                    {formatCurrency(orderSettlementInfo.totalDue)})
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Remark */}
@@ -622,6 +750,19 @@ function PaymentsPage() {
                         </span>
                       </>
                     )}
+                    {orderSettlementInfo?.type === "DISCOUNT" && (
+                      <span className="rounded-full bg-amber-100 text-amber-950 dark:bg-amber-950/70 dark:text-amber-200 border border-amber-300 dark:border-amber-700 px-2.5 py-0.5 text-xs font-bold">
+                        Discount:{" "}
+                        {orderSettlementInfo.discountPercent.toFixed(2)}% (
+                        {formatCurrency(orderSettlementInfo.discountAmount)})
+                      </span>
+                    )}
+                    {orderSettlementInfo?.type === "EXCESS" && (
+                      <span className="rounded-full bg-rose-100 text-rose-950 dark:bg-rose-950/70 dark:text-rose-200 border border-rose-300 dark:border-rose-700 px-2.5 py-0.5 text-xs font-bold">
+                        ⚠️ Excess: +
+                        {formatCurrency(orderSettlementInfo.excessAmount)}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -629,29 +770,56 @@ function PaymentsPage() {
 
             {/* PARTIAL Mode Optional Date Range */}
             {adjustedAgainst === "PARTIAL" && (
-              <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
-                <div>
-                  <span className="mb-1 block text-sm muted-text">
-                    Applicable Orders From Date (Optional)
-                  </span>
-                  <input
-                    type="date"
-                    value={orderDateFrom}
-                    onChange={(e) => setOrderDateFrom(e.target.value)}
-                    className="form-input"
-                  />
+              <div className="mt-4 border-t border-border pt-4 space-y-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <span className="mb-1 block text-sm muted-text">
+                      Applicable Orders From Date (Optional)
+                    </span>
+                    <input
+                      type="date"
+                      value={orderDateFrom}
+                      onChange={(e) => setOrderDateFrom(e.target.value)}
+                      className={`form-input ${
+                        settledOverlapEntry
+                          ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
+                          : ""
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <span className="mb-1 block text-sm muted-text">
+                      Applicable Orders To Date (Optional)
+                    </span>
+                    <input
+                      type="date"
+                      value={orderDateTo}
+                      onChange={(e) => setOrderDateTo(e.target.value)}
+                      className={`form-input ${
+                        settledOverlapEntry
+                          ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
+                          : ""
+                      }`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <span className="mb-1 block text-sm muted-text">
-                    Applicable Orders To Date (Optional)
-                  </span>
-                  <input
-                    type="date"
-                    value={orderDateTo}
-                    onChange={(e) => setOrderDateTo(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
+
+                {settledOverlapEntry && (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-950 dark:bg-amber-950/70 dark:border-amber-700 dark:text-amber-200">
+                    <span className="text-base">⚠️</span>
+                    <div>
+                      <strong className="block font-semibold">
+                        Settled Period Warning (Entry #
+                        {settledOverlapEntry.serialNo})
+                      </strong>
+                      This customer's period (
+                      {formatDateDisplay(settledOverlapEntry.orderDateFrom)} to{" "}
+                      {formatDateDisplay(settledOverlapEntry.orderDateTo)}) has
+                      already been marked as <strong>Fully Settled</strong>. New
+                      payments cannot be recorded for this settled period.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1036,7 +1204,7 @@ function PaymentsPage() {
                         )}
                       </td>
                       <td className="px-3.5 py-3 font-bold text-emerald-600 whitespace-nowrap">
-                        {formatCurrency(item.amount)}
+                        {formatCurrency(item.finalSettledAmount ?? item.amount)}
                       </td>
                       <td className="px-3.5 py-3 whitespace-nowrap">
                         <span className="inline-flex rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-semibold muted-text border border-border">
@@ -1105,7 +1273,9 @@ function PaymentsPage() {
                               type="button"
                               onClick={() => {
                                 setSettleModalEntry(item);
-                                setSettleAmountInput(item.amount);
+                                setSettleAmountInput(
+                                  item.finalSettledAmount ?? item.amount,
+                                );
                               }}
                               className="rounded bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition-colors"
                               title="Mark Account as Fully Settled"
@@ -1197,7 +1367,10 @@ function PaymentsPage() {
               <div>
                 <span className="muted-text">Amount Paid: </span>
                 <strong className="text-emerald-600 block text-base font-semibold">
-                  {formatCurrency(detailsModalEntry.amount)}
+                  {formatCurrency(
+                    detailsModalEntry.finalSettledAmount ??
+                      detailsModalEntry.amount,
+                  )}
                 </strong>
               </div>
               <div>
@@ -1393,6 +1566,81 @@ function PaymentsPage() {
           loading={deleting}
         />
       )}
+
+      {/* 7. Overpayment Warning Modal */}
+      {overpaymentWarningModalOpen &&
+        orderSettlementInfo?.type === "EXCESS" && (
+          <Modal
+            title="Warning: Payment Exceeds Total Due"
+            onClose={() => setOverpaymentWarningModalOpen(false)}
+            maxWidthClassName="max-w-md"
+            footer={
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setOverpaymentWarningModalOpen(false)}
+                  className="ghost-btn px-4 py-2 text-sm font-semibold"
+                  disabled={submitting}
+                >
+                  Adjust Amount
+                </button>
+                <button
+                  type="button"
+                  onClick={executeCreatePayment}
+                  disabled={submitting}
+                  className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 transition shadow-sm disabled:opacity-60"
+                >
+                  {submitting ? "Recording..." : "Proceed Anyway"}
+                </button>
+              </div>
+            }
+          >
+            <div className="space-y-3.5">
+              <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-3 text-amber-950 dark:bg-amber-950/70 dark:border-amber-700 dark:text-amber-200 text-sm">
+                <span className="text-xl">⚠️</span>
+                <p className="leading-snug">
+                  The entered payment amount is <strong>higher</strong> than the
+                  total commission due on the selected orders.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-border bg-surface-muted/50 p-3 text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="muted-text">Selected Orders:</span>
+                  <span className="font-semibold text-text">
+                    {selectedOrderIds.length} orders
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="muted-text">Total Commission Due:</span>
+                  <span className="font-semibold text-text">
+                    {formatCurrency(orderSettlementInfo.totalDue)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="muted-text">Entered Amount:</span>
+                  <span className="font-bold text-rose-600 dark:text-rose-400">
+                    {formatCurrency(orderSettlementInfo.numAmount)}
+                  </span>
+                </div>
+                <div className="border-t border-border pt-1.5 flex justify-between">
+                  <span className="font-medium text-rose-700 dark:text-rose-300">
+                    Excess / Extra Amount:
+                  </span>
+                  <strong className="text-rose-700 dark:text-rose-300">
+                    +{formatCurrency(orderSettlementInfo.excessAmount)}
+                  </strong>
+                </div>
+              </div>
+
+              <p className="text-xs muted-text">
+                If you proceed, the entire payment of{" "}
+                {formatCurrency(orderSettlementInfo.numAmount)} will be recorded
+                and allocated sequentially across these orders.
+              </p>
+            </div>
+          </Modal>
+        )}
     </div>
   );
 }
