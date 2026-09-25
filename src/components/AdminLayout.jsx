@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { getAdminCollections } from "../lib/api";
+import {
+  getAdminCollections,
+  getAdminSupportStats,
+  subscribeToAdminSupportLive,
+} from "../lib/api";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
 import ThemeToggle from "./ThemeToggle";
@@ -58,6 +62,7 @@ function AdminLayout({ dark, onToggleTheme }) {
   const user = useAppSelector((state) => state.auth.user);
   const [collections, setCollections] = useState([]);
   const [loadingCollections, setLoadingCollections] = useState(true);
+  const [supportStats, setSupportStats] = useState({ total: 0, open: 0 });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const location = useLocation();
@@ -87,8 +92,54 @@ function AdminLayout({ dark, onToggleTheme }) {
 
     loadCollections();
 
+    async function loadSupportStats() {
+      try {
+        const res = await getAdminSupportStats();
+        if (res?.stats && !cancelled) {
+          setSupportStats(res.stats);
+        }
+      } catch (_err) {
+        // silent
+      }
+    }
+
+    loadSupportStats();
+
+    // 1. Subscribe to real-time Server-Sent Events (SSE) push from backend
+    const unsubscribeSse = subscribeToAdminSupportLive((liveStats) => {
+      if (!cancelled && liveStats) {
+        setSupportStats(liveStats);
+      }
+    });
+
+    // 2. Instant local sync: listen for immediate action dispatch from AdminSupportTicketsPage (0ms)
+    function handleLocalUpdate(event) {
+      if (cancelled) return;
+      if (event?.detail?.stats) {
+        setSupportStats(event.detail.stats);
+      } else {
+        loadSupportStats();
+      }
+    }
+    window.addEventListener("support-tickets-updated", handleLocalUpdate);
+
+    // 3. Tab visibility sync: refresh immediately when returning to tab
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadSupportStats();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // 4. Background safety polling
+    const interval = setInterval(loadSupportStats, 30000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
+      unsubscribeSse();
+      window.removeEventListener("support-tickets-updated", handleLocalUpdate);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -160,6 +211,42 @@ function AdminLayout({ dark, onToggleTheme }) {
               </span>
             </div>
             <nav className="mt-3 max-h-[calc(100vh-10rem)] space-y-4 overflow-auto pr-1">
+              <div className="space-y-1 border-b border-border pb-3">
+                <p className="text-xs uppercase tracking-wider muted-text mb-2">
+                  Help Desk
+                </p>
+                <NavLink
+                  to="/admin/support"
+                  className={({ isActive }) =>
+                    `flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                      isActive ? "bg-accent text-white" : "hover:bg-bg"
+                    }`
+                  }
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                      <path d="M13 5v2M13 17v2M13 11v2" />
+                    </svg>
+                    <span className="truncate">Support Tickets</span>
+                  </div>
+                  {supportStats?.open > 0 ? (
+                    <span className="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-sm animate-pulse">
+                      {supportStats.open} Open
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full border border-border bg-bg px-2 py-0.5 text-[10px] uppercase muted-text">
+                      {supportStats?.total || 0}
+                    </span>
+                  )}
+                </NavLink>
+              </div>
+
               <CollectionNavSection
                 title="Editable"
                 items={editableCollections}
@@ -277,6 +364,42 @@ function AdminLayout({ dark, onToggleTheme }) {
         </div>
 
         <nav className="mt-4 space-y-4">
+          <div className="space-y-1 border-b border-border pb-3">
+            <p className="text-xs uppercase tracking-wider muted-text mb-2">
+              Help Desk
+            </p>
+            <NavLink
+              to="/admin/support"
+              className={({ isActive }) =>
+                `flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                  isActive ? "bg-accent text-white" : "hover:bg-bg"
+                }`
+              }
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                  <path d="M13 5v2M13 17v2M13 11v2" />
+                </svg>
+                <span className="truncate">Support Tickets</span>
+              </div>
+              {supportStats?.open > 0 ? (
+                <span className="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-sm animate-pulse">
+                  {supportStats.open} Open
+                </span>
+              ) : (
+                <span className="shrink-0 rounded-full border border-border bg-bg px-2 py-0.5 text-[10px] uppercase muted-text">
+                  {supportStats?.total || 0}
+                </span>
+              )}
+            </NavLink>
+          </div>
+
           <CollectionNavSection
             title="Editable"
             items={editableCollections}

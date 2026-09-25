@@ -1,3 +1,4 @@
+import { getAuthTokenFromCookie } from "./authCookie";
 import axiosClient from "./axiosClient";
 
 function normalizeListParams(params = {}) {
@@ -468,4 +469,94 @@ export async function settleCustomerAccount(id, data = {}) {
 export async function deletePaymentEntry(id) {
   const response = await axiosClient.delete(`/payments/${id}`);
   return response.data;
+}
+
+export async function createSupportTicket(data) {
+  const response = await axiosClient.post("/support/tickets", data);
+  return response.data;
+}
+
+export async function getMySupportTickets() {
+  const response = await axiosClient.get("/support/tickets");
+  return response.data;
+}
+
+export async function getSupportTicketById(id) {
+  const response = await axiosClient.get(`/support/tickets/${id}`);
+  return response.data;
+}
+
+export async function getAdminSupportStats() {
+  const response = await axiosClient.get("/admin/support/stats");
+  return response.data;
+}
+
+export async function getAdminSupportTickets(params = {}) {
+  const response = await axiosClient.get("/admin/support/tickets", { params });
+  return response.data;
+}
+
+export async function updateAdminSupportTicket(id, data) {
+  const response = await axiosClient.patch(
+    `/admin/support/tickets/${id}`,
+    data,
+  );
+  return response.data;
+}
+
+export async function deleteAdminSupportTicket(id) {
+  const response = await axiosClient.delete(`/admin/support/tickets/${id}`);
+  return response.data;
+}
+
+export function notifySupportTicketsChanged(newStats = null) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("support-tickets-updated", {
+        detail: { stats: newStats },
+      }),
+    );
+  }
+}
+
+export function subscribeToAdminSupportLive(onStatsUpdate) {
+  if (typeof window === "undefined" || typeof EventSource === "undefined") {
+    return () => {};
+  }
+
+  const token = getAuthTokenFromCookie();
+  if (!token) {
+    return () => {};
+  }
+
+  const baseUrl = process.env.API_BASE_URL || "http://localhost:8000/api";
+  const url = `${baseUrl}/admin/support/live?token=${encodeURIComponent(token)}`;
+
+  let eventSource = null;
+  try {
+    eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data?.type === "STATS_UPDATE" && data.stats) {
+          onStatsUpdate(data.stats);
+        }
+      } catch (_err) {
+        // ignore parse error
+      }
+    };
+
+    eventSource.onerror = () => {
+      // browser EventSource will automatically retry connection
+    };
+  } catch (_e) {
+    return () => {};
+  }
+
+  return () => {
+    if (eventSource) {
+      eventSource.close();
+    }
+  };
 }

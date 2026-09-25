@@ -15,6 +15,7 @@ const baseNavigationItems = [
   { to: "/order-progress", label: "Order Progress" },
   { to: "/quality", label: "Quality" },
   { to: "/reports", label: "Reports" },
+  { to: "/support", label: "Help & Support" },
   { to: "/profile", label: "Profile" },
 ];
 

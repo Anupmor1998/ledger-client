@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AdminLayout from "../components/AdminLayout";
 import DashboardLayout from "../components/DashboardLayout";
 import AdminPage from "../pages/AdminPage";
+import AdminSupportTicketsPage from "../pages/AdminSupportTicketsPage";
 import CustomersPage from "../pages/CustomersPage";
 import DashboardOverviewPage from "../pages/DashboardOverviewPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
@@ -17,6 +18,7 @@ import QualityPage from "../pages/QualityPage";
 import ReportsPage from "../pages/ReportsPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import SignupPage from "../pages/SignupPage";
+import SupportPage from "../pages/SupportPage";
 import { useAppSelector } from "../store/hooks";
 import ProtectedRoute from "./ProtectedRoute";
 import PublicRoute from "./PublicRoute";
@@ -56,6 +58,7 @@ function AppRoutes({ dark, onToggleTheme }) {
             element={<AdminLayout dark={dark} onToggleTheme={onToggleTheme} />}
           >
             <Route index element={<Navigate to="users" replace />} />
+            <Route path="support" element={<AdminSupportTicketsPage />} />
             <Route path=":collectionKey" element={<AdminPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/admin/users" replace />} />
@@ -117,6 +120,7 @@ function AppRoutes({ dark, onToggleTheme }) {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="quality" element={<QualityPage />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="support" element={<SupportPage />} />
         </Route>
       </Route>
 
