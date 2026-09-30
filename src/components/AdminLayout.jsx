@@ -199,13 +199,27 @@ function AdminLayout({ dark, onToggleTheme }) {
       <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 md:gap-6">
         <aside className="hidden w-72 shrink-0 md:block">
           <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-lg">
-            <div className="flex items-center justify-between gap-3">
+            <div className="mb-4 flex items-center border-b border-border pb-3">
               <div>
-                <p className="text-xs uppercase tracking-wider muted-text">
+                <img
+                  src="/logo.png"
+                  alt="Sauda Book"
+                  className="h-7 w-auto object-contain dark:hidden"
+                />
+                <img
+                  src="/logo-dark.png"
+                  alt="Sauda Book"
+                  className="h-7 w-auto object-contain hidden dark:block"
+                />
+                <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider muted-text">
                   Admin Console
-                </p>
-                <p className="mt-1 text-sm font-semibold">Tables</p>
+                </span>
               </div>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-wider muted-text">
+                Tables
+              </p>
               <span className="rounded-full border border-border bg-bg px-2 py-1 text-xs muted-text">
                 {loadingCollections ? "..." : collectionLinks.length}
               </span>
@@ -264,13 +278,20 @@ function AdminLayout({ dark, onToggleTheme }) {
         <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-8 pt-3 sm:pt-4">
           <header className="sticky top-0 z-30 rounded-xl border border-border bg-surface/90 px-4 py-3 backdrop-blur md:px-5">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wider muted-text">
-                  Admin Panel
-                </p>
-                <h1 className="text-base font-semibold sm:text-lg">
-                  Ledger App
-                </h1>
+              <div className="flex items-center gap-2">
+                <img
+                  src="/logo.png"
+                  alt="Sauda Book"
+                  className="h-7 w-auto object-contain dark:hidden sm:h-8"
+                />
+                <img
+                  src="/logo-dark.png"
+                  alt="Sauda Book"
+                  className="h-7 w-auto object-contain hidden dark:block sm:h-8"
+                />
+                <span className="ml-2 hidden rounded-md bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent sm:inline-block">
+                  Admin
+                </span>
               </div>
 
               <div className="hidden md:block">

@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -44,19 +44,23 @@ function SignupPage() {
   return (
     <AuthLayout
       title="Signup"
-      subtitle="Create your account to start managing ledger operations."
+      subtitle="Create your account to start managing your Sauda Book."
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <label className="block">
           <span className="mb-1 block text-sm muted-text">Name</span>
           <input className="form-input" type="text" {...register("name")} />
-          {errors.name ? <p className="mt-1 text-sm text-red-500">{errors.name.message}</p> : null}
+          {errors.name ? (
+            <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
+          ) : null}
         </label>
 
         <label className="block">
           <span className="mb-1 block text-sm muted-text">Email</span>
           <input className="form-input" type="email" {...register("email")} />
-          {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email.message}</p> : null}
+          {errors.email ? (
+            <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
+          ) : null}
         </label>
 
         <label className="block">
@@ -74,30 +78,38 @@ function SignupPage() {
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 fill-none stroke-current stroke-2"
+                >
                   <path d="M3 3l18 18" />
                   <path d="M10.6 10.6a2 2 0 102.8 2.8" />
                   <path d="M9.9 4.2A10.9 10.9 0 0112 4c5.5 0 9.3 4.4 10 8-.3 1.6-1.3 3.4-2.8 5" />
                   <path d="M6.6 6.6C4.6 8 3.3 10 2 12c1 3.8 5 8 10 8 2 0 3.8-.5 5.3-1.4" />
                 </svg>
               ) : (
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 fill-none stroke-current stroke-2"
+                >
                   <path d="M2 12s3.6-8 10-8 10 8 10 8-3.6 8-10 8-10-8-10-8z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               )}
             </button>
           </div>
-          {errors.password ? <p className="mt-1 text-sm text-red-500">{errors.password.message}</p> : null}
+          {errors.password ? (
+            <p className="mt-1 text-sm text-red-500">
+              {errors.password.message}
+            </p>
+          ) : null}
         </label>
 
-        {status.error ? <p className="text-sm text-red-500">{status.error}</p> : null}
+        {status.error ? (
+          <p className="text-sm text-red-500">{status.error}</p>
+        ) : null}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="primary-btn"
-        >
+        <button type="submit" disabled={isSubmitting} className="primary-btn">
           {isSubmitting ? "Creating account..." : "Signup"}
         </button>
       </form>

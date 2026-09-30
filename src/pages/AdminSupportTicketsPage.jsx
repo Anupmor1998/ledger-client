@@ -203,7 +203,7 @@ function formatWhatsAppLink(phone, ticket, userName) {
   const digits = String(phone).replace(/\D/g, "");
   if (!digits) return null;
   const target = digits.length === 10 ? `91${digits}` : digits;
-  const text = `Hi ${userName || "there"}, regarding your Support Ticket #${ticket.ticketNo} (${ticket.subject}) on Ledger App: `;
+  const text = `Hi ${userName || "there"}, regarding your Support Ticket #${ticket.ticketNo} (${ticket.subject}) on Sauda Book: `;
   return `https://wa.me/${target}?text=${encodeURIComponent(text)}`;
 }
 

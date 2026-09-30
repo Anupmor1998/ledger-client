@@ -1,5 +1,5 @@
-import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig, loadEnv } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
@@ -11,9 +11,10 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: "autoUpdate",
         manifest: {
-          name: "Ledger App",
-          short_name: "Ledger",
-          description: "Ledger management app for customers, manufacturers, orders, and reports.",
+          name: "Sauda Book",
+          short_name: "Sauda Book",
+          description:
+            "Textile brokerage management app for orders, dalali, and accounts.",
           theme_color: "#0f766e",
           background_color: "#eef2f7",
           display: "standalone",
@@ -22,7 +23,12 @@ export default defineConfig(({ mode }) => {
           icons: [
             { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
             { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
-            { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+            {
+              src: "/icon-512.png",
+              sizes: "512x512",
+              type: "image/png",
+              purpose: "maskable",
+            },
           ],
         },
         workbox: {
@@ -45,7 +51,7 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       "process.env.API_BASE_URL": JSON.stringify(
-        env.API_BASE_URL || "http://localhost:8000/api"
+        env.API_BASE_URL || "http://localhost:8000/api",
       ),
     },
   };

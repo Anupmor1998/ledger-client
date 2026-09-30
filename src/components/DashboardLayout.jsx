@@ -66,6 +66,18 @@ function DashboardLayout({ dark, onToggleTheme }) {
       <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 md:gap-6">
         <aside className="hidden w-64 shrink-0 md:block">
           <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-lg">
+            <div className="mb-4 flex items-center border-b border-border pb-3">
+              <img
+                src="/logo.png"
+                alt="Sauda Book"
+                className="h-8 w-auto object-contain dark:hidden"
+              />
+              <img
+                src="/logo-dark.png"
+                alt="Sauda Book"
+                className="h-8 w-auto object-contain hidden dark:block"
+              />
+            </div>
             <p className="text-xs uppercase tracking-wider muted-text">
               Navigation
             </p>
@@ -91,7 +103,18 @@ function DashboardLayout({ dark, onToggleTheme }) {
         <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden pb-8 pt-3 sm:pt-4">
           <header className="sticky top-0 z-30 rounded-xl border border-border bg-surface/90 px-4 py-3 backdrop-blur md:px-5">
             <div className="flex items-center justify-between gap-3">
-              <h1 className="text-base font-semibold sm:text-lg">Ledger App</h1>
+              <div className="flex items-center">
+                <img
+                  src="/logo.png"
+                  alt="Sauda Book"
+                  className="h-7 w-auto object-contain dark:hidden sm:h-8"
+                />
+                <img
+                  src="/logo-dark.png"
+                  alt="Sauda Book"
+                  className="h-7 w-auto object-contain hidden dark:block sm:h-8"
+                />
+              </div>
 
               <div className="hidden md:block">
                 <div className="relative" ref={popoverContainerRef}>
@@ -156,8 +179,19 @@ function DashboardLayout({ dark, onToggleTheme }) {
           mobileOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">Menu</p>
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="flex items-center">
+            <img
+              src="/logo.png"
+              alt="Sauda Book"
+              className="h-7 w-auto object-contain dark:hidden"
+            />
+            <img
+              src="/logo-dark.png"
+              alt="Sauda Book"
+              className="h-7 w-auto object-contain hidden dark:block"
+            />
+          </div>
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
