@@ -1,0 +1,24 @@
+# Sauda Book Robots.txt
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /signup
+Allow: /forgot-password
+Allow: /reset-password
+Allow: /support
+
+# Disallow private user-authenticated views
+Disallow: /dashboard
+Disallow: /orders
+Disallow: /order-activity
+Disallow: /order-progress
+Disallow: /payments
+Disallow: /customers
+Disallow: /manufacturers
+Disallow: /quality
+Disallow: /reports
+Disallow: /profile
+Disallow: /admin/
+Disallow: /admin/*
+
+Sitemap: https://saudabook.co.in/sitemap.xml
