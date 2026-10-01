@@ -124,6 +124,7 @@ function ReportsPage() {
     manufacturerId: "",
     qualityId: "",
     status: "",
+    paymentStatus: "UNPAID",
     userType: "CUSTOMER",
     groupBy: "DATE",
   });
@@ -188,6 +189,7 @@ function ReportsPage() {
       manufacturerId: filters.manufacturerId,
       qualityId: filters.qualityId,
       status: filters.status,
+      paymentStatus: filters.paymentStatus,
       userType: filters.userType,
       groupBy: filters.groupBy,
     }),
@@ -483,6 +485,18 @@ function ReportsPage() {
               { value: "COMPLETED", label: "Completed" },
             ]}
             placeholder="Select status"
+          />
+
+          <SearchableSelect
+            label="Payment Status"
+            value={filters.paymentStatus}
+            onChange={(nextValue) => updateFilter("paymentStatus", nextValue)}
+            options={[
+              { value: "UNPAID", label: "Unpaid" },
+              { value: "PAID", label: "Paid" },
+              { value: "ALL", label: "All" },
+            ]}
+            placeholder="Select payment status"
           />
         </div>
 
