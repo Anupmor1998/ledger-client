@@ -32,6 +32,26 @@ const resetPasswordSchema = yup.object({
 const profileSchema = yup.object({
   name: yup.string().trim().required("Name is required"),
   email: yup.string().trim().email("Enter a valid email").required("Email is required"),
+  firmName: yup
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => (value === "" ? null : value)),
+  businessSubtitle: yup
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => (value === "" ? null : value)),
+  contactPhone: yup
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => (value === "" ? null : value)),
+  businessAddress: yup
+    .string()
+    .trim()
+    .nullable()
+    .transform((value) => (value === "" ? null : value)),
   currentPassword: yup
     .string()
     .nullable()

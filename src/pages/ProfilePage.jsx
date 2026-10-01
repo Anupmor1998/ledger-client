@@ -15,6 +15,7 @@ import {
   getMyPreferences,
   previewYearTransfer,
   undoYearTransferBatch,
+  getMyProfile,
   updateMyProfile,
   updateMyPreferences,
 } from "../lib/api";
@@ -68,22 +69,37 @@ function ProfilePage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(profileSchema),
     defaultValues: {
       name: "",
       email: "",
+      firmName: "",
+      businessSubtitle: "",
+      contactPhone: "",
+      businessAddress: "",
       currentPassword: "",
       newPassword: "",
       confirmNewPassword: "",
     },
   });
 
+  const watchFirmName = watch("firmName");
+  const watchName = watch("name");
+  const watchSubtitle = watch("businessSubtitle");
+  const watchAddress = watch("businessAddress");
+  const watchPhone = watch("contactPhone");
+
   useEffect(() => {
     reset({
       name: user?.name || "",
       email: user?.email || "",
+      firmName: user?.firmName || "",
+      businessSubtitle: user?.businessSubtitle || "",
+      contactPhone: user?.contactPhone || "",
+      businessAddress: user?.businessAddress || "",
       currentPassword: "",
       newPassword: "",
       confirmNewPassword: "",
@@ -103,12 +119,29 @@ function ProfilePage() {
   useEffect(() => {
     async function loadProfileExtras() {
       try {
-        const [groupData, preferenceData, remarkTemplateData, transferBatchData] = await Promise.all([
+        const [profileData, groupData, preferenceData, remarkTemplateData, transferBatchData] = await Promise.all([
+          getMyProfile(),
           getMyWhatsAppGroups(),
           getMyPreferences(),
           getMyRemarkTemplates(),
           getYearTransferBatches(),
         ]);
+
+        if (profileData) {
+          dispatch(setUserProfile(profileData));
+          reset({
+            name: profileData.name || "",
+            email: profileData.email || "",
+            firmName: profileData.firmName || "",
+            businessSubtitle: profileData.businessSubtitle || "",
+            contactPhone: profileData.contactPhone || "",
+            businessAddress: profileData.businessAddress || "",
+            currentPassword: "",
+            newPassword: "",
+            confirmNewPassword: "",
+          });
+        }
+
         setGroups(sortByText(Array.isArray(groupData) ? groupData : [], (group) => group?.name));
         setRemarkTemplates(
           sortByText(Array.isArray(remarkTemplateData) ? remarkTemplateData : [], (template) => template?.text)
@@ -130,13 +163,17 @@ function ProfilePage() {
     }
 
     loadProfileExtras();
-  }, [dispatch]);
+  }, [dispatch, reset]);
 
   async function onSubmit(values) {
     try {
       const payload = {
         name: values.name.trim(),
         email: values.email.trim().toLowerCase(),
+        firmName: values.firmName ? values.firmName.trim() : null,
+        businessSubtitle: values.businessSubtitle ? values.businessSubtitle.trim() : null,
+        contactPhone: values.contactPhone ? values.contactPhone.trim() : null,
+        businessAddress: values.businessAddress ? values.businessAddress.trim() : null,
       };
 
       if (values.currentPassword || values.newPassword) {
@@ -150,6 +187,10 @@ function ProfilePage() {
       reset({
         name: updatedUser?.name || "",
         email: updatedUser?.email || "",
+        firmName: updatedUser?.firmName || "",
+        businessSubtitle: updatedUser?.businessSubtitle || "",
+        contactPhone: updatedUser?.contactPhone || "",
+        businessAddress: updatedUser?.businessAddress || "",
         currentPassword: "",
         newPassword: "",
         confirmNewPassword: "",
@@ -969,6 +1010,156 @@ function ProfilePage() {
           <input className="form-input" type="email" {...register("email")} />
           {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email.message}</p> : null}
         </label>
+
+        <div className="rounded-lg border border-border p-4 bg-surface/50">
+          <div className="flex items-center gap-2 mb-1">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5 text-accent fill-none stroke-current stroke-2"
+            >
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            </svg>
+            <h3 className="text-base font-semibold text-text">
+              Business & Report Header Settings
+            </h3>
+          </div>
+          <p className="text-xs muted-text mb-4">
+            These business details will appear at the top of all exported PDF & Excel reports and on shared WhatsApp sauda slips.
+          </p>
+
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-text">
+                Firm / Business Name
+              </span>
+              <input
+                className="form-input"
+                placeholder="e.g. Shree Balaji Textiles"
+                {...register("firmName")}
+              />
+              <span className="mt-1 block text-[11px] muted-text">
+                Header Line 1 on PDF/Excel reports
+              </span>
+              {errors.firmName ? (
+                <p className="mt-1 text-xs text-red-500">{errors.firmName.message}</p>
+              ) : null}
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-text">
+                Business Tagline / Subtitle
+              </span>
+              <input
+                className="form-input"
+                placeholder="e.g. Fabric Broker & Commission Agent"
+                {...register("businessSubtitle")}
+              />
+              <span className="mt-1 block text-[11px] muted-text">
+                Header Line 2 on PDF/Excel reports
+              </span>
+              {errors.businessSubtitle ? (
+                <p className="mt-1 text-xs text-red-500">{errors.businessSubtitle.message}</p>
+              ) : null}
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-text">
+                Contact Phone Number(s)
+              </span>
+              <input
+                className="form-input"
+                placeholder="e.g. 9876543210, 9898989898"
+                {...register("contactPhone")}
+              />
+              <span className="mt-1 block text-[11px] muted-text">
+                Header Line 3 on PDF/Excel reports
+              </span>
+              {errors.contactPhone ? (
+                <p className="mt-1 text-xs text-red-500">{errors.contactPhone.message}</p>
+              ) : null}
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-text">
+                Business / Office Address
+              </span>
+              <input
+                className="form-input"
+                placeholder="e.g. Shop 204, Millennium Textile Market, Ring Road, Surat"
+                {...register("businessAddress")}
+              />
+              <span className="mt-1 block text-[11px] muted-text">
+                Header Line 4 on PDF/Excel reports
+              </span>
+              {errors.businessAddress ? (
+                <p className="mt-1 text-xs text-red-500">{errors.businessAddress.message}</p>
+              ) : null}
+            </label>
+          </div>
+
+          {/* Exact PDF & Excel Report Header Live Preview */}
+          <div className="mt-5 rounded-xl border border-border bg-bg/70 p-4">
+            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-text">
+                  Report Sheet Live Preview
+                </span>
+                <span className="rounded bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
+                  Exact PDF & Excel Output
+                </span>
+              </div>
+              <span className="text-[11px] muted-text hidden sm:inline">
+                Updates in real-time as you type
+              </span>
+            </div>
+
+            {/* Sheet Canvas with Excel/PDF meta styling */}
+            <div className="overflow-hidden rounded-lg border border-[#444444] shadow-sm">
+              <div className="bg-[#d9d9d9] px-4 py-3 text-center text-[#111111] font-mono select-none">
+                <div className="text-base font-extrabold tracking-wide sm:text-lg">
+                  {watchFirmName || user?.firmName || watchName || user?.name || "Your Firm Name"}
+                </div>
+
+                {(watchSubtitle || user?.businessSubtitle) ? (
+                  <div className="mt-0.5 text-xs font-bold sm:text-sm">
+                    {watchSubtitle || user?.businessSubtitle}
+                  </div>
+                ) : null}
+
+                {(watchAddress || user?.businessAddress) ? (
+                  <div className="mt-0.5 text-[11px] font-bold sm:text-xs">
+                    {watchAddress || user?.businessAddress}
+                  </div>
+                ) : null}
+
+                {(watchPhone || user?.contactPhone) ? (
+                  <div className="mt-0.5 text-xs font-bold sm:text-sm">
+                    {(() => {
+                      const raw = watchPhone || user?.contactPhone || "";
+                      return raw.startsWith("(M)") ? raw : `(M) ${raw}`;
+                    })()}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Sample Party Filter Banner */}
+              <div className="border-t border-[#444444] bg-[#e6e6e6] px-3 py-1 font-mono text-[11px] font-bold text-[#222222]">
+                Customer Firm Name : Sample Customer Textiles
+              </div>
+
+              {/* Sample Report Table Columns Header */}
+              <div className="border-t border-[#444444] bg-[#d9d9d9] px-3 py-1 font-mono text-[10px] font-bold text-[#111111] grid grid-cols-6 gap-1 text-center">
+                <span>DATE</span>
+                <span>ORDER NO</span>
+                <span>QUALITY</span>
+                <span>TAKKA</span>
+                <span>METERS</span>
+                <span>RATE</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="rounded-lg border border-border p-3">
           <p className="text-sm font-medium">Change Password (Optional)</p>

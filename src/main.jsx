@@ -5,7 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
-import { getMyPreferences, getUsers, updateMyPreferences } from "./lib/api";
+import { getMyPreferences, getMyProfile, getUsers, updateMyPreferences } from "./lib/api";
 import { setupAxiosInterceptors } from "./lib/axiosClient";
 import { setSession, setUserProfile, setUserTheme } from "./store/slices/authSlice";
 import store from "./store";
@@ -54,20 +54,18 @@ function Root() {
 
     async function syncSessionFromBackend() {
       const token = store.getState().auth.token;
-      const user = store.getState().auth.user;
-      if (!token || user?.role) {
+      if (!token) {
         return;
       }
 
       try {
-        const users = await getUsers();
+        const profile = await getMyProfile();
         if (cancelled) {
           return;
         }
 
-        const currentUser = Array.isArray(users) ? users[0] : null;
-        if (currentUser) {
-          store.dispatch(setSession({ token, user: currentUser }));
+        if (profile) {
+          store.dispatch(setUserProfile(profile));
         }
       } catch (_error) {
         // Keep the cached session if the refresh fails.
