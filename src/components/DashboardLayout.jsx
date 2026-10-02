@@ -7,12 +7,10 @@ import ThemeToggle from "./ThemeToggle";
 const baseNavigationItems = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/dashboard", label: "Analytics" },
-  { to: "/customers", label: "Customers" },
-  { to: "/manufacturers", label: "Manufacturers" },
+  { to: "/masters", label: "Masters" },
   { to: "/orders", label: "Orders" },
   { to: "/payments", label: "Payments" },
   { to: "/order-progress", label: "Order Progress" },
-  { to: "/quality", label: "Quality" },
   { to: "/reports", label: "Reports" },
   { to: "/support", label: "Help & Support" },
   { to: "/profile", label: "Profile" },

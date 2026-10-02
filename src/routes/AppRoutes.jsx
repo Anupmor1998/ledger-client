@@ -3,17 +3,15 @@ import AdminLayout from "../components/AdminLayout";
 import DashboardLayout from "../components/DashboardLayout";
 import AdminPage from "../pages/AdminPage";
 import AdminSupportTicketsPage from "../pages/AdminSupportTicketsPage";
-import CustomersPage from "../pages/CustomersPage";
 import DashboardOverviewPage from "../pages/DashboardOverviewPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import HomePage from "../pages/HomePage";
 import LoginPage from "../pages/LoginPage";
-import ManufacturersPage from "../pages/ManufacturersPage";
+import MastersPage from "../pages/MastersPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
 import OrdersPage from "../pages/OrdersPage";
 import PaymentsPage from "../pages/PaymentsPage";
 import ProfilePage from "../pages/ProfilePage";
-import QualityPage from "../pages/QualityPage";
 import ReportsPage from "../pages/ReportsPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import SignupPage from "../pages/SignupPage";
@@ -102,8 +100,19 @@ function AppRoutes({ dark, onToggleTheme }) {
         >
           <Route index element={<HomePage />} />
           <Route path="dashboard" element={<DashboardOverviewPage />} />
-          <Route path="customers" element={<CustomersPage />} />
-          <Route path="manufacturers" element={<ManufacturersPage />} />
+          <Route path="masters" element={<MastersPage />} />
+          <Route
+            path="customers"
+            element={<Navigate to="/masters?tab=customers" replace />}
+          />
+          <Route
+            path="manufacturers"
+            element={<Navigate to="/masters?tab=manufacturers" replace />}
+          />
+          <Route
+            path="quality"
+            element={<Navigate to="/masters?tab=qualities" replace />}
+          />
           <Route path="orders" element={<OrdersPage />} />
           <Route
             path="order-activity"
@@ -120,7 +129,6 @@ function AppRoutes({ dark, onToggleTheme }) {
           />
           <Route path="order-progress" element={<OrderProgressPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="quality" element={<QualityPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="support" element={<SupportPage />} />
         </Route>

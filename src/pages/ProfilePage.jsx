@@ -3,15 +3,9 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import {
-  createMyWhatsAppGroup,
-  createMyRemarkTemplate,
-  deleteMyRemarkTemplate,
-  deleteMyWhatsAppGroup,
   executeYearTransfer,
   getYearTransferBatchDetails,
   getYearTransferBatches,
-  getMyWhatsAppGroups,
-  getMyRemarkTemplates,
   getMyPreferences,
   previewYearTransfer,
   undoYearTransferBatch,
@@ -23,7 +17,6 @@ import SearchableSelect from "../components/SearchableSelect";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
 import { buildFinancialYearOptions, getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
-import { sortByText } from "../utils/sort";
 import { profileSchema } from "../validation/authSchemas";
 
 function ProfilePage() {
@@ -32,14 +25,6 @@ function ProfilePage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [groups, setGroups] = useState([]);
-  const [groupForm, setGroupForm] = useState({ name: "", inviteLink: "" });
-  const [groupSubmitting, setGroupSubmitting] = useState(false);
-  const [groupDeletingId, setGroupDeletingId] = useState("");
-  const [remarkTemplates, setRemarkTemplates] = useState([]);
-  const [remarkForm, setRemarkForm] = useState("");
-  const [remarkSubmitting, setRemarkSubmitting] = useState(false);
-  const [remarkDeletingId, setRemarkDeletingId] = useState("");
   const [selectedFinancialYearStart, setSelectedFinancialYearStart] = useState(
     user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
@@ -119,11 +104,9 @@ function ProfilePage() {
   useEffect(() => {
     async function loadProfileExtras() {
       try {
-        const [profileData, groupData, preferenceData, remarkTemplateData, transferBatchData] = await Promise.all([
+        const [profileData, preferenceData, transferBatchData] = await Promise.all([
           getMyProfile(),
-          getMyWhatsAppGroups(),
           getMyPreferences(),
-          getMyRemarkTemplates(),
           getYearTransferBatches(),
         ]);
 
@@ -142,10 +125,6 @@ function ProfilePage() {
           });
         }
 
-        setGroups(sortByText(Array.isArray(groupData) ? groupData : [], (group) => group?.name));
-        setRemarkTemplates(
-          sortByText(Array.isArray(remarkTemplateData) ? remarkTemplateData : [], (template) => template?.text)
-        );
         setTransferHistory(Array.isArray(transferBatchData) ? transferBatchData : []);
         if (preferenceData?.selectedFinancialYearStart) {
           setSelectedFinancialYearStart(preferenceData.selectedFinancialYearStart);
@@ -221,82 +200,6 @@ function ProfilePage() {
       toast.error(message);
     } finally {
       setFinancialYearSaving(false);
-    }
-  }
-
-  async function handleAddRemarkTemplate(event) {
-    event.preventDefault();
-    const text = remarkForm.trim();
-    if (!text) {
-      toast.error("Remark text is required.");
-      return;
-    }
-    setRemarkSubmitting(true);
-    try {
-      const created = await createMyRemarkTemplate({ text });
-      setRemarkTemplates((prev) => sortByText([...prev, created], (template) => template?.text));
-      setRemarkForm("");
-      toast.success("Remark added.");
-    } catch (error) {
-      const message =
-        error?.response?.data?.message || error?.message || "Unable to add saved remark.";
-      toast.error(message);
-    } finally {
-      setRemarkSubmitting(false);
-    }
-  }
-
-  async function handleDeleteRemarkTemplate(id) {
-    setRemarkDeletingId(id);
-    try {
-      await deleteMyRemarkTemplate(id);
-      setRemarkTemplates((prev) => prev.filter((template) => template.id !== id));
-      toast.success("Remark removed.");
-    } catch (error) {
-      const message =
-        error?.response?.data?.message || error?.message || "Unable to remove saved remark.";
-      toast.error(message);
-    } finally {
-      setRemarkDeletingId("");
-    }
-  }
-
-  async function handleAddGroup(event) {
-    event.preventDefault();
-    const name = groupForm.name.trim();
-    const inviteLink = groupForm.inviteLink.trim();
-    if (!name || !inviteLink) {
-      toast.error("Group name and invite link are required.");
-      return;
-    }
-
-    setGroupSubmitting(true);
-    try {
-      const created = await createMyWhatsAppGroup({ name, inviteLink });
-      setGroups((prev) => sortByText([...prev, created], (group) => group?.name));
-      setGroupForm({ name: "", inviteLink: "" });
-      toast.success("WhatsApp group added.");
-    } catch (error) {
-      const message =
-        error?.response?.data?.message || error?.message || "Unable to add WhatsApp group.";
-      toast.error(message);
-    } finally {
-      setGroupSubmitting(false);
-    }
-  }
-
-  async function handleDeleteGroup(id) {
-    setGroupDeletingId(id);
-    try {
-      await deleteMyWhatsAppGroup(id);
-      setGroups((prev) => prev.filter((group) => group.id !== id));
-      toast.success("WhatsApp group removed.");
-    } catch (error) {
-      const message =
-        error?.response?.data?.message || error?.message || "Unable to remove WhatsApp group.";
-      toast.error(message);
-    } finally {
-      setGroupDeletingId("");
     }
   }
 
@@ -572,62 +475,6 @@ function ProfilePage() {
         </p>
       </div>
 
-      <div className="mt-4 rounded-lg border border-border p-3 sm:p-4">
-        <h3 className="text-base font-semibold">Saved Remarks</h3>
-        <p className="mt-1 text-sm muted-text">
-          Add reusable remarks here. They will appear in all order remark autocomplete fields, and
-          you can still type a custom remark anytime.
-        </p>
-
-        <form onSubmit={handleAddRemarkTemplate} className="mt-3 space-y-3">
-          <label className="block">
-            <span className="mb-1 block text-sm muted-text">Add Remark</span>
-            <textarea
-              className="form-input min-h-24"
-              value={remarkForm}
-              onChange={(event) => setRemarkForm(event.target.value)}
-            />
-          </label>
-
-          <button type="submit" className="primary-btn sm:w-auto" disabled={remarkSubmitting}>
-            {remarkSubmitting ? "Adding..." : "Add Remark"}
-          </button>
-        </form>
-
-        <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1 sm:max-h-72">
-          {remarkTemplates.length === 0 ? (
-            <p className="text-sm muted-text">No saved remarks yet.</p>
-          ) : (
-            remarkTemplates.map((template) => (
-              <div
-                key={template.id}
-                className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-border p-2"
-              >
-                <p className="min-w-0 text-sm whitespace-pre-wrap">{template.text}</p>
-                <button
-                  type="button"
-                  className="rounded-lg border border-red-400/40 p-2 text-red-500 hover:bg-red-50"
-                  onClick={() => handleDeleteRemarkTemplate(template.id)}
-                  disabled={remarkDeletingId === template.id}
-                  aria-label="Delete remark"
-                  title="Delete remark"
-                >
-                  {remarkDeletingId === template.id ? (
-                    <span className="text-xs">...</span>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
-                      <path d="M4 7h16" />
-                      <path d="M9 7V5h6v2" />
-                      <path d="M7 7l1 12h8l1-12" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
 
       <div className="mt-4 rounded-lg border border-border p-3 sm:p-4">
         <h3 className="text-base font-semibold">Carry Forward To New Financial Year</h3>
@@ -1270,81 +1117,6 @@ function ProfilePage() {
         </button>
       </form>
 
-      <div className="mt-8 rounded-lg border border-border p-3 sm:p-4">
-        <h3 className="text-base font-semibold">WhatsApp Groups (Optional)</h3>
-        <p className="mt-1 text-sm muted-text">
-          Add group invite links for quick sharing from order WhatsApp modal.
-        </p>
-
-        <form onSubmit={handleAddGroup} className="mt-3 grid gap-3 sm:grid-cols-5">
-          <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm muted-text">Group Name</span>
-            <input
-              className="form-input"
-              value={groupForm.name}
-              onChange={(event) => setGroupForm((prev) => ({ ...prev, name: event.target.value }))}
-              placeholder="e.g. Surat Brokers"
-            />
-          </label>
-          <label className="block sm:col-span-3">
-            <span className="mb-1 block text-sm muted-text">Group Invite Link</span>
-            <input
-              className="form-input"
-              value={groupForm.inviteLink}
-              onChange={(event) =>
-                setGroupForm((prev) => ({ ...prev, inviteLink: event.target.value }))
-              }
-              placeholder="https://chat.whatsapp.com/..."
-            />
-          </label>
-          <div className="sm:col-span-5">
-            <button type="submit" className="primary-btn sm:w-auto" disabled={groupSubmitting}>
-              {groupSubmitting ? "Adding..." : "Add Group"}
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1 sm:max-h-72">
-          {groups.length === 0 ? (
-            <p className="text-sm muted-text">No groups added yet.</p>
-          ) : (
-            groups.map((group) => (
-              <div key={group.id} className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-border p-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{group.name}</p>
-                  <a
-                    href={group.inviteLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-link break-all"
-                  >
-                    {group.inviteLink}
-                  </a>
-                </div>
-                <button
-                  type="button"
-                  className="rounded-lg border border-red-400/40 p-2 text-red-500 hover:bg-red-50"
-                  onClick={() => handleDeleteGroup(group.id)}
-                  disabled={groupDeletingId === group.id}
-                  aria-label="Delete group"
-                  title="Delete group"
-                >
-                  {groupDeletingId === group.id ? (
-                    <span className="text-xs">...</span>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
-                      <path d="M4 7h16" />
-                      <path d="M9 7V5h6v2" />
-                      <path d="M7 7l1 12h8l1-12" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
 
       {(transferBatchDetailsLoading || selectedTransferBatchDetails) ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
