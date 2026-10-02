@@ -9,7 +9,6 @@ import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import HomePage from "../pages/HomePage";
 import LoginPage from "../pages/LoginPage";
 import ManufacturersPage from "../pages/ManufacturersPage";
-import OrderActivityPage from "../pages/OrderActivityPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
 import OrdersPage from "../pages/OrdersPage";
 import PaymentsPage from "../pages/PaymentsPage";
@@ -106,7 +105,10 @@ function AppRoutes({ dark, onToggleTheme }) {
           <Route path="customers" element={<CustomersPage />} />
           <Route path="manufacturers" element={<ManufacturersPage />} />
           <Route path="orders" element={<OrdersPage />} />
-          <Route path="order-activity" element={<OrderActivityPage />} />
+          <Route
+            path="order-activity"
+            element={<Navigate to="/orders" replace />}
+          />
           <Route path="payments" element={<PaymentsPage />} />
           <Route
             path="pending-payments"

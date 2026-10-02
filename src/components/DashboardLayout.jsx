@@ -10,7 +10,6 @@ const baseNavigationItems = [
   { to: "/customers", label: "Customers" },
   { to: "/manufacturers", label: "Manufacturers" },
   { to: "/orders", label: "Orders" },
-  { to: "/order-activity", label: "Order Activity" },
   { to: "/payments", label: "Payments" },
   { to: "/order-progress", label: "Order Progress" },
   { to: "/quality", label: "Quality" },
