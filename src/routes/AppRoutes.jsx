@@ -7,6 +7,7 @@ import DashboardOverviewPage from "../pages/DashboardOverviewPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import HomePage from "../pages/HomePage";
 import LoginPage from "../pages/LoginPage";
+import MarketDirectoryPage from "../pages/MarketDirectoryPage";
 import MastersPage from "../pages/MastersPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
 import OrdersPage from "../pages/OrdersPage";
@@ -128,6 +129,11 @@ function AppRoutes({ dark, onToggleTheme }) {
             element={<Navigate to="/payments" replace />}
           />
           <Route path="order-progress" element={<OrderProgressPage />} />
+          <Route path="market-directory" element={<MarketDirectoryPage />} />
+          <Route
+            path="directory"
+            element={<Navigate to="/market-directory" replace />}
+          />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="support" element={<SupportPage />} />

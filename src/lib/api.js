@@ -565,3 +565,9 @@ export function subscribeToAdminSupportLive(onStatsUpdate) {
     }
   };
 }
+
+export async function getMarketDirectory(params = {}) {
+  const response = await axiosClient.get("/directory", { params });
+  return response.data;
+}
+
