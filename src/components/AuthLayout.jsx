@@ -22,6 +22,15 @@ function AuthLayout({ title, subtitle, children }) {
             </p>
           </div>
           {children}
+
+          <div className="mt-6 pt-4 border-t border-[var(--color-border)] flex items-center justify-between text-xs muted-text">
+            <span>&copy; {new Date().getFullYear()} Sauda Book</span>
+            <div className="flex items-center gap-3">
+              <a href="/privacy" className="text-link">Privacy</a>
+              <span>&bull;</span>
+              <a href="/terms" className="text-link">Terms</a>
+            </div>
+          </div>
         </section>
       </div>
     </main>

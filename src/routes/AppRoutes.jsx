@@ -6,27 +6,41 @@ import AdminSupportTicketsPage from "../pages/AdminSupportTicketsPage";
 import DashboardOverviewPage from "../pages/DashboardOverviewPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import HomePage from "../pages/HomePage";
+import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
 import MarketDirectoryPage from "../pages/MarketDirectoryPage";
 import MastersPage from "../pages/MastersPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
 import OrdersPage from "../pages/OrdersPage";
 import PaymentsPage from "../pages/PaymentsPage";
+import PrivacyPolicyPage from "../pages/PrivacyPolicyPage";
 import ProfilePage from "../pages/ProfilePage";
 import ReportsPage from "../pages/ReportsPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import SignupPage from "../pages/SignupPage";
 import SupportPage from "../pages/SupportPage";
+import TermsOfServicePage from "../pages/TermsOfServicePage";
 import { useAppSelector } from "../store/hooks";
 import ProtectedRoute from "./ProtectedRoute";
 import PublicRoute from "./PublicRoute";
 
 function AppRoutes({ dark, onToggleTheme }) {
+  const isAuthenticated = useAppSelector(
+    (state) => Boolean(state.auth.token) && Boolean(state.auth.user?.id)
+  );
   const isAdmin = useAppSelector((state) => state.auth.user?.role === "ADMIN");
 
   if (isAdmin) {
     return (
       <Routes>
+        <Route
+          path="/privacy"
+          element={<PrivacyPolicyPage dark={dark} onToggleTheme={onToggleTheme} />}
+        />
+        <Route
+          path="/terms"
+          element={<TermsOfServicePage dark={dark} onToggleTheme={onToggleTheme} />}
+        />
         <Route element={<PublicRoute />}>
           <Route
             path="/login"
@@ -69,6 +83,24 @@ function AppRoutes({ dark, onToggleTheme }) {
 
   return (
     <Routes>
+      {/* Universal Public Legal Pages (Crucial for Google AdSense Review) */}
+      <Route
+        path="/privacy"
+        element={<PrivacyPolicyPage dark={dark} onToggleTheme={onToggleTheme} />}
+      />
+      <Route
+        path="/terms"
+        element={<TermsOfServicePage dark={dark} onToggleTheme={onToggleTheme} />}
+      />
+
+      {/* When unauthenticated, root '/' is the Split Landing Page with embedded login */}
+      {!isAuthenticated && (
+        <Route
+          path="/"
+          element={<LandingPage dark={dark} onToggleTheme={onToggleTheme} />}
+        />
+      )}
+
       <Route element={<PublicRoute />}>
         <Route
           path="/login"
@@ -92,53 +124,56 @@ function AppRoutes({ dark, onToggleTheme }) {
         />
       </Route>
 
-      <Route element={<ProtectedRoute />}>
-        <Route
-          path="/"
-          element={
-            <DashboardLayout dark={dark} onToggleTheme={onToggleTheme} />
-          }
-        >
-          <Route index element={<HomePage />} />
-          <Route path="dashboard" element={<DashboardOverviewPage />} />
-          <Route path="masters" element={<MastersPage />} />
+      {/* When authenticated, root '/' and app features render inside DashboardLayout */}
+      {isAuthenticated && (
+        <Route element={<ProtectedRoute />}>
           <Route
-            path="customers"
-            element={<Navigate to="/masters?tab=customers" replace />}
-          />
-          <Route
-            path="manufacturers"
-            element={<Navigate to="/masters?tab=manufacturers" replace />}
-          />
-          <Route
-            path="quality"
-            element={<Navigate to="/masters?tab=qualities" replace />}
-          />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route
-            path="order-activity"
-            element={<Navigate to="/orders" replace />}
-          />
-          <Route path="payments" element={<PaymentsPage />} />
-          <Route
-            path="pending-payments"
-            element={<Navigate to="/payments" replace />}
-          />
-          <Route
-            path="received-payments"
-            element={<Navigate to="/payments" replace />}
-          />
-          <Route path="order-progress" element={<OrderProgressPage />} />
-          <Route path="market-directory" element={<MarketDirectoryPage />} />
-          <Route
-            path="directory"
-            element={<Navigate to="/market-directory" replace />}
-          />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="support" element={<SupportPage />} />
+            path="/"
+            element={
+              <DashboardLayout dark={dark} onToggleTheme={onToggleTheme} />
+            }
+          >
+            <Route index element={<HomePage />} />
+            <Route path="dashboard" element={<DashboardOverviewPage />} />
+            <Route path="masters" element={<MastersPage />} />
+            <Route
+              path="customers"
+              element={<Navigate to="/masters?tab=customers" replace />}
+            />
+            <Route
+              path="manufacturers"
+              element={<Navigate to="/masters?tab=manufacturers" replace />}
+            />
+            <Route
+              path="quality"
+              element={<Navigate to="/masters?tab=qualities" replace />}
+            />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route
+              path="order-activity"
+              element={<Navigate to="/orders" replace />}
+            />
+            <Route path="payments" element={<PaymentsPage />} />
+            <Route
+              path="pending-payments"
+              element={<Navigate to="/payments" replace />}
+            />
+            <Route
+              path="received-payments"
+              element={<Navigate to="/payments" replace />}
+            />
+            <Route path="order-progress" element={<OrderProgressPage />} />
+            <Route path="market-directory" element={<MarketDirectoryPage />} />
+            <Route
+              path="directory"
+              element={<Navigate to="/market-directory" replace />}
+            />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="support" element={<SupportPage />} />
+          </Route>
         </Route>
-      </Route>
+      )}
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
