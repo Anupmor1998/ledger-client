@@ -571,3 +571,13 @@ export async function getMarketDirectory(params = {}) {
   return response.data;
 }
 
+export async function tagPartyQuality(data) {
+  const response = await axiosClient.post("/directory/tag-quality", data);
+  return response.data;
+}
+
+export async function untagPartyQuality(params = {}) {
+  const response = await axiosClient.delete("/directory/tag-quality", { params });
+  return response.data;
+}
+

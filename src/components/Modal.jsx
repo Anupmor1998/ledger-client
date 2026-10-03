@@ -73,7 +73,7 @@ function Modal({
             </button>
           )}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto pr-3 sm:pr-4">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {children}
         </div>
         {footer ? (
