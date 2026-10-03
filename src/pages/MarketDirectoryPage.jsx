@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import SearchableSelect from "../components/SearchableSelect";
 import { getMarketDirectory } from "../lib/api";
 
 function formatRate(val) {
@@ -37,19 +36,43 @@ function cleanPhoneForWhatsApp(phone) {
 
 function MarketDirectoryPage() {
   const [partyType, setPartyType] = useState("buyer"); // "buyer" | "seller"
-  const [selectedQualityId, setSelectedQualityId] = useState("");
+  const [qualityInput, setQualityInput] = useState("");
+  const [debouncedQualitySearch, setDebouncedQualitySearch] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [data, setData] = useState({
     topQualities: [],
     allQualities: [],
+    matchedQualities: [],
     parties: [],
     selectedQuality: null,
-    summary: { totalParties: 0, totalOrders: 0, lastMarketRate: 0, totalVolume: 0 },
+    summary: { totalParties: 0, totalOrders: 0, lastMarketRate: 0, totalVolume: 0, matchedQualitiesCount: 0 },
   });
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState("");
 
-  // Load directory data whenever partyType, selectedQualityId, or searchInput changes
+  const dropdownRef = useRef(null);
+
+  // Debounce quality search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQualitySearch(qualityInput.trim());
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [qualityInput]);
+
+  // Close suggestions dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Load directory data whenever partyType, debouncedQualitySearch, or searchInput changes
   useEffect(() => {
     let isMounted = true;
     async function fetchData() {
@@ -57,7 +80,7 @@ function MarketDirectoryPage() {
       try {
         const res = await getMarketDirectory({
           partyType,
-          qualityId: selectedQualityId || undefined,
+          qualitySearch: debouncedQualitySearch || undefined,
           search: searchInput.trim() || undefined,
         });
         if (isMounted) {
@@ -77,24 +100,27 @@ function MarketDirectoryPage() {
     return () => {
       isMounted = false;
     };
-  }, [partyType, selectedQualityId, searchInput]);
+  }, [partyType, debouncedQualitySearch, searchInput]);
 
-  const qualityOptions = useMemo(() => {
-    return (data.allQualities || []).map((q) => ({
-      value: q.id,
-      label: q.name,
-      badge: q.orderCount > 0 ? `${q.orderCount} deals` : undefined,
-    }));
-  }, [data.allQualities]);
+  // Filter all qualities for dropdown suggestion list
+  const qualitySuggestions = useMemo(() => {
+    const list = data.allQualities || [];
+    const query = qualityInput.trim().toLowerCase();
+    if (!query) return list.slice(0, 8);
+    return list.filter((q) => q.name.toLowerCase().includes(query)).slice(0, 10);
+  }, [data.allQualities, qualityInput]);
 
   const selectedQualityName = useMemo(() => {
+    if (data.matchedQualities && data.matchedQualities.length > 1) {
+      return `${data.matchedQualities.length} qualities matching "${debouncedQualitySearch}"`;
+    }
+    if (data.matchedQualities && data.matchedQualities.length === 1) {
+      return data.matchedQualities[0].name;
+    }
     if (data.selectedQuality?.name) return data.selectedQuality.name;
-    const found = (data.allQualities || []).find((q) => q.id === selectedQualityId);
-    if (found?.name) return found.name;
-    const topFound = (data.topQualities || []).find((q) => q.id === selectedQualityId);
-    if (topFound?.name) return topFound.name;
+    if (debouncedQualitySearch) return debouncedQualitySearch;
     return "this quality";
-  }, [data.selectedQuality, data.allQualities, data.topQualities, selectedQualityId]);
+  }, [data.selectedQuality, data.matchedQualities, debouncedQualitySearch]);
 
   function handleOpenWhatsApp(party) {
     const cleanPhone = cleanPhoneForWhatsApp(party.phone);
@@ -103,12 +129,12 @@ function MarketDirectoryPage() {
       return;
     }
 
-    const qualityName = selectedQualityName;
+    const qualityText = debouncedQualitySearch || selectedQualityName;
     const firm = party.firmName ? ` (${party.firmName})` : "";
     const greeting = party.name ? `Hello ${party.name}${firm}` : `Hello${firm}`;
     const text = isBuyer
-      ? `${greeting}, we have availability & fresh offer for ${qualityName}. Please let us know if you have any requirements.`
-      : `${greeting}, we have buyer inquiry for ${qualityName}. Please share your current availability and best rates.`;
+      ? `${greeting}, we have availability & fresh offer for ${qualityText}. Please let us know if you have any requirements.`
+      : `${greeting}, we have buyer inquiry for ${qualityText}. Please share your current availability and best rates.`;
 
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -125,6 +151,7 @@ function MarketDirectoryPage() {
   const isBuyer = partyType === "buyer";
   const partyLabelSingular = isBuyer ? "Buyer" : "Seller";
   const partyLabelPlural = isBuyer ? "Buyers" : "Sellers";
+  const hasQualityQuery = Boolean(debouncedQualitySearch);
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full min-w-0">
@@ -135,7 +162,7 @@ function MarketDirectoryPage() {
             Market Directory
           </h1>
           <p className="mt-0.5 text-xs sm:text-sm muted-text">
-            Find buyers and sellers by fabric quality with instant WhatsApp outreach.
+            Find buyers and sellers by fabric quality, gram, or weight with instant WhatsApp outreach.
           </p>
         </div>
 
@@ -179,17 +206,84 @@ function MarketDirectoryPage() {
       </div>
 
       {/* Main Search & Control Card */}
-      <div className="rounded-xl sm:rounded-2xl border border-border bg-surface p-3 sm:p-5 shadow-sm space-y-3 w-full max-w-full min-w-0 box-border overflow-hidden">
+      <div className="rounded-xl sm:rounded-2xl border border-border bg-surface p-3 sm:p-5 shadow-sm space-y-3 w-full max-w-full min-w-0 box-border">
         <div className="grid gap-3 sm:gap-4 md:grid-cols-3 w-full min-w-0">
-          {/* Quality Selector */}
-          <div className="md:col-span-2 min-w-0">
-            <SearchableSelect
-              label="Select Fabric Quality"
-              value={selectedQualityId}
-              onChange={(val) => setSelectedQualityId(val)}
-              options={qualityOptions}
-              placeholder="Search & choose a quality..."
-            />
+          {/* Smart Quality Search with Suggestions Dropdown */}
+          <div className="md:col-span-2 min-w-0 relative" ref={dropdownRef}>
+            <span className="mb-1 block text-xs font-medium text-text uppercase tracking-wider">
+              Search Quality (Name, GSM, Gram, Weight)
+            </span>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-text">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                className="form-input w-full pl-9 pr-8 text-sm"
+                placeholder="Type quality name or gram (e.g. 60s, Rayon, 14 Kg, 120 GSM)..."
+                value={qualityInput}
+                onChange={(e) => {
+                  setQualityInput(e.target.value);
+                  setDropdownOpen(true);
+                }}
+                onFocus={() => setDropdownOpen(true)}
+              />
+              {qualityInput ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQualityInput("");
+                    setDropdownOpen(false);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs muted-text hover:text-text p-1"
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              ) : null}
+            </div>
+
+            {/* Suggestions Dropdown Popup */}
+            {dropdownOpen && qualitySuggestions.length > 0 ? (
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border border-border bg-surface shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                {qualityInput.trim() && qualitySuggestions.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                    }}
+                    className="w-full border-b border-border/70 bg-accent/5 px-3 py-2 text-left text-xs font-semibold text-accent hover:bg-accent/10 transition flex items-center justify-between"
+                  >
+                    <span>🔍 Search all {qualitySuggestions.length} qualities matching "{qualityInput.trim()}"</span>
+                    <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px]">Combined</span>
+                  </button>
+                ) : null}
+
+                <div className="divide-y divide-border/40">
+                  {qualitySuggestions.map((q) => (
+                    <button
+                      key={q.id}
+                      type="button"
+                      onClick={() => {
+                        setQualityInput(q.name);
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs text-text hover:bg-bg transition flex items-center justify-between gap-2"
+                    >
+                      <span className="truncate font-medium">{q.name}</span>
+                      {q.orderCount > 0 ? (
+                        <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent">
+                          {q.orderCount} deals
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Party Search Filter */}
@@ -225,24 +319,30 @@ function MarketDirectoryPage() {
               <span className="text-[11px] sm:text-xs font-medium uppercase tracking-wider muted-text">
                 Popular Qualities:
               </span>
-              {selectedQualityId ? (
+              {qualityInput ? (
                 <button
                   type="button"
-                  onClick={() => setSelectedQualityId("")}
+                  onClick={() => {
+                    setQualityInput("");
+                    setDropdownOpen(false);
+                  }}
                   className="text-xs text-accent hover:underline font-semibold"
                 >
-                  Clear Quality
+                  Clear Search
                 </button>
               ) : null}
             </div>
             <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-24 overflow-y-auto no-scrollbar">
               {data.topQualities.map((q) => {
-                const isSelected = selectedQualityId === q.id;
+                const isSelected = qualityInput.toLowerCase() === q.name.toLowerCase();
                 return (
                   <button
                     key={q.id}
                     type="button"
-                    onClick={() => setSelectedQualityId(isSelected ? "" : q.id)}
+                    onClick={() => {
+                      setQualityInput(isSelected ? "" : q.name);
+                      setDropdownOpen(false);
+                    }}
                     className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition ${
                       isSelected
                         ? "bg-accent text-white shadow-sm ring-2 ring-accent/30"
@@ -265,8 +365,47 @@ function MarketDirectoryPage() {
         ) : null}
       </div>
 
-      {/* Summary KPI Cards (When Quality is Selected) */}
-      {selectedQualityId ? (
+      {/* Matching Qualities Banner (When multiple qualities matched the query) */}
+      {data.matchedQualities && data.matchedQualities.length > 1 ? (
+        <div className="rounded-xl border border-accent/25 bg-accent/5 p-2.5 sm:p-3 w-full min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shrink-0">
+                {data.matchedQualities.length}
+              </span>
+              <span className="text-xs font-semibold text-accent uppercase tracking-wider">
+                Matching Qualities Found for "{debouncedQualitySearch}":
+              </span>
+            </div>
+            <span className="text-[11px] muted-text">
+              Combined {data.summary?.totalOrders || 0} deals across all variants
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto no-scrollbar">
+            {data.matchedQualities.map((q) => (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => {
+                  setQualityInput(q.name);
+                  setDropdownOpen(false);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/20 bg-surface px-2.5 py-1 text-xs font-medium text-text hover:border-accent hover:bg-accent/10 transition"
+                title={`Filter specifically by ${q.name}`}
+              >
+                <span>{q.name}</span>
+                <span className="rounded bg-accent/15 px-1 py-0.2 text-[10px] font-semibold text-accent">
+                  {q.orderCount} deals
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Summary KPI Cards (When Quality Search is active and matched qualities exist) */}
+      {hasQualityQuery && data.matchedQualities && data.matchedQualities.length > 0 ? (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 w-full min-w-0">
           <div className="rounded-xl border border-border bg-surface p-2.5 sm:p-4 shadow-sm min-w-0 overflow-hidden">
             <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider muted-text truncate">
@@ -297,7 +436,9 @@ function MarketDirectoryPage() {
             <p className="mt-0.5 text-lg sm:text-2xl font-bold text-text truncate">
               {data.summary?.totalOrders || 0}
             </p>
-            <p className="text-[10px] sm:text-xs muted-text truncate">Orders</p>
+            <p className="text-[10px] sm:text-xs muted-text truncate">
+              Across {data.matchedQualities.length} {data.matchedQualities.length === 1 ? "variant" : "variants"}
+            </p>
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-2.5 sm:p-4 shadow-sm min-w-0 overflow-hidden">
@@ -314,13 +455,13 @@ function MarketDirectoryPage() {
 
       {/* Content Body */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-surface p-8 text-center shadow-sm">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-surface p-8 text-center shadow-sm w-full min-w-0">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent mb-2" />
-          <p className="text-xs sm:text-sm muted-text">Loading {partyLabelPlural.toLowerCase()}...</p>
+          <p className="text-xs sm:text-sm muted-text">Searching {partyLabelPlural.toLowerCase()}...</p>
         </div>
-      ) : !selectedQualityId ? (
+      ) : !hasQualityQuery ? (
         /* Empty / Discovery State: When No Quality Is Picked */
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 w-full min-w-0">
           <div className="rounded-xl border border-dashed border-border bg-surface/50 p-6 sm:p-10 text-center">
             <div className="mx-auto flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-accent/10 text-accent mb-3">
               <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6 fill-none stroke-current stroke-2">
@@ -328,9 +469,9 @@ function MarketDirectoryPage() {
                 <path d="m21 21-4.35-4.35" />
               </svg>
             </div>
-            <h3 className="text-base sm:text-lg font-bold text-text">Select a Fabric Quality</h3>
+            <h3 className="text-base sm:text-lg font-bold text-text">Search Any Fabric Quality</h3>
             <p className="mt-1 text-xs sm:text-sm muted-text max-w-md mx-auto">
-              Choose a quality above or tap one of the top qualities below to see matching {partyLabelPlural.toLowerCase()}.
+              Type any quality name, gram, GSM, or weight in the box above, or click one of the popular qualities below to see matching {partyLabelPlural.toLowerCase()}.
             </p>
           </div>
 
@@ -363,7 +504,7 @@ function MarketDirectoryPage() {
                         type="button"
                         onClick={() => {
                           setPartyType("buyer");
-                          setSelectedQualityId(q.id);
+                          setQualityInput(q.name);
                         }}
                         className="flex-1 rounded-lg border border-border bg-bg/50 py-1.5 text-xs font-semibold text-text hover:border-accent/50 hover:bg-bg transition text-center truncate"
                       >
@@ -373,7 +514,7 @@ function MarketDirectoryPage() {
                         type="button"
                         onClick={() => {
                           setPartyType("seller");
-                          setSelectedQualityId(q.id);
+                          setQualityInput(q.name);
                         }}
                         className="flex-1 rounded-lg border border-border bg-bg/50 py-1.5 text-xs font-semibold text-text hover:border-accent/50 hover:bg-bg transition text-center truncate"
                       >
@@ -386,8 +527,33 @@ function MarketDirectoryPage() {
             </div>
           ) : null}
         </div>
+      ) : data.matchedQualities?.length === 0 ? (
+        /* Empty State: No Qualities Matched the search query */
+        <div className="rounded-xl border border-dashed border-border bg-surface p-8 sm:p-12 text-center shadow-sm w-full min-w-0">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mb-2.5">
+            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </div>
+          <h3 className="text-sm sm:text-base font-semibold text-text">
+            No Qualities Matched "{debouncedQualitySearch}"
+          </h3>
+          <p className="mt-1 text-xs sm:text-sm muted-text max-w-sm mx-auto">
+            No fabric qualities match this keyword or gram weight. Try typing a shorter term (like "60s", "14 kg", "Rayon", or "GSM").
+          </p>
+          <div className="mt-3.5 flex justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setQualityInput("")}
+              className="ghost-btn text-xs sm:text-sm py-2 px-4"
+            >
+              Clear Quality Search
+            </button>
+          </div>
+        </div>
       ) : data.parties.length === 0 ? (
-        /* Empty State: Quality Selected but No Parties Found */
+        /* Empty State: Qualities Matched but No Orders/Parties Found */
         <div className="rounded-xl border border-dashed border-border bg-surface p-8 sm:p-12 text-center shadow-sm w-full min-w-0">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mb-2.5">
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
@@ -417,7 +583,7 @@ function MarketDirectoryPage() {
         <div className="w-full min-w-0">
           <div className="flex items-center justify-between mb-2 px-0.5 w-full min-w-0">
             <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-wider muted-text truncate">
-              {partyLabelPlural} in {selectedQualityName} ({data.parties?.length || 0})
+              {partyLabelPlural} for {selectedQualityName} ({data.parties?.length || 0})
             </h3>
             <span className="text-[11px] muted-text shrink-0 pl-2">
               Sorted by deals
@@ -434,7 +600,7 @@ function MarketDirectoryPage() {
                   key={party.id}
                   className="w-full min-w-0 max-w-full rounded-xl border border-border bg-surface p-3 sm:p-4 shadow-sm transition hover:border-accent/40 hover:shadow-md flex flex-col justify-between gap-2.5 box-border overflow-hidden"
                 >
-                  {/* Top Row: Avatar + Firm Name + Rate Badge */}
+                  {/* Top Row: Circular Avatar + Firm Name + Rate Badge */}
                   <div className="flex items-start justify-between gap-2 min-w-0 w-full">
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       {/* Circular Avatar */}
@@ -489,6 +655,25 @@ function MarketDirectoryPage() {
                       </div>
                     ) : null}
                   </div>
+
+                  {/* Quality Breakdown: Shown when multiple qualities are matched */}
+                  {party.qualities && party.qualities.length > 0 && data.matchedQualities?.length > 1 ? (
+                    <div className="flex flex-wrap items-center gap-1 text-[11px] border-t border-border/40 pt-1.5 min-w-0 w-full">
+                      <span className="text-muted-text text-[10px] uppercase font-semibold tracking-wider shrink-0">
+                        Dealt In:
+                      </span>
+                      {party.qualities.map((q) => (
+                        <span
+                          key={q.name}
+                          className="inline-flex items-center gap-1 rounded bg-bg/80 border border-border/70 px-1.5 py-0.5 text-text text-[10px] shrink-0"
+                          title={`${q.name}: ${q.count} deals`}
+                        >
+                          <span className="truncate max-w-[130px]">{q.name}</span>
+                          <span className="text-accent font-semibold">({q.count})</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
 
                   {/* Address Line (if present) */}
                   {party.address ? (
