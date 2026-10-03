@@ -3,6 +3,8 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
 import ThemeToggle from "./ThemeToggle";
+import AdBanner from "./AdBanner";
+import { ADSENSE_CONFIG } from "../config/ads";
 
 const navigationGroups = [
   {
@@ -228,6 +230,15 @@ function DashboardLayout({ dark, onToggleTheme }) {
                 </div>
               ))}
             </nav>
+
+            {/* Desktop Sidebar Ad Slot */}
+            <div className="mt-4 pt-2 border-t border-border/50">
+              <AdBanner
+                format="rectangle"
+                slot={ADSENSE_CONFIG.slots.sidebar}
+                className="my-0"
+              />
+            </div>
           </div>
         </aside>
 

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import SearchableSelect from "../components/SearchableSelect";
+import AdBanner from "../components/AdBanner";
+import { ADSENSE_CONFIG } from "../config/ads";
 import {
   getMarketDirectory,
   tagPartyQuality,
@@ -952,6 +954,13 @@ function MarketDirectoryPage() {
           </div>
         </div>
       )}
+
+      {/* Directory Page Bottom Ad Slot */}
+      <AdBanner
+        format="horizontal"
+        slot={ADSENSE_CONFIG.slots.directoryBottom}
+        className="mt-6"
+      />
 
       {/* Modal for Tagging a Party with a Quality */}
       {tagModalOpen ? (

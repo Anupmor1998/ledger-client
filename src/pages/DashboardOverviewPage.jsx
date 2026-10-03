@@ -16,6 +16,8 @@ import {
   YAxis,
 } from "recharts";
 import { getAnalytics, getDashboardSummary } from "../lib/api";
+import AdBanner from "../components/AdBanner";
+import { ADSENSE_CONFIG } from "../config/ads";
 
 const ANALYTICS_FY_STORAGE_KEY = "ledger_analytics_financial_year";
 
@@ -1076,6 +1078,13 @@ function DashboardOverviewPage() {
           </div>
         </div>
       </div>
+
+      {/* Analytics Page Bottom Ad Slot */}
+      <AdBanner
+        format="horizontal"
+        slot={ADSENSE_CONFIG.slots.dashboardBottom}
+        className="mt-6"
+      />
     </section>
   );
 }
