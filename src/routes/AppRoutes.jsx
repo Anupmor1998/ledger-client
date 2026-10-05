@@ -20,6 +20,7 @@ import ReportsPage from "../pages/ReportsPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import SignupPage from "../pages/SignupPage";
 import SupportPage from "../pages/SupportPage";
+import SubscriptionPage from "../pages/SubscriptionPage";
 import TermsOfServicePage from "../pages/TermsOfServicePage";
 import { useAppSelector } from "../store/hooks";
 import ProtectedRoute from "./ProtectedRoute";
@@ -178,6 +179,7 @@ function AppRoutes({ dark, onToggleTheme }) {
               element={<Navigate to="/market-directory" replace />}
             />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="subscription" element={<SubscriptionPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="support" element={<SupportPage />} />
           </Route>

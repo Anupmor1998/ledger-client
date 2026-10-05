@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -473,6 +474,26 @@ function ProfilePage() {
         <p className="mt-2 text-xs muted-text">
           Active year: {getFinancialYearLabel(selectedFinancialYearStart)}
         </p>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold">Subscription & Plans</h3>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+              {user?.subscriptionPlan || "14-Day Free Trial"}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs muted-text">
+            View remaining trial days, upgrade your tier, or switch to annual billing.
+          </p>
+        </div>
+        <Link
+          to="/subscription"
+          className="primary-btn !w-auto text-xs py-2 px-4 shrink-0 text-center"
+        >
+          Manage Subscription
+        </Link>
       </div>
 
 

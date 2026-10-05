@@ -256,7 +256,13 @@ function PricingPage({ dark, onToggleTheme }) {
               }`}
             >
               <span>Yearly Billing</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30">
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide uppercase transition-all ${
+                  isYearly
+                    ? "bg-amber-300 text-amber-950 shadow-sm"
+                    : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                }`}
+              >
                 Save 17% (2 Mo Free)
               </span>
             </button>

@@ -581,3 +581,35 @@ export async function untagPartyQuality(params = {}) {
   return response.data;
 }
 
+export async function getSubscriptionStatus() {
+  const response = await axiosClient.get("/subscription/status");
+  return response.data;
+}
+
+export async function previewSubscriptionOrder(data) {
+  const response = await axiosClient.post("/subscription/preview", data);
+  return response.data;
+}
+
+export async function createSubscriptionOrder(data) {
+  const response = await axiosClient.post("/subscription/create-order", data);
+  return response.data;
+}
+
+export async function verifySubscriptionPayment(data) {
+  const response = await axiosClient.post("/subscription/verify-payment", data);
+  return response.data;
+}
+
+export async function getSubscriptionInvoices() {
+  const response = await axiosClient.get("/subscription/invoices");
+  return response.data;
+}
+
+export async function adminUpdateUserSubscription(userId, data) {
+  const response = await axiosClient.patch(`/admin/users/${userId}/subscription`, data);
+  return response.data;
+}
+
+
+
