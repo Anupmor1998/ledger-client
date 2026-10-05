@@ -132,6 +132,7 @@ function TermsOfServicePage({ dark, onToggleTheme }) {
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span>&copy; {new Date().getFullYear()} Sauda Book. All rights reserved.</span>
           <div className="flex items-center gap-4">
+            <Link to="/pricing" className="text-link">Pricing</Link>
             <Link to="/privacy" className="text-link">Privacy Policy</Link>
             <Link to="/" className="text-link">Home</Link>
           </div>

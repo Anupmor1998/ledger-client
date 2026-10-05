@@ -13,6 +13,7 @@ import MastersPage from "../pages/MastersPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
 import OrdersPage from "../pages/OrdersPage";
 import PaymentsPage from "../pages/PaymentsPage";
+import PricingPage from "../pages/PricingPage";
 import PrivacyPolicyPage from "../pages/PrivacyPolicyPage";
 import ProfilePage from "../pages/ProfilePage";
 import ReportsPage from "../pages/ReportsPage";
@@ -40,6 +41,10 @@ function AppRoutes({ dark, onToggleTheme }) {
         <Route
           path="/terms"
           element={<TermsOfServicePage dark={dark} onToggleTheme={onToggleTheme} />}
+        />
+        <Route
+          path="/pricing"
+          element={<PricingPage dark={dark} onToggleTheme={onToggleTheme} />}
         />
         <Route element={<PublicRoute />}>
           <Route
@@ -91,6 +96,10 @@ function AppRoutes({ dark, onToggleTheme }) {
       <Route
         path="/terms"
         element={<TermsOfServicePage dark={dark} onToggleTheme={onToggleTheme} />}
+      />
+      <Route
+        path="/pricing"
+        element={<PricingPage dark={dark} onToggleTheme={onToggleTheme} />}
       />
 
       {/* When unauthenticated, root '/' is the Split Landing Page with embedded login */}

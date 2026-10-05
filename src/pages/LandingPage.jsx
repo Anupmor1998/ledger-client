@@ -67,6 +67,9 @@ function LandingPage({ dark, onToggleTheme }) {
             <a href="#faq" className="hover:text-[var(--color-text)] transition-colors">
               FAQs
             </a>
+            <Link to="/pricing" className="hover:text-[var(--color-text)] transition-colors">
+              Pricing
+            </Link>
             <Link to="/privacy" className="hover:text-[var(--color-text)] transition-colors">
               Privacy Policy
             </Link>
@@ -175,6 +178,13 @@ function LandingPage({ dark, onToggleTheme }) {
               >
                 FAQs
               </a>
+              <Link
+                to="/pricing"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] transition-colors"
+              >
+                Pricing Plans
+              </Link>
               <Link
                 to="/privacy"
                 onClick={() => setMobileMenuOpen(false)}
@@ -627,6 +637,7 @@ function LandingPage({ dark, onToggleTheme }) {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-6">
+            <Link to="/pricing" className="text-link">Pricing Plans</Link>
             <Link to="/privacy" className="text-link">Privacy Policy</Link>
             <Link to="/terms" className="text-link">Terms of Service</Link>
             <Link to="/login" className="text-link">Sign In</Link>
