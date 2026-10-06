@@ -133,6 +133,25 @@ function SubscriptionPage() {
     const status = serverSubscription?.status || user?.subscriptionStatus || "ACTIVE";
     const cycle = serverSubscription?.billingCycle || user?.billingCycle || "MONTHLY";
 
+    const isComplimentary =
+      rawPlan === "COMPLIMENTARY" ||
+      serverSubscription?.isComplimentary ||
+      user?.isComplimentary ||
+      (rawPlan === "PREMIUM" && cycle === "LIFETIME");
+
+    if (isComplimentary) {
+      return {
+        plan: "VIP COMPLIMENTARY",
+        status: "ACTIVE",
+        cycle: "LIFETIME",
+        daysRemaining: 99999,
+        expiryDateStr: "Lifetime Free Access (No Expiry)",
+        isTrial: false,
+        isLifetime: true,
+        isComplimentary: true,
+      };
+    }
+
     let daysRemaining = serverSubscription?.daysRemaining ?? 14;
     let expiryDateStr = "14 days from now";
 
@@ -172,6 +191,7 @@ function SubscriptionPage() {
       expiryDateStr,
       isTrial: rawPlan === "TRIAL",
       isLifetime,
+      isComplimentary: false,
     };
   }, [serverSubscription, user]);
 
@@ -359,16 +379,22 @@ function SubscriptionPage() {
                 {subscriptionState.isTrial ? "14-Day Free Trial" : subscriptionState.plan}
               </h2>
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                {subscriptionState.isLifetime ? "Lifetime" : "Active"}
+                {subscriptionState.isComplimentary
+                  ? "100% Free VIP"
+                  : subscriptionState.isLifetime
+                  ? "Lifetime"
+                  : "Active"}
               </span>
             </div>
 
             <p className="text-xs text-muted-text">
               {subscriptionState.isTrial
                 ? `Full access to all features until ${subscriptionState.expiryDateStr}. Upgrade below to continue uninterrupted.`
+                : subscriptionState.isComplimentary
+                ? "Your account has full access to all features free of charge (Admin Approved). No payment or renewal is needed."
                 : subscriptionState.isLifetime
-                  ? "Complimentary lifetime access active with full access to all features. No renewal required."
-                  : `Active subscription valid until ${subscriptionState.expiryDateStr}.`}
+                ? "Complimentary lifetime access active with full access to all features. No renewal required."
+                : `Active subscription valid until ${subscriptionState.expiryDateStr}.`}
             </p>
           </div>
 
@@ -378,10 +404,14 @@ function SubscriptionPage() {
                 {subscriptionState.isLifetime ? "Access Duration" : "Remaining Validity"}
               </div>
               <div className="text-lg font-bold text-accent">
-                {subscriptionState.isLifetime ? "Lifetime Access" : `${subscriptionState.daysRemaining} Days Left`}
+                {subscriptionState.isComplimentary
+                  ? "100% Free Access"
+                  : subscriptionState.isLifetime
+                  ? "Lifetime Access"
+                  : `${subscriptionState.daysRemaining} Days Left`}
               </div>
               <div className="text-[11px] text-muted-text">
-                {subscriptionState.isLifetime ? "No expiration date" : `Expires on ${subscriptionState.expiryDateStr}`}
+                {subscriptionState.isLifetime ? "No payment required" : `Expires on ${subscriptionState.expiryDateStr}`}
               </div>
             </div>
 
@@ -389,7 +419,11 @@ function SubscriptionPage() {
               href="#plans-grid"
               className="primary-btn !w-auto text-xs py-2.5 px-4 font-semibold shrink-0 text-center"
             >
-              {subscriptionState.isTrial ? "Upgrade to Paid Plan" : "Change Plan"}
+              {subscriptionState.isTrial
+                ? "Upgrade to Paid Plan"
+                : subscriptionState.isComplimentary
+                ? "View Included Features"
+                : "Change Plan"}
             </a>
           </div>
         </div>
@@ -573,7 +607,20 @@ function SubscriptionPage() {
                 </div>
 
                 <div className="mt-8 pt-5 border-t border-border">
-                  {isCurrentPlanActive ? (
+                  {subscriptionState.isComplimentary ? (
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full text-center text-xs py-2.5 font-bold rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-default"
+                      >
+                        Included in Free VIP Access
+                      </button>
+                      <p className="text-[11px] text-center text-muted-text">
+                        Free of charge &bull; Permanent access
+                      </p>
+                    </div>
+                  ) : isCurrentPlanActive ? (
                     <div className="space-y-1">
                       <button
                         type="button"

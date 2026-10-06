@@ -611,5 +611,11 @@ export async function adminUpdateUserSubscription(userId, data) {
   return response.data;
 }
 
+export async function toggleUserFreeAccess(userId, enabled) {
+  const response = await axiosClient.patch(`/admin/users/${userId}/free-access`, { enabled });
+  return response.data;
+}
+
+
 
 

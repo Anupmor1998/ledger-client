@@ -12,6 +12,7 @@ import {
   getAdminCollectionRecords,
   updateAdminCollectionRecord,
   adminUpdateUserSubscription,
+  toggleUserFreeAccess,
 } from "../lib/api";
 
 function formatAdminValue(value) {
@@ -68,6 +69,52 @@ function ActionIcon({ type }) {
       <path d="M10 11v5" />
       <path d="M14 11v5" />
     </svg>
+  );
+}
+
+function StandardToggle({ checked, onChange, disabled, loading, label, title }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled || loading}
+      title={title}
+      onClick={onChange}
+      className="group inline-flex items-center gap-2.5 rounded-full py-0.5 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed transition"
+    >
+      <span
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/30 ${
+          checked ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        >
+          {loading ? (
+            <svg className="h-3 w-3 animate-spin text-slate-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : checked ? (
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          ) : null}
+        </span>
+      </span>
+      {label ? (
+        <span
+          className={`text-xs select-none transition-colors ${
+            checked
+              ? "font-semibold text-emerald-600 dark:text-emerald-400"
+              : "text-muted-foreground font-normal"
+          }`}
+        >
+          {label}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -298,6 +345,33 @@ function AdminPage() {
     }
   }
 
+  const [togglingUserId, setTogglingUserId] = useState(null);
+
+  async function handleToggleFreeAccess(user) {
+    if (!user?.id) return;
+    const isCurrentlyFree =
+      user.subscriptionPlan === "COMPLIMENTARY" ||
+      (user.subscriptionPlan === "PREMIUM" && user.billingCycle === "LIFETIME");
+    const nextState = !isCurrentlyFree;
+
+    setTogglingUserId(user.id);
+    try {
+      const res = await toggleUserFreeAccess(user.id, nextState);
+      toast.success(
+        res?.message ||
+          (nextState
+            ? `Free full access granted to ${user.name || user.email}`
+            : `Free access revoked for ${user.name || user.email}`)
+      );
+      await refreshRecords();
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Failed to update free access";
+      toast.error(message);
+    } finally {
+      setTogglingUserId(null);
+    }
+  }
+
   const columns = useMemo(() => {
     const fields = selectedCollection?.previewFields || [];
     return [
@@ -312,14 +386,25 @@ function AdminPage() {
             cell: ({ getValue }) => {
               const val = getValue() || "TRIAL";
               const planStyles = {
+                COMPLIMENTARY: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-bold",
                 PREMIUM: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold",
                 GROWTH: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 font-semibold",
                 STARTER: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold",
                 TRIAL: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 font-medium",
               };
+              const isComplimentary = val === "COMPLIMENTARY";
               return (
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs border ${planStyles[val] || "bg-bg text-text border-border"}`}>
-                  {val}
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs border ${planStyles[val] || "bg-bg text-text border-border"}`}>
+                  {isComplimentary ? (
+                    <>
+                      <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current text-emerald-600 dark:text-emerald-400">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                      </svg>
+                      <span>VIP FREE</span>
+                    </>
+                  ) : (
+                    val
+                  )}
                 </span>
               );
             },
@@ -401,6 +486,42 @@ function AdminPage() {
           };
         }
 
+        if (field.value === "userName" && selectedCollection?.key === "subscriptionPayments") {
+          return {
+            id: field.value,
+            header: "User",
+            accessorFn: (row) => row?.userName || row?.user?.name || "-",
+            enableSorting: false,
+            cell: ({ row }) => {
+              const u = row.original?.user;
+              const name = (row.original?.userName && row.original?.userName !== "-") ? row.original?.userName : (u?.name || "Unknown");
+              const firm = (row.original?.userFirmName && row.original?.userFirmName !== "-") ? row.original?.userFirmName : u?.firmName;
+              return (
+                <div className="flex flex-col py-0.5">
+                  <span className="font-medium text-text text-sm">{name}</span>
+                  {firm && (
+                    <span className="text-[11px] font-medium text-accent">{firm}</span>
+                  )}
+                </div>
+              );
+            },
+          };
+        }
+
+        if (field.value === "userEmail" && selectedCollection?.key === "subscriptionPayments") {
+          return {
+            id: field.value,
+            header: "User Email",
+            accessorFn: (row) => row?.userEmail || row?.user?.email || "-",
+            enableSorting: false,
+            cell: ({ getValue }) => {
+              const email = getValue();
+              if (!email || email === "-") return <span className="text-xs muted-text">-</span>;
+              return <CopyableText value={email} nowrap />;
+            },
+          };
+        }
+
         return {
           id: field.value,
           header: field.label,
@@ -409,26 +530,43 @@ function AdminPage() {
           cell: ({ getValue }) => <CopyableText value={formatAdminValue(getValue())} nowrap />,
         };
       }),
+      ...(selectedCollection?.key === "users"
+        ? [
+            {
+              id: "paymentExemption",
+              header: "Payment Exemption (Free Full Access)",
+              enableSorting: false,
+              cell: ({ row }) => {
+                const u = row.original;
+                const isFree =
+                  u.subscriptionPlan === "COMPLIMENTARY" ||
+                  (u.subscriptionPlan === "PREMIUM" && u.billingCycle === "LIFETIME");
+                const isToggling = togglingUserId === u.id;
+
+                return (
+                  <StandardToggle
+                    checked={isFree}
+                    loading={isToggling}
+                    disabled={isToggling}
+                    onChange={() => handleToggleFreeAccess(u)}
+                    label={isFree ? "Free VIP (Active)" : "Standard"}
+                    title={
+                      isFree
+                        ? "Free VIP access active: Click to revoke and revert to standard plan"
+                        : "Click to grant 100% free full access without payment"
+                    }
+                  />
+                );
+              },
+            },
+          ]
+        : []),
       {
         id: "actions",
         header: "Actions",
         enableSorting: false,
         cell: ({ row }) => (
           <div className="flex flex-wrap items-center gap-1.5">
-            {selectedCollection?.key === "users" ? (
-              <button
-                type="button"
-                className="inline-flex h-9 items-center justify-center gap-1.5 px-3 rounded-lg border border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-300 transition hover:bg-purple-500/20 text-xs font-semibold shadow-sm"
-                title="Assign Subscription Plan & Free Access"
-                aria-label="Assign plan"
-                onClick={() => handleOpenSubModal(row.original)}
-              >
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
-                  <path d="M6 3h12l4 6-10 12L2 9l4-6z" />
-                </svg>
-                <span>Assign Plan</span>
-              </button>
-            ) : null}
             <button
               type="button"
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:bg-bg hover:text-foreground"
@@ -862,12 +1000,12 @@ function AdminPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
-                  { id: "lifetime", label: "👑 Lifetime Free", desc: "100 Years (No Expiry)" },
+                  { id: "lifetime", label: "Lifetime Free", desc: "100 Years (No Expiry)" },
                   { id: "365", label: "1 Year", desc: "365 Days" },
                   { id: "180", label: "6 Months", desc: "180 Days" },
                   { id: "90", label: "3 Months", desc: "90 Days" },
                   { id: "30", label: "1 Month", desc: "30 Days" },
-                  { id: "custom", label: "📅 Custom Date", desc: "Specific expiry" },
+                  { id: "custom", label: "Custom Date", desc: "Specific expiry" },
                 ].map((preset) => {
                   const isSelected = subDurationPreset === preset.id;
                   return (
