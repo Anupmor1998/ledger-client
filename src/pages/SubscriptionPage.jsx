@@ -171,12 +171,10 @@ function SubscriptionPage() {
             month: "short",
             year: "numeric",
           });
-    } else if (user?.createdAt) {
-      const createdDate = new Date(user.createdAt);
-      const trialEndDate = new Date(createdDate.getTime() + 14 * 24 * 60 * 60 * 1000);
-      const diffMs = trialEndDate.getTime() - Date.now();
-      daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-      expiryDateStr = trialEndDate.toLocaleDateString("en-IN", {
+    } else {
+      const defaultTrialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      daysRemaining = 14;
+      expiryDateStr = defaultTrialEnd.toLocaleDateString("en-IN", {
         day: "numeric",
         month: "short",
         year: "numeric",
