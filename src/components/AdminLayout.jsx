@@ -198,8 +198,8 @@ function AdminLayout({ dark, onToggleTheme }) {
     <div className="app-shell min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-[96rem] gap-4 md:gap-6">
         <aside className="hidden w-72 shrink-0 md:block">
-          <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4 shadow-lg">
-            <div className="mb-4 flex items-center border-b border-border pb-3">
+          <div className="sticky top-4 flex h-[calc(100vh-2rem)] flex-col rounded-2xl border border-border bg-surface p-4 shadow-lg overflow-hidden">
+            <div className="shrink-0 mb-4 flex items-center border-b border-border pb-3">
               <div>
                 <img
                   src="/logo.png"
@@ -216,7 +216,7 @@ function AdminLayout({ dark, onToggleTheme }) {
                 </span>
               </div>
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="shrink-0 flex items-center justify-between gap-3">
               <p className="text-xs uppercase tracking-wider muted-text">
                 Tables
               </p>
@@ -224,7 +224,7 @@ function AdminLayout({ dark, onToggleTheme }) {
                 {loadingCollections ? "..." : collectionLinks.length}
               </span>
             </div>
-            <nav className="mt-3 max-h-[calc(100vh-10rem)] space-y-4 overflow-auto pr-1">
+            <nav className="mt-3 flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
               <div className="space-y-1 border-b border-border pb-3">
                 <p className="text-xs uppercase tracking-wider muted-text mb-2">
                   Help Desk
@@ -353,11 +353,11 @@ function AdminLayout({ dark, onToggleTheme }) {
       />
 
       <aside
-        className={`fixed right-0 top-0 z-50 h-full w-[86vw] max-w-xs border-l border-border bg-surface p-4 shadow-xl transition-transform md:hidden ${
+        className={`fixed right-0 top-0 z-50 flex h-full w-[86vw] max-w-xs flex-col border-l border-border bg-surface p-4 shadow-xl transition-transform md:hidden ${
           mobileOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between">
+        <div className="shrink-0 flex items-center justify-between">
           <p className="text-sm font-semibold">Admin Menu</p>
           <button
             type="button"
@@ -374,7 +374,7 @@ function AdminLayout({ dark, onToggleTheme }) {
           </button>
         </div>
 
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-bg p-3">
+        <div className="shrink-0 mt-4 flex items-center gap-3 rounded-xl border border-border bg-bg p-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
             {avatarText}
           </div>
@@ -384,7 +384,7 @@ function AdminLayout({ dark, onToggleTheme }) {
           </div>
         </div>
 
-        <nav className="mt-4 space-y-4">
+        <nav className="mt-4 flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
           <div className="space-y-1 border-b border-border pb-3">
             <p className="text-xs uppercase tracking-wider muted-text mb-2">
               Help Desk
@@ -433,7 +433,7 @@ function AdminLayout({ dark, onToggleTheme }) {
           />
         </nav>
 
-        <div className="mt-4 border-t border-border pt-4">
+        <div className="shrink-0 mt-4 border-t border-border pt-4">
           <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
           <button
             type="button"

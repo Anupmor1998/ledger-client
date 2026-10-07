@@ -20,6 +20,7 @@ import ReportsPage from "../pages/ReportsPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import SignupPage from "../pages/SignupPage";
 import SupportPage from "../pages/SupportPage";
+import SubscriptionPage from "../pages/SubscriptionPage";
 import TermsOfServicePage from "../pages/TermsOfServicePage";
 import { useAppSelector } from "../store/hooks";
 import ProtectedRoute from "./ProtectedRoute";
@@ -86,6 +87,10 @@ function AppRoutes({ dark, onToggleTheme }) {
     );
   }
 
+  const hasAccount =
+    typeof window !== "undefined" &&
+    localStorage.getItem("saudabook_has_account") === "true";
+
   return (
     <Routes>
       {/* Universal Public Legal Pages (Crucial for Google AdSense Review) */}
@@ -102,11 +107,19 @@ function AppRoutes({ dark, onToggleTheme }) {
         element={<PricingPage dark={dark} onToggleTheme={onToggleTheme} />}
       />
 
-      {/* When unauthenticated, root '/' is the Split Landing Page with embedded login */}
+      {/* When unauthenticated:
+          - Returning users (who have an account/previously signed up) land on /login
+          - True first-time visitors land on the LandingPage */}
       {!isAuthenticated && (
         <Route
           path="/"
-          element={<LandingPage dark={dark} onToggleTheme={onToggleTheme} />}
+          element={
+            hasAccount ? (
+              <Navigate to="/login" replace />
+            ) : (
+              <LandingPage dark={dark} onToggleTheme={onToggleTheme} />
+            )
+          }
         />
       )}
 
@@ -178,6 +191,7 @@ function AppRoutes({ dark, onToggleTheme }) {
               element={<Navigate to="/market-directory" replace />}
             />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="subscription" element={<SubscriptionPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="support" element={<SupportPage />} />
           </Route>

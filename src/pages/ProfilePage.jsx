@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -473,6 +474,35 @@ function ProfilePage() {
         <p className="mt-2 text-xs muted-text">
           Active year: {getFinancialYearLabel(selectedFinancialYearStart)}
         </p>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold">Subscription & Plans</h3>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              {user?.subscriptionPlan === "COMPLIMENTARY" ? (
+                <>
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  <span>VIP Free Access</span>
+                </>
+              ) : (
+                user?.subscriptionPlan || "14-Day Free Trial"
+              )}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs muted-text">
+            View remaining trial days, upgrade your tier, or switch to annual billing.
+          </p>
+        </div>
+        <Link
+          to="/subscription"
+          className="primary-btn !w-auto text-xs py-2 px-4 shrink-0 text-center"
+        >
+          Manage Subscription
+        </Link>
       </div>
 
 

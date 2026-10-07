@@ -724,11 +724,18 @@ function OrdersPage() {
       {
         id: "manufacturerName",
         header: "Manufacturer",
-        accessorFn: (row) => row.manufacturer?.name || "-",
+        accessorFn: (row) => row.manufacturerFirmName || row.manufacturer?.name || "-",
         enableSorting: true,
         cell: ({ row }) => {
           const manufacturer = row.original.manufacturer;
-          const display = formatPartyDisplay(manufacturer);
+          const display = formatPartyDisplay(
+            manufacturer
+              ? {
+                  ...manufacturer,
+                  firmName: row.original.manufacturerFirmName || manufacturer.firmName,
+                }
+              : null
+          );
           return (
             <div className="text-left">
               <CopyableText value={display.primary} />

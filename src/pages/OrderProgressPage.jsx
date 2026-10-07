@@ -292,7 +292,7 @@ function OrderProgressPage() {
       processedQuantityValue: formatNumber(item.processedQuantity || 0),
       processedQuantityMode: "SET",
       processedQuantityUnit: item.quantityUnit || "TAKKA",
-      manufacturerFirmName: item.manufacturer?.firmName || "",
+      manufacturerFirmName: item.manufacturerFirmName || "",
     });
   }
 
@@ -416,11 +416,18 @@ function OrderProgressPage() {
       {
         id: "manufacturer",
         header: "Manufacturer",
-        accessorFn: (row) => row.manufacturer?.name || "-",
+        accessorFn: (row) => row.manufacturerFirmName || row.manufacturer?.name || "-",
         enableSorting: true,
         cell: ({ row }) => {
           const manufacturer = row.original.manufacturer;
-          const display = formatPartyDisplay(manufacturer);
+          const display = formatPartyDisplay(
+            manufacturer
+              ? {
+                  ...manufacturer,
+                  firmName: row.original.manufacturerFirmName || manufacturer.firmName,
+                }
+              : null
+          );
           return (
             <div className="text-left">
               <CopyableText value={display.primary} />
@@ -704,9 +711,15 @@ function OrderProgressPage() {
               <span className="mb-1 block text-sm muted-text">Manufacturer Firm Name (Optional)</span>
               <input
                 className="form-input"
+                placeholder={editItem.manufacturer?.firmName ? `e.g. ${editItem.manufacturer.firmName.split(",")[0].trim()}` : "Enter firm name"}
                 value={form.manufacturerFirmName}
                 onChange={(event) => setForm((prev) => ({ ...prev, manufacturerFirmName: event.target.value }))}
               />
+              {editItem.manufacturer?.firmName ? (
+                <p className="mt-1 text-xs muted-text">
+                  Registered master firms: {editItem.manufacturer.firmName}
+                </p>
+              ) : null}
             </label>
 
           </div>

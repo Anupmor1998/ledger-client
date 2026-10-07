@@ -581,3 +581,68 @@ export async function untagPartyQuality(params = {}) {
   return response.data;
 }
 
+export async function getSubscriptionStatus() {
+  const response = await axiosClient.get("/subscription/status");
+  return response.data;
+}
+
+export async function previewSubscriptionOrder(data) {
+  const response = await axiosClient.post("/subscription/preview", data);
+  return response.data;
+}
+
+export async function createSubscriptionOrder(data) {
+  const response = await axiosClient.post("/subscription/create-order", data);
+  return response.data;
+}
+
+export async function verifySubscriptionPayment(data) {
+  const response = await axiosClient.post("/subscription/verify-payment", data);
+  return response.data;
+}
+
+export async function failSubscriptionOrder(data) {
+  const response = await axiosClient.post("/subscription/fail-order", data);
+  return response.data;
+}
+
+export async function getSubscriptionInvoices() {
+  const response = await axiosClient.get("/subscription/invoices");
+  return response.data;
+}
+
+export async function downloadSubscriptionInvoice(paymentId, fallbackInvoiceNo = "invoice") {
+  const response = await axiosClient.get(`/subscription/invoices/${paymentId}/download`, {
+    responseType: "blob",
+  });
+
+  const disposition = response.headers?.["content-disposition"];
+  const filename = resolveFilenameFromDisposition(
+    disposition,
+    `Invoice-${fallbackInvoiceNo}.pdf`
+  );
+
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export async function adminUpdateUserSubscription(userId, data) {
+  const response = await axiosClient.patch(`/admin/users/${userId}/subscription`, data);
+  return response.data;
+}
+
+export async function toggleUserFreeAccess(userId, enabled) {
+  const response = await axiosClient.patch(`/admin/users/${userId}/free-access`, { enabled });
+  return response.data;
+}
+
+
+
+

@@ -34,6 +34,11 @@ const authSlice = createSlice({
       state.user = user;
       setAuthTokenCookie(token);
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      try {
+        localStorage.setItem("saudabook_has_account", "true");
+      } catch (_e) {
+        // Ignore localStorage quota or privacy restrictions
+      }
     },
     logout(state) {
       state.token = "";

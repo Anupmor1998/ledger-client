@@ -417,7 +417,13 @@ function MarketDirectoryPage() {
                     }}
                     className="w-full border-b border-border/70 bg-accent/5 px-3 py-2 text-left text-xs font-semibold text-accent hover:bg-accent/10 transition flex items-center justify-between"
                   >
-                    <span>🔍 Search all {qualitySuggestions.length} qualities matching "{qualityInput.trim()}"</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.3-4.3" />
+                      </svg>
+                      <span>Search all {qualitySuggestions.length} qualities matching "{qualityInput.trim()}"</span>
+                    </span>
                     <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px]">Combined</span>
                   </button>
                 ) : null}
@@ -666,9 +672,15 @@ function MarketDirectoryPage() {
                           setPartyType("buyer");
                           setQualityInput(q.name);
                         }}
-                        className="flex-1 rounded-lg border border-border bg-bg/50 py-1.5 text-xs font-semibold text-text hover:border-accent/50 hover:bg-bg transition text-center truncate"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-bg/50 py-1.5 text-xs font-semibold text-text hover:border-accent/50 hover:bg-bg transition text-center truncate"
                       >
-                        🛍️ Find Buyers
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2 shrink-0">
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <span>Find Buyers</span>
                       </button>
                       <button
                         type="button"
@@ -676,9 +688,15 @@ function MarketDirectoryPage() {
                           setPartyType("seller");
                           setQualityInput(q.name);
                         }}
-                        className="flex-1 rounded-lg border border-border bg-bg/50 py-1.5 text-xs font-semibold text-text hover:border-accent/50 hover:bg-bg transition text-center truncate"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-bg/50 py-1.5 text-xs font-semibold text-text hover:border-accent/50 hover:bg-bg transition text-center truncate"
                       >
-                        🏭 Find Sellers
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2 shrink-0">
+                          <path d="M3 21h18" />
+                          <path d="M5 21V7l8-4v18" />
+                          <path d="M19 21V11l-6-4" />
+                          <path d="M9 9v.01M9 13v.01M9 17v.01" />
+                        </svg>
+                        <span>Find Sellers</span>
                       </button>
                     </div>
                   </div>
@@ -879,8 +897,12 @@ function MarketDirectoryPage() {
 
                   {/* Address Line (if present) */}
                   {party.address ? (
-                    <p className="text-[11px] text-muted-text truncate w-full min-w-0" title={party.address}>
-                      📍 {party.address}
+                    <p className="inline-flex items-center gap-1 text-[11px] text-muted-text truncate w-full min-w-0" title={party.address}>
+                      <svg viewBox="0 0 24 24" className="h-3 w-3 fill-none stroke-current stroke-2 shrink-0">
+                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                      <span className="truncate">{party.address}</span>
                     </p>
                   ) : null}
 
@@ -998,24 +1020,36 @@ function MarketDirectoryPage() {
                 <button
                   type="button"
                   onClick={() => setTagForm((prev) => ({ ...prev, partyType: "buyer" }))}
-                  className={`rounded-lg py-2 px-3 text-xs font-semibold transition text-center ${
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition text-center ${
                     tagForm.partyType === "buyer"
                       ? "bg-accent text-white shadow-sm"
                       : "text-muted-text hover:text-text hover:bg-surface/60"
                   }`}
                 >
-                  🛍️ Buyer (Customer)
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 shrink-0">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <span>Buyer (Customer)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTagForm((prev) => ({ ...prev, partyType: "seller" }))}
-                  className={`rounded-lg py-2 px-3 text-xs font-semibold transition text-center ${
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 px-3 text-xs font-semibold transition text-center ${
                     tagForm.partyType === "seller"
                       ? "bg-accent text-white shadow-sm"
                       : "text-muted-text hover:text-text hover:bg-surface/60"
                   }`}
                 >
-                  🏭 Seller (Manufacturer)
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2 shrink-0">
+                    <path d="M3 21h18" />
+                    <path d="M5 21V7l8-4v18" />
+                    <path d="M19 21V11l-6-4" />
+                    <path d="M9 9v.01M9 13v.01M9 17v.01" />
+                  </svg>
+                  <span>Seller (Manufacturer)</span>
                 </button>
               </div>
             </div>
@@ -1109,24 +1143,32 @@ function MarketDirectoryPage() {
                   <button
                     type="button"
                     onClick={() => setTagForm((prev) => ({ ...prev, qualityMode: "existing" }))}
-                    className={`rounded px-2.5 py-1 text-[11px] font-semibold transition ${
+                    className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-[11px] font-semibold transition ${
                       tagForm.qualityMode === "existing"
                         ? "bg-accent text-white shadow-xs"
                         : "text-muted-text hover:text-text"
                     }`}
                   >
-                    📋 Select Existing
+                    <svg viewBox="0 0 24 24" className="h-3 w-3 fill-none stroke-current stroke-2 shrink-0">
+                      <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                    </svg>
+                    <span>Select Existing</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setTagForm((prev) => ({ ...prev, qualityMode: "new" }))}
-                    className={`rounded px-2.5 py-1 text-[11px] font-semibold transition ${
+                    className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-[11px] font-semibold transition ${
                       tagForm.qualityMode === "new"
                         ? "bg-accent text-white shadow-xs"
                         : "text-muted-text hover:text-text"
                     }`}
                   >
-                    ➕ New Quality
+                    <svg viewBox="0 0 24 24" className="h-3 w-3 fill-none stroke-current stroke-2 shrink-0">
+                      <path d="M5 12h14" />
+                      <path d="M12 5v14" />
+                    </svg>
+                    <span>New Quality</span>
                   </button>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
 import ThemeToggle from "./ThemeToggle";
@@ -129,13 +129,28 @@ const navigationGroups = [
         ),
       },
       {
+        to: "/subscription",
+        label: "Subscription",
+        icon: (
+          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2">
+            <path d="M6 3h12l4 6-10 12L2 9l4-6z" />
+            <path d="M12 21 8 9l4-6 4 6-4 12z" />
+          </svg>
+        ),
+      },
+      {
         to: "/support",
         label: "Help & Support",
         icon: (
-          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <circle cx="12" cy="12" r="10" />
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-            <line x1="12" x2="12.01" y1="17" y2="17" />
+            <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2 2-2 3.5" />
+            <circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none" />
           </svg>
         ),
       },
@@ -270,15 +285,47 @@ function DashboardLayout({ dark, onToggleTheme }) {
                   </button>
 
                   {popoverOpen ? (
-                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg">
-                      <p className="px-2 py-2 text-sm font-medium">
-                        {displayName}
-                      </p>
-                      <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
+                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg space-y-1">
+                      <div className="px-3 py-2 border-b border-border">
+                        <p className="text-sm font-semibold truncate text-text">
+                          {displayName}
+                        </p>
+                        <p className="text-[11px] text-muted-text truncate">
+                          {user?.firmName || "Broker Account"}
+                        </p>
+                      </div>
+
+                      <Link
+                        to="/subscription"
+                        onClick={() => setPopoverOpen(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-accent hover:bg-bg transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
+                          <path d="M6 3h12l4 6-10 12L2 9l4-6z" />
+                        </svg>
+                        <span>Subscription & Plans</span>
+                      </Link>
+
+                      <Link
+                        to="/profile"
+                        onClick={() => setPopoverOpen(false)}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-text hover:bg-bg hover:text-text transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
+                          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <span>Profile Settings</span>
+                      </Link>
+
+                      <div className="pt-1 border-t border-border">
+                        <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
+                      </div>
+
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-red-500 hover:bg-bg"
+                        className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-bg"
                       >
                         Logout
                       </button>
