@@ -601,9 +601,36 @@ export async function verifySubscriptionPayment(data) {
   return response.data;
 }
 
+export async function failSubscriptionOrder(data) {
+  const response = await axiosClient.post("/subscription/fail-order", data);
+  return response.data;
+}
+
 export async function getSubscriptionInvoices() {
   const response = await axiosClient.get("/subscription/invoices");
   return response.data;
+}
+
+export async function downloadSubscriptionInvoice(paymentId, fallbackInvoiceNo = "invoice") {
+  const response = await axiosClient.get(`/subscription/invoices/${paymentId}/download`, {
+    responseType: "blob",
+  });
+
+  const disposition = response.headers?.["content-disposition"];
+  const filename = resolveFilenameFromDisposition(
+    disposition,
+    `Invoice-${fallbackInvoiceNo}.pdf`
+  );
+
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export async function adminUpdateUserSubscription(userId, data) {

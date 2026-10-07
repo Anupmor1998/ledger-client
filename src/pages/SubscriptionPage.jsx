@@ -4,6 +4,8 @@ import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import {
   createSubscriptionOrder,
+  downloadSubscriptionInvoice,
+  failSubscriptionOrder,
   getSubscriptionInvoices,
   getSubscriptionStatus,
   previewSubscriptionOrder,
@@ -98,6 +100,20 @@ function SubscriptionPage() {
   const [serverSubscription, setServerSubscription] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+
+  async function handleDownloadInvoice(inv) {
+    if (downloadingInvoiceId) return;
+    try {
+      setDownloadingInvoiceId(inv.id);
+      await downloadSubscriptionInvoice(inv.id, inv.invoiceNumber || inv.orderId);
+      toast.success("Invoice downloaded successfully");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to download invoice PDF");
+    } finally {
+      setDownloadingInvoiceId(null);
+    }
+  }
 
   async function loadData() {
     try {
@@ -299,9 +315,20 @@ function SubscriptionPage() {
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", function (failResponse) {
+      rzp.on("payment.failed", async function (failResponse) {
         toast.error(failResponse.error?.description || "Payment failed or cancelled by user.");
-        setIsCheckingOut(false);
+        try {
+          await failSubscriptionOrder({
+            orderId: orderData.orderId,
+            paymentId: failResponse.error?.metadata?.payment_id || null,
+            reason: failResponse.error?.description || "Payment failed",
+          });
+          await loadData();
+        } catch {
+          // Ignore failure logging error
+        } finally {
+          setIsCheckingOut(false);
+        }
       });
 
       rzp.open();
@@ -786,7 +813,8 @@ function SubscriptionPage() {
                   <th className="p-3">Billing Cycle</th>
                   <th className="p-3">Amount</th>
                   <th className="p-3">Date</th>
-                  <th className="p-3 text-right">Status</th>
+                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-right">Invoice</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -799,18 +827,77 @@ function SubscriptionPage() {
                     <td className="p-3 capitalize">{inv.billingCycle.toLowerCase()}</td>
                     <td className="p-3 font-bold text-text">₹{inv.amount}</td>
                     <td className="p-3 text-muted-text">
-                      {inv.paidAt
-                        ? new Date(inv.paidAt).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : new Date(inv.createdAt).toLocaleDateString("en-IN")}
+                      {new Date(inv.paidAt || inv.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="p-3 text-center">
+                      {inv.status === "SUCCESS" ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                          SUCCESS
+                        </span>
+                      ) : inv.status === "FAILED" ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                          FAILED
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                          PENDING
+                        </span>
+                      )}
                     </td>
                     <td className="p-3 text-right">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                        {inv.status}
-                      </span>
+                      {inv.status === "SUCCESS" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadInvoice(inv)}
+                          disabled={downloadingInvoiceId === inv.id}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20 transition-all disabled:opacity-50"
+                          title="Download Tax Invoice"
+                        >
+                          {downloadingInvoiceId === inv.id ? (
+                            <>
+                              <svg
+                                className="animate-spin h-3 w-3 text-accent"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                />
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                />
+                              </svg>
+                              <span>Downloading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-3.5 w-3.5 fill-none stroke-current stroke-2"
+                              >
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                              </svg>
+                              <span>Download Invoice</span>
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span className="text-muted-text text-[11px] opacity-40">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}
