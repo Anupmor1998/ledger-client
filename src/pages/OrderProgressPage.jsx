@@ -11,6 +11,32 @@ import useDebounce from "../hooks/useDebounce";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { getOrders, updateOrder } from "../lib/api";
+import OrderTransferTab from "../components/orders/OrderTransferTab";
+
+const ORDER_PROGRESS_PAGE_TABS = [
+  {
+    id: "progress",
+    label: "Order Progress",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+    ),
+  },
+  {
+    id: "transfer",
+    label: "Transfer Pending Orders",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+        <path d="M17 1l4 4-4 4" />
+        <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+        <path d="M7 23l-4-4 4-4" />
+        <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+      </svg>
+    ),
+  },
+];
 
 const ORDER_PROGRESS_SEARCH_FIELD_OPTIONS = [
   { value: "orderNo", label: "Order No" },
@@ -130,8 +156,9 @@ function parseProgressSorting(searchParams) {
   return [{ id: sortBy, desc: sortOrder !== "asc" }];
 }
 
-function buildProgressSearchParams({ searchInput, searchField, pageIndex, pageSize, sorting, status }) {
+function buildProgressSearchParams({ searchInput, searchField, pageIndex, pageSize, sorting, status, tab }) {
   const params = new URLSearchParams();
+  if (tab && tab !== "progress") params.set("tab", tab);
   const trimmedSearch = String(searchInput || "").trim();
   const sort = Array.isArray(sorting) && sorting.length > 0 ? sorting[0] : { id: "createdAt", desc: true };
 
@@ -178,6 +205,19 @@ function createFollowUpWhatsAppLink(phone) {
 
 function OrderProgressPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab") || "progress";
+  const activeTab = rawTab === "transfer" ? "transfer" : "progress";
+
+  function handleTabSelect(tabId) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (tabId === "progress") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", tabId);
+    }
+    setSearchParams(nextParams, { replace: true });
+  }
+
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
@@ -279,12 +319,13 @@ function OrderProgressPage() {
       pageSize,
       sorting,
       status: statusFilter,
+      tab: activeTab,
     });
 
     if (nextParams.toString() !== searchParamsKey) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [pageIndex, pageSize, searchField, searchInput, searchParamsKey, setSearchParams, sorting, statusFilter]);
+  }, [activeTab, pageIndex, pageSize, searchField, searchInput, searchParamsKey, setSearchParams, sorting, statusFilter]);
 
   function openEdit(item) {
     setEditItem(item);
@@ -589,11 +630,42 @@ function OrderProgressPage() {
   );
 
   return (
-    <section className="auth-card p-4 sm:p-6">
-      <h2 className="text-xl font-semibold">Order Progress</h2>
-      <p className="mt-1 text-sm muted-text">
-        Only pending orders are shown here for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
-      </p>
+    <section className="space-y-6">
+      {/* Horizontal Scrollable Tabs */}
+      <div className="border-b border-border">
+        <nav
+          className="flex space-x-2 overflow-x-auto pb-3 no-scrollbar"
+          aria-label="Order progress tabs"
+        >
+          {ORDER_PROGRESS_PAGE_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabSelect(tab.id)}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium whitespace-nowrap transition ${
+                  isActive
+                    ? "bg-accent text-white shadow-sm"
+                    : "border border-border/80 bg-surface text-muted-text hover:bg-bg hover:text-text"
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {activeTab === "transfer" ? (
+        <OrderTransferTab />
+      ) : (
+        <div className="auth-card p-4 sm:p-6">
+          <h2 className="text-xl font-semibold">Order Progress</h2>
+          <p className="mt-1 text-sm muted-text">
+            Only pending orders are shown here for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+          </p>
 
       <DataTable
         columns={columns}
@@ -788,16 +860,18 @@ function OrderProgressPage() {
       ) : null}
 
 
-      {cancelItem ? (
-        <ConfirmDialog
-          title="Cancel Order"
-          description={`Mark order ${cancelItem.orderNo} as cancelled?`}
-          confirmLabel="Mark Cancelled"
-          onCancel={() => setCancelItem(null)}
-          onConfirm={markCancelled}
-          loading={cancelLoading}
-        />
-      ) : null}
+          {cancelItem ? (
+            <ConfirmDialog
+              title="Cancel Order"
+              description={`Mark order ${cancelItem.orderNo} as cancelled?`}
+              confirmLabel="Mark Cancelled"
+              onCancel={() => setCancelItem(null)}
+              onConfirm={markCancelled}
+              loading={cancelLoading}
+            />
+          ) : null}
+        </div>
+      )}
     </section>
   );
 }

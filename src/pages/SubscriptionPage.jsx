@@ -145,48 +145,33 @@ function SubscriptionPage() {
 
   // Compute subscription state from server or user profile
   const subscriptionState = useMemo(() => {
-    const rawPlan = serverSubscription?.plan || user?.subscriptionPlan || "TRIAL";
+    let rawPlan = serverSubscription?.plan || user?.subscriptionPlan || "TRIAL";
+    if (rawPlan === "COMPLIMENTARY") rawPlan = "PREMIUM";
     const status = serverSubscription?.status || user?.subscriptionStatus || "ACTIVE";
     const cycle = serverSubscription?.billingCycle || user?.billingCycle || "MONTHLY";
 
-    const isComplimentary =
-      rawPlan === "COMPLIMENTARY" ||
-      serverSubscription?.isComplimentary ||
-      user?.isComplimentary ||
-      (rawPlan === "PREMIUM" && cycle === "LIFETIME");
-
-    if (isComplimentary) {
-      return {
-        plan: "VIP COMPLIMENTARY",
-        status: "ACTIVE",
-        cycle: "LIFETIME",
-        daysRemaining: 99999,
-        expiryDateStr: "Lifetime Free Access (No Expiry)",
-        isTrial: false,
-        isLifetime: true,
-        isComplimentary: true,
-      };
-    }
-
-    let daysRemaining = serverSubscription?.daysRemaining ?? 14;
-    let expiryDateStr = "14 days from now";
-
     const targetDateStr = serverSubscription?.expiresAt || user?.planExpiresAt || user?.trialEndsAt;
 
-    let isLifetime = false;
+    let daysRemaining = serverSubscription?.daysRemaining ?? (rawPlan === "PREMIUM" ? 365 : 14);
+    let expiryDateStr = "14 days from now";
 
     if (targetDateStr) {
       const targetDate = new Date(targetDateStr);
       const diffMs = targetDate.getTime() - Date.now();
       daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-      isLifetime = daysRemaining > 3650;
-      expiryDateStr = isLifetime
-        ? "Lifetime Access (No Expiry)"
-        : targetDate.toLocaleDateString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          });
+      expiryDateStr = targetDate.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } else if (rawPlan === "PREMIUM") {
+      const oneYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      daysRemaining = 365;
+      expiryDateStr = oneYear.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
     } else {
       const defaultTrialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
       daysRemaining = 14;
@@ -204,7 +189,7 @@ function SubscriptionPage() {
       daysRemaining,
       expiryDateStr,
       isTrial: rawPlan === "TRIAL",
-      isLifetime,
+      isLifetime: false,
       isComplimentary: false,
     };
   }, [serverSubscription, user]);
@@ -353,16 +338,12 @@ function SubscriptionPage() {
               className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                 subscriptionState.isTrial
                   ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                  : subscriptionState.isLifetime
-                    ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 font-bold"
-                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
               }`}
             >
               {subscriptionState.isTrial
                 ? `14-Day Free Trial (${subscriptionState.daysRemaining} days left)`
-                : subscriptionState.isLifetime
-                  ? `${subscriptionState.plan} (Lifetime Free Access)`
-                  : `${subscriptionState.plan} (${subscriptionState.status})`}
+                : `${subscriptionState.plan} (${subscriptionState.status})`}
             </span>
           </div>
           <p className="text-xs sm:text-sm muted-text mt-1">
@@ -404,21 +385,13 @@ function SubscriptionPage() {
                 {subscriptionState.isTrial ? "14-Day Free Trial" : subscriptionState.plan}
               </h2>
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                {subscriptionState.isComplimentary
-                  ? "100% Free VIP"
-                  : subscriptionState.isLifetime
-                  ? "Lifetime"
-                  : "Active"}
+                Active
               </span>
             </div>
 
             <p className="text-xs text-muted-text">
               {subscriptionState.isTrial
                 ? `Full access to all features until ${subscriptionState.expiryDateStr}. Upgrade below to continue uninterrupted.`
-                : subscriptionState.isComplimentary
-                ? "Your account has full access to all features free of charge (Admin Approved). No payment or renewal is needed."
-                : subscriptionState.isLifetime
-                ? "Complimentary lifetime access active with full access to all features. No renewal required."
                 : `Active subscription valid until ${subscriptionState.expiryDateStr}.`}
             </p>
           </div>
@@ -426,17 +399,13 @@ function SubscriptionPage() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-bg/60 p-4 rounded-xl border border-border">
             <div className="text-left sm:text-right">
               <div className="text-xs text-muted-text">
-                {subscriptionState.isLifetime ? "Access Duration" : "Remaining Validity"}
+                Remaining Validity
               </div>
               <div className="text-lg font-bold text-accent">
-                {subscriptionState.isComplimentary
-                  ? "100% Free Access"
-                  : subscriptionState.isLifetime
-                  ? "Lifetime Access"
-                  : `${subscriptionState.daysRemaining} Days Left`}
+                {subscriptionState.daysRemaining} Days Left
               </div>
               <div className="text-[11px] text-muted-text">
-                {subscriptionState.isLifetime ? "No payment required" : `Expires on ${subscriptionState.expiryDateStr}`}
+                Expires on {subscriptionState.expiryDateStr}
               </div>
             </div>
 
@@ -446,8 +415,6 @@ function SubscriptionPage() {
             >
               {subscriptionState.isTrial
                 ? "Upgrade to Paid Plan"
-                : subscriptionState.isComplimentary
-                ? "View Included Features"
                 : "Change Plan"}
             </a>
           </div>
@@ -632,20 +599,7 @@ function SubscriptionPage() {
                 </div>
 
                 <div className="mt-8 pt-5 border-t border-border">
-                  {subscriptionState.isComplimentary ? (
-                    <div className="space-y-1">
-                      <button
-                        type="button"
-                        disabled
-                        className="w-full text-center text-xs py-2.5 font-bold rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-default"
-                      >
-                        Included in Free VIP Access
-                      </button>
-                      <p className="text-[11px] text-center text-muted-text">
-                        Free of charge &bull; Permanent access
-                      </p>
-                    </div>
-                  ) : isCurrentPlanActive ? (
+                  {isCurrentPlanActive ? (
                     <div className="space-y-1">
                       <button
                         type="button"
@@ -915,7 +869,7 @@ function SubscriptionPage() {
             </svg>
             <p className="font-semibold text-text">No Payment Records Yet</p>
             <p className="mt-1">
-              You are currently on the complimentary 14-day free trial. Payment receipts will appear here once you upgrade.
+              Payment receipts and tax invoices will appear here once you make a subscription payment.
             </p>
           </div>
         )}

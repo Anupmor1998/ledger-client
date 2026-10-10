@@ -351,7 +351,8 @@ function AdminPage() {
     if (!user?.id) return;
     const isCurrentlyFree =
       user.subscriptionPlan === "COMPLIMENTARY" ||
-      (user.subscriptionPlan === "PREMIUM" && user.billingCycle === "LIFETIME");
+      (user.subscriptionPlan === "PREMIUM" && user.billingCycle === "LIFETIME") ||
+      (user.subscriptionPlan === "PREMIUM" && user.planExpiresAt === null && user.subscriptionStatus === "ACTIVE");
     const nextState = !isCurrentlyFree;
 
     setTogglingUserId(user.id);
@@ -360,12 +361,12 @@ function AdminPage() {
       toast.success(
         res?.message ||
           (nextState
-            ? `Free full access granted to ${user.name || user.email}`
-            : `Free access revoked for ${user.name || user.email}`)
+            ? `VIP Premium access granted to ${user.name || user.email}`
+            : `VIP access revoked for ${user.name || user.email}`)
       );
       await refreshRecords();
     } catch (error) {
-      const message = error?.response?.data?.message || error?.message || "Failed to update free access";
+      const message = error?.response?.data?.message || error?.message || "Failed to update VIP access";
       toast.error(message);
     } finally {
       setTogglingUserId(null);
@@ -392,19 +393,10 @@ function AdminPage() {
                 STARTER: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold",
                 TRIAL: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 font-medium",
               };
-              const isComplimentary = val === "COMPLIMENTARY";
+              const displayPlan = val === "COMPLIMENTARY" ? "PREMIUM" : val;
               return (
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs border ${planStyles[val] || "bg-bg text-text border-border"}`}>
-                  {isComplimentary ? (
-                    <>
-                      <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current text-emerald-600 dark:text-emerald-400">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                      </svg>
-                      <span>VIP FREE</span>
-                    </>
-                  ) : (
-                    val
-                  )}
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${planStyles[displayPlan] || "bg-bg text-text border-border"}`}>
+                  {displayPlan}
                 </span>
               );
             },
@@ -442,9 +434,16 @@ function AdminPage() {
             header: field.label,
             accessorFn: (row) => row?.[field.value],
             enableSorting: (selectedCollection?.sortableFields || []).includes(field.value),
-            cell: ({ getValue }) => {
+            cell: ({ getValue, row }) => {
               const val = getValue();
               if (!val) {
+                if (row.original?.subscriptionPlan === "PREMIUM" && row.original?.subscriptionStatus === "ACTIVE") {
+                  return (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      Active (VIP)
+                    </span>
+                  );
+                }
                 return <span className="text-xs muted-text">-</span>;
               }
               const parsed = parseISO(val);
@@ -453,10 +452,7 @@ function AdminPage() {
               if (diffDays > 3650) {
                 return (
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 dark:text-purple-400">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                    Lifetime Access
+                    Active (VIP)
                   </span>
                 );
               }
@@ -533,27 +529,28 @@ function AdminPage() {
       ...(selectedCollection?.key === "users"
         ? [
             {
-              id: "paymentExemption",
-              header: "Payment Exemption (Free Full Access)",
+              id: "vipAccess",
+              header: "VIP Access",
               enableSorting: false,
               cell: ({ row }) => {
                 const u = row.original;
-                const isFree =
+                const isVip =
                   u.subscriptionPlan === "COMPLIMENTARY" ||
-                  (u.subscriptionPlan === "PREMIUM" && u.billingCycle === "LIFETIME");
+                  (u.subscriptionPlan === "PREMIUM" && u.billingCycle === "LIFETIME") ||
+                  (u.subscriptionPlan === "PREMIUM" && u.planExpiresAt === null && u.subscriptionStatus === "ACTIVE");
                 const isToggling = togglingUserId === u.id;
 
                 return (
                   <StandardToggle
-                    checked={isFree}
+                    checked={isVip}
                     loading={isToggling}
                     disabled={isToggling}
                     onChange={() => handleToggleFreeAccess(u)}
-                    label={isFree ? "Free VIP (Active)" : "Standard"}
+                    label={isVip ? "VIP (Active)" : "Standard"}
                     title={
-                      isFree
-                        ? "Free VIP access active: Click to revoke and revert to standard plan"
-                        : "Click to grant 100% free full access without payment"
+                      isVip
+                        ? "VIP active (Premium Yearly). Click to revoke."
+                        : "Click to grant VIP Premium Yearly access."
                     }
                   />
                 );
@@ -935,9 +932,9 @@ function AdminPage() {
                 {[
                   {
                     id: "PREMIUM",
-                    name: "Premium (VIP Full Access)",
+                    name: "Premium",
                     desc: "All features, unlimited exports, full market directory, priority access.",
-                    badge: "Best for Free VIP",
+                    badge: "All Features",
                     border: "border-purple-500/40 hover:border-purple-500",
                     selectedBg: "bg-purple-500/10 border-purple-600 text-purple-900 dark:text-purple-200",
                   },
