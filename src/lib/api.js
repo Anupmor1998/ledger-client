@@ -476,6 +476,11 @@ export async function deletePaymentEntry(id) {
   return response.data;
 }
 
+export async function getManufacturerPaymentSummary(manufacturerId) {
+  const response = await axiosClient.get(`/payments/manufacturer-summary/${manufacturerId}`);
+  return response.data;
+}
+
 export async function createSupportTicket(data) {
   const response = await axiosClient.post("/support/tickets", data);
   return response.data;

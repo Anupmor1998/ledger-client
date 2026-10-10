@@ -119,15 +119,16 @@ function HomePage() {
     event.target.value = digitsOnly;
   }
 
-  function resetPartyForm(userType) {
+  function resetPartyForm(nextUserType) {
+    const isMfr = nextUserType === "manufacturer";
     reset({
-      userType,
+      userType: nextUserType,
       firmName: "",
       name: "",
       gstNo: "",
-      commissionBase: "PERCENT",
-      commissionPercent: 1,
-      commissionLotRate: "",
+      commissionBase: isMfr ? "LOT" : "PERCENT",
+      commissionPercent: isMfr ? 0 : 1,
+      commissionLotRate: isMfr ? 0 : "",
       address: "",
       email: "",
       phone: "",
@@ -288,7 +289,18 @@ function HomePage() {
           <SearchableSelect
             label="User Type"
             value={userType}
-            onChange={(nextValue) => setValue("userType", nextValue, { shouldDirty: true, shouldValidate: true })}
+            onChange={(nextValue) => {
+              setValue("userType", nextValue, { shouldDirty: true, shouldValidate: true });
+              if (nextValue === "manufacturer") {
+                setValue("commissionBase", "LOT", { shouldDirty: true, shouldValidate: true });
+                setValue("commissionLotRate", 0, { shouldDirty: true, shouldValidate: true });
+                setValue("commissionPercent", 0, { shouldDirty: true, shouldValidate: true });
+              } else {
+                setValue("commissionBase", "PERCENT", { shouldDirty: true, shouldValidate: true });
+                setValue("commissionPercent", 1, { shouldDirty: true, shouldValidate: true });
+                setValue("commissionLotRate", "", { shouldDirty: true, shouldValidate: true });
+              }
+            }}
             options={[
               { value: "customer", label: "Customer" },
               { value: "manufacturer", label: "Manufacturer" },
@@ -312,6 +324,12 @@ function HomePage() {
                 <input className="form-input" {...register("name")} />
                 {errors.name ? <p className="mt-1 text-sm text-red-500">{errors.name.message}</p> : null}
               </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
+                <input className="form-input" {...register("gstNo")} />
+                {errors.gstNo ? <p className="mt-1 text-sm text-red-500">{errors.gstNo.message}</p> : null}
+              </label>
             </>
           ) : (
             <>
@@ -331,60 +349,55 @@ function HomePage() {
             </>
           )}
 
-          {userType === "customer" ? (
-            <>
+          {/* Commission Base and Rate (Applies to both Customer and Manufacturer) */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SearchableSelect
+              label={`Commission Base ${userType === "manufacturer" ? "(Default: LOT)" : ""}`}
+              value={commissionBase}
+              onChange={(nextValue) =>
+                setValue("commissionBase", nextValue, { shouldDirty: true, shouldValidate: true })
+              }
+              options={[
+                { value: "LOT", label: "LOT" },
+                { value: "PERCENT", label: "Percent" },
+              ]}
+              placeholder="Select commission base"
+              error={errors.commissionBase?.message}
+            />
+            {commissionBase === "LOT" ? (
               <label className="block">
-                <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
-                <input className="form-input" {...register("gstNo")} />
-                {errors.gstNo ? <p className="mt-1 text-sm text-red-500">{errors.gstNo.message}</p> : null}
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SearchableSelect
-                  label="Commission Base"
-                  value={commissionBase}
-                  onChange={(nextValue) =>
-                    setValue("commissionBase", nextValue, { shouldDirty: true, shouldValidate: true })
-                  }
-                  options={[
-                    { value: "PERCENT", label: "Percent" },
-                    { value: "LOT", label: "LOT" },
-                  ]}
-                  placeholder="Select commission base"
-                  error={errors.commissionBase?.message}
+                <span className="mb-1 block text-sm muted-text">
+                  Lot Rate (₹) {userType === "manufacturer" ? "(Default 0 for no commission)" : ""}
+                </span>
+                <input
+                  className="form-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("commissionLotRate")}
                 />
-                {commissionBase === "LOT" ? (
-                  <label className="block">
-                    <span className="mb-1 block text-sm muted-text">Lot Rate</span>
-                    <input
-                      className="form-input"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      {...register("commissionLotRate")}
-                    />
-                    {errors.commissionLotRate ? (
-                      <p className="mt-1 text-sm text-red-500">{errors.commissionLotRate.message}</p>
-                    ) : null}
-                  </label>
-                ) : (
-                  <label className="block">
-                    <span className="mb-1 block text-sm muted-text">Commission Percent</span>
-                    <input
-                      className="form-input"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      {...register("commissionPercent")}
-                    />
-                    {errors.commissionPercent ? (
-                      <p className="mt-1 text-sm text-red-500">{errors.commissionPercent.message}</p>
-                    ) : null}
-                  </label>
-                )}
-              </div>
-            </>
-          ) : null}
+                {errors.commissionLotRate ? (
+                  <p className="mt-1 text-sm text-red-500">{errors.commissionLotRate.message}</p>
+                ) : null}
+              </label>
+            ) : (
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">
+                  Commission Percent (%) {userType === "manufacturer" ? "(Default 0)" : ""}
+                </span>
+                <input
+                  className="form-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("commissionPercent")}
+                />
+                {errors.commissionPercent ? (
+                  <p className="mt-1 text-sm text-red-500">{errors.commissionPercent.message}</p>
+                ) : null}
+              </label>
+            )}
+          </div>
 
           <label className="block">
             <span className="mb-1 block text-sm muted-text">

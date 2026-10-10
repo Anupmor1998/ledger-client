@@ -37,15 +37,9 @@ const partySchema = yup.object({
     }),
   commissionBase: yup
     .string()
-    .transform((value) => (value ? value.toUpperCase() : value))
-    .when("userType", {
-      is: "customer",
-      then: (schema) =>
-        schema
-          .oneOf(["PERCENT", "LOT"], "Select a valid commission base")
-          .required("Commission base is required"),
-      otherwise: (schema) => schema.strip(),
-    }),
+    .transform((value) => (value ? value.toUpperCase() : "LOT"))
+    .oneOf(["PERCENT", "LOT"], "Select a valid commission base")
+    .required("Commission base is required"),
   commissionPercent: yup
     .number()
     .nullable()
@@ -57,7 +51,16 @@ const partySchema = yup.object({
           .typeError("Commission percent must be a number")
           .moreThan(0, "Commission percent must be greater than 0")
           .required("Commission percent is required"),
-      otherwise: (schema) => schema.strip(),
+      otherwise: (schema) =>
+        schema.when(["userType", "commissionBase"], {
+          is: (userType, commissionBase) => userType === "manufacturer" && commissionBase === "PERCENT",
+          then: (subSchema) =>
+            subSchema
+              .typeError("Commission percent must be a number")
+              .min(0, "Commission percent cannot be negative")
+              .nullable(),
+          otherwise: (subSchema) => subSchema.strip(),
+        }),
     }),
   commissionLotRate: yup
     .number()
@@ -70,7 +73,16 @@ const partySchema = yup.object({
           .typeError("Lot rate must be a number")
           .moreThan(0, "Lot rate must be greater than 0")
           .required("Lot rate is required"),
-      otherwise: (schema) => schema.strip(),
+      otherwise: (schema) =>
+        schema.when(["userType", "commissionBase"], {
+          is: (userType, commissionBase) => userType === "manufacturer" && commissionBase === "LOT",
+          then: (subSchema) =>
+            subSchema
+              .typeError("Lot rate must be a number")
+              .min(0, "Lot rate cannot be negative")
+              .nullable(),
+          otherwise: (subSchema) => subSchema.strip(),
+        }),
     }),
   address: yup
     .string()

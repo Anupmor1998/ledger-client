@@ -89,6 +89,9 @@ function PartyTableCard({
             { value: "phone", label: "Phone" },
             { value: "email", label: "Email" },
             { value: "address", label: "Address" },
+            { value: "commissionBase", label: "Commission Base" },
+            { value: "commissionPercent", label: "Commission %" },
+            { value: "commissionLotRate", label: "Lot Rate" },
           ],
     [isCustomer]
   );
@@ -292,14 +295,14 @@ function PartyTableCard({
       firmName: item.firmName || "",
       name: item.name || "",
       gstNo: item.gstNo || "",
-      commissionBase: item.commissionBase || "PERCENT",
+      commissionBase: item.commissionBase || (isCustomer ? "PERCENT" : "LOT"),
       commissionPercent:
         item.commissionPercent === null || item.commissionPercent === undefined
-          ? "1"
+          ? (isCustomer ? "1" : "0")
           : String(item.commissionPercent),
       commissionLotRate:
         item.commissionLotRate === null || item.commissionLotRate === undefined
-          ? ""
+          ? (isCustomer ? "" : "0")
           : String(item.commissionLotRate),
       address: item.address || "",
       email: item.email || "",
@@ -399,6 +402,14 @@ function PartyTableCard({
       toast.error("Name and phone are required for manufacturer.");
       return;
     }
+    if (!isCustomer && form.commissionBase === "PERCENT" && Number(form.commissionPercent) < 0) {
+      toast.error("Commission percent cannot be negative.");
+      return;
+    }
+    if (!isCustomer && form.commissionBase === "LOT" && Number(form.commissionLotRate) < 0) {
+      toast.error("Lot rate cannot be negative.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -419,7 +430,13 @@ function PartyTableCard({
               applyCommissionToSelectedFinancialYear:
                 applyCommissionToSelectedFinancialYear && commissionSettingsChanged,
             }
-          : {}),
+          : {
+              commissionBase: form.commissionBase || "LOT",
+              commissionPercent:
+                form.commissionBase === "PERCENT" ? Number(form.commissionPercent || 0) : 0,
+              commissionLotRate:
+                form.commissionBase === "LOT" ? Number(form.commissionLotRate || 0) : null,
+            }),
       };
 
       const response = await updateFn(editItem.id, payload);
@@ -613,38 +630,36 @@ function PartyTableCard({
             },
           ]
         : []),
-      ...(isCustomer
-        ? [
-            {
-              id: "commissionBase",
-              accessorKey: "commissionBase",
-              header: "Commission Base",
-              enableSorting: true,
-              cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
-            },
-            {
-              id: "commissionValue",
-              header: "Commission Value",
-              enableSorting: false,
-              accessorFn: (row) =>
-                row.commissionBase === "LOT"
-                  ? row.commissionLotRate == null
-                    ? "-"
-                    : row.commissionLotRate
-                  : row.commissionPercent == null
-                  ? "-"
-                  : row.commissionPercent,
-              cell: ({ row }) => {
-                const value =
-                  row.original.commissionBase === "LOT"
-                    ? row.original.commissionLotRate
-                    : row.original.commissionPercent;
-                const suffix = row.original.commissionBase === "LOT" ? "" : "%";
-                return <CopyableText value={value == null ? "-" : `${value}${suffix}`} nowrap />;
-              },
-            },
-          ]
-        : []),
+      {
+        id: "commissionBase",
+        accessorKey: "commissionBase",
+        header: "Commission Base",
+        enableSorting: true,
+        cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
+      },
+      {
+        id: "commissionValue",
+        header: "Commission Value",
+        enableSorting: false,
+        accessorFn: (row) =>
+          row.commissionBase === "LOT"
+            ? row.commissionLotRate == null
+              ? "0 LOT"
+              : `${row.commissionLotRate} / Lot`
+            : row.commissionPercent == null
+            ? "0%"
+            : `${row.commissionPercent}%`,
+        cell: ({ row }) => {
+          const isLot = row.original.commissionBase === "LOT";
+          const value = isLot
+            ? row.original.commissionLotRate ?? 0
+            : row.original.commissionPercent ?? 0;
+          const display = isLot
+            ? Number(value) > 0 ? `₹${value} / Lot` : "0 LOT"
+            : `${value}%`;
+          return <CopyableText value={display} nowrap />;
+        },
+      },
       {
         id: "phone",
         accessorKey: "phone",
@@ -786,61 +801,67 @@ function PartyTableCard({
               <input className="form-input" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
             </label>
             {hasGstField ? (
-              <>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
+                <input
+                  className="form-input"
+                  value={form.gstNo}
+                  onChange={(event) => setForm((prev) => ({ ...prev, gstNo: event.target.value }))}
+                />
+              </label>
+            ) : null}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SearchableSelect
+                label="Commission Base"
+                value={form.commissionBase}
+                onChange={(nextValue) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    commissionBase: nextValue,
+                  }))
+                }
+                options={[
+                  { value: "LOT", label: "LOT" },
+                  { value: "PERCENT", label: "Percent" },
+                ]}
+                placeholder="Select commission base"
+              />
+              {form.commissionBase === "LOT" ? (
                 <label className="block">
-                  <span className="mb-1 block text-sm muted-text">GST No (Optional)</span>
+                  <span className="mb-1 block text-sm muted-text">
+                    Lot Rate {isCustomer ? "" : "(Default 0)"}
+                  </span>
                   <input
                     className="form-input"
-                    value={form.gstNo}
-                    onChange={(event) => setForm((prev) => ({ ...prev, gstNo: event.target.value }))}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.commissionLotRate}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, commissionLotRate: event.target.value }))
+                    }
                   />
                 </label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <SearchableSelect
-                    label="Commission Base"
-                    value={form.commissionBase}
-                    onChange={(nextValue) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        commissionBase: nextValue,
-                      }))
+              ) : (
+                <label className="block">
+                  <span className="mb-1 block text-sm muted-text">
+                    Commission Percent {isCustomer ? "" : "(Default 0)"}
+                  </span>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.commissionPercent}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, commissionPercent: event.target.value }))
                     }
-                    options={[
-                      { value: "PERCENT", label: "Percent" },
-                      { value: "LOT", label: "LOT" },
-                    ]}
-                    placeholder="Select commission base"
                   />
-                  {form.commissionBase === "LOT" ? (
-                    <label className="block">
-                      <span className="mb-1 block text-sm muted-text">Lot Rate</span>
-                      <input
-                        className="form-input"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.commissionLotRate}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, commissionLotRate: event.target.value }))
-                        }
-                      />
-                    </label>
-                  ) : (
-                    <label className="block">
-                      <span className="mb-1 block text-sm muted-text">Commission Percent</span>
-                      <input
-                        className="form-input"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={form.commissionPercent}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, commissionPercent: event.target.value }))
-                        }
-                      />
-                    </label>
-                  )}
-                </div>
+                </label>
+              )}
+            </div>
+            {isCustomer ? (
+              <>
                 <label className="flex items-start gap-3 rounded-xl border border-border/70 bg-bg/40 p-3">
                   <input
                     type="checkbox"
