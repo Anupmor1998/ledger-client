@@ -113,6 +113,9 @@ function ReportsPage() {
   const [downloadingKey, setDownloadingKey] = useState("");
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [pdfLockedModalOpen, setPdfLockedModalOpen] = useState(false);
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
+  const [pdfOrientation, setPdfOrientation] = useState("portrait");
+  const [pdfShowPaymentStatus, setPdfShowPaymentStatus] = useState(true);
   const rangePickerRef = useRef(null);
 
   const [customers, setCustomers] = useState([]);
@@ -328,17 +331,26 @@ function ReportsPage() {
       }
     }
 
+    setPdfExportModalOpen(true);
+  }
+
+  async function executeDownloadPdf() {
     const reportTypeLabel =
       filters.userType === "MANUFACTURER" ? "Manufacturer Report" : "Customer Report";
     setDownloadingKey("order-report-pdf");
     try {
-      const params = { ...commonParams };
+      const params = {
+        ...commonParams,
+        orientation: pdfOrientation,
+        showPaymentStatus: pdfShowPaymentStatus,
+      };
       await downloadReportFile(
         "order-report.pdf",
         params,
         resolveDownloadFileName("pdf"),
         "application/pdf"
       );
+      setPdfExportModalOpen(false);
       toast.success(`${reportTypeLabel} downloaded as PDF`);
     } catch (error) {
       const message =
@@ -639,6 +651,115 @@ function ReportsPage() {
             <p className="text-xs text-muted-text leading-relaxed">
               Your Starter plan includes fast <strong>Excel (.xlsx) exports</strong>. To export print-ready, professionally branded PDF statements, upgrade to the <strong>Growth / Budget</strong> or <strong>Premium</strong> plan.
             </p>
+          </div>
+        </Modal>
+      )}
+
+      {pdfExportModalOpen && (
+        <Modal
+          title="PDF Export Options"
+          maxWidthClassName="max-w-md"
+          onClose={() => setPdfExportModalOpen(false)}
+          footer={
+            <div className="flex items-center justify-end gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setPdfExportModalOpen(false)}
+                className="ghost-btn px-4 py-2"
+                disabled={downloadingKey === "order-report-pdf"}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDownloadPdf}
+                disabled={downloadingKey === "order-report-pdf"}
+                className="primary-btn !w-auto px-5 py-2 font-semibold"
+              >
+                {downloadingKey === "order-report-pdf" ? "Preparing..." : "Download PDF"}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-5 py-2 text-left">
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-text">
+                Page Orientation
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPdfOrientation("portrait")}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-3.5 text-center transition ${
+                    pdfOrientation === "portrait"
+                      ? "border-primary bg-primary/15 text-text shadow-sm"
+                      : "border-white/10 bg-white/5 text-muted-text hover:bg-white/10"
+                  }`}
+                >
+                  <svg
+                    className="h-6 w-5"
+                    viewBox="0 0 20 28"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="1.5" y="1.5" width="17" height="25" rx="2" />
+                    <line x1="4.5" y1="6" x2="15.5" y2="6" strokeWidth="1.2" />
+                    <line x1="4.5" y1="10" x2="15.5" y2="10" strokeWidth="1.2" />
+                    <line x1="4.5" y1="14" x2="11.5" y2="14" strokeWidth="1.2" />
+                  </svg>
+                  <span className="text-xs sm:text-sm font-medium">
+                    Portrait <span className="text-[10px] text-muted-text">(Default)</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPdfOrientation("landscape")}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-3.5 text-center transition ${
+                    pdfOrientation === "landscape"
+                      ? "border-primary bg-primary/15 text-text shadow-sm"
+                      : "border-white/10 bg-white/5 text-muted-text hover:bg-white/10"
+                  }`}
+                >
+                  <svg
+                    className="h-5 w-6"
+                    viewBox="0 0 28 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="1.5" y="1.5" width="25" height="17" rx="2" />
+                    <line x1="5" y1="5.5" x2="23" y2="5.5" strokeWidth="1.2" />
+                    <line x1="5" y1="9.5" x2="23" y2="9.5" strokeWidth="1.2" />
+                    <line x1="5" y1="13.5" x2="16" y2="13.5" strokeWidth="1.2" />
+                  </svg>
+                  <span className="text-xs sm:text-sm font-medium">Landscape</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-text">
+                Columns
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5 transition hover:bg-white/10">
+                <input
+                  type="checkbox"
+                  checked={pdfShowPaymentStatus}
+                  onChange={(e) => setPdfShowPaymentStatus(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-white/20 bg-surface text-primary focus:ring-primary"
+                />
+                <div className="flex flex-col text-left">
+                  <span className="text-xs sm:text-sm font-medium text-text">
+                    Show Payment Status column <span className="text-[10px] text-muted-text">(Default)</span>
+                  </span>
+                  <span className="text-xs text-muted-text mt-0.5">
+                    Uncheck to hide the Payment Status column from the exported PDF report.
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
         </Modal>
       )}
