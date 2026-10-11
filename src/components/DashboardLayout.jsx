@@ -7,6 +7,7 @@ import AdBanner from "./AdBanner";
 import { ADSENSE_CONFIG } from "../config/ads";
 import NotificationBell from "./NotificationBell";
 import SubscriptionReminderBanner from "./SubscriptionReminderBanner";
+import ShareAppModal from "./ShareAppModal";
 
 const navigationGroups = [
   {
@@ -156,6 +157,25 @@ const navigationGroups = [
           </svg>
         ),
       },
+      {
+        id: "share-app",
+        label: "Share App",
+        isAction: true,
+        icon: (
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+        ),
+      },
     ],
   },
 ];
@@ -165,6 +185,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
   const user = useAppSelector((state) => state.auth.user);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const location = useLocation();
   const popoverContainerRef = useRef(null);
 
@@ -226,23 +247,39 @@ function DashboardLayout({ dark, onToggleTheme }) {
                     {group.category}
                   </p>
                   <div className="flex flex-col gap-0.5">
-                    {group.items.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.end}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
-                            isActive
-                              ? "bg-accent text-white shadow-sm"
-                              : "text-muted-text hover:bg-bg/80 hover:text-text"
-                          }`
-                        }
-                      >
-                        {item.icon}
-                        <span>{item.label}</span>
-                      </NavLink>
-                    ))}
+                    {group.items.map((item) =>
+                      item.isAction ? (
+                        <button
+                          key={item.id || item.label}
+                          type="button"
+                          onClick={() => {
+                            if (item.id === "share-app") {
+                              setShareModalOpen(true);
+                            }
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm font-medium text-muted-text transition hover:bg-bg/80 hover:text-text"
+                        >
+                          {item.icon}
+                          <span>{item.label}</span>
+                        </button>
+                      ) : (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          end={item.end}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
+                              isActive
+                                ? "bg-accent text-white shadow-sm"
+                                : "text-muted-text hover:bg-bg/80 hover:text-text"
+                            }`
+                          }
+                        >
+                          {item.icon}
+                          <span>{item.label}</span>
+                        </NavLink>
+                      )
+                    )}
                   </div>
                 </div>
               ))}
@@ -420,23 +457,40 @@ function DashboardLayout({ dark, onToggleTheme }) {
                 {group.category}
               </p>
               <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
-                        isActive
-                          ? "bg-accent text-white shadow-sm"
-                          : "text-muted-text hover:bg-bg hover:text-text"
-                      }`
-                    }
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </NavLink>
-                ))}
+                {group.items.map((item) =>
+                  item.isAction ? (
+                    <button
+                      key={item.id || item.label}
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        if (item.id === "share-app") {
+                          setShareModalOpen(true);
+                        }
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm font-medium text-muted-text transition hover:bg-bg hover:text-text"
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  ) : (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition ${
+                          isActive
+                            ? "bg-accent text-white shadow-sm"
+                            : "text-muted-text hover:bg-bg hover:text-text"
+                        }`
+                      }
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </NavLink>
+                  )
+                )}
               </div>
             </div>
           ))}
@@ -453,6 +507,12 @@ function DashboardLayout({ dark, onToggleTheme }) {
           </button>
         </div>
       </aside>
+
+      {/* Share App Modal */}
+      <ShareAppModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
     </div>
   );
 }
