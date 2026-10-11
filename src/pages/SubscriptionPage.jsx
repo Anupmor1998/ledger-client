@@ -120,9 +120,9 @@ function SubscriptionPage() {
     try {
       setDownloadingInvoiceId(inv.id);
       await downloadSubscriptionInvoice(inv.id, inv.invoiceNumber || inv.orderId);
-      toast.success("Invoice downloaded successfully");
+      toast.success("Receipt downloaded successfully");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to download invoice PDF");
+      toast.error(err?.response?.data?.message || "Failed to download receipt PDF");
     } finally {
       setDownloadingInvoiceId(null);
     }
@@ -847,18 +847,15 @@ function SubscriptionPage() {
         </div>
       </div>
 
-      {/* Invoices & Payment History Section */}
+      {/* Payment Receipts Section */}
       <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base sm:text-lg font-bold text-text">Billing & Invoices</h2>
+            <h2 className="text-base sm:text-lg font-bold text-text">Payment Receipts</h2>
             <p className="text-xs text-muted-text mt-0.5">
-              View your past payment receipts and tax invoices.
+              View and download your past subscription payment receipts.
             </p>
           </div>
-          <span className="text-xs text-muted-text bg-bg px-2.5 py-1 rounded-lg border border-border">
-            GST Invoices Ready
-          </span>
         </div>
 
         {invoices.length > 0 ? (
@@ -866,13 +863,13 @@ function SubscriptionPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-border bg-bg/50 text-muted-text font-semibold">
-                  <th className="p-3">Invoice No</th>
+                  <th className="p-3">Receipt No</th>
                   <th className="p-3">Plan</th>
                   <th className="p-3">Billing Cycle</th>
                   <th className="p-3">Amount</th>
                   <th className="p-3">Date</th>
                   <th className="p-3 text-center">Status</th>
-                  <th className="p-3 text-right">Invoice</th>
+                  <th className="p-3 text-right">Receipt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -893,7 +890,7 @@ function SubscriptionPage() {
                     </td>
                     <td className="p-3 text-center">
                       {inv.status === "SUCCESS" ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                           SUCCESS
                         </span>
                       ) : inv.status === "FAILED" ? (
@@ -913,7 +910,7 @@ function SubscriptionPage() {
                           onClick={() => handleDownloadInvoice(inv)}
                           disabled={downloadingInvoiceId === inv.id}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-accent/10 text-accent hover:bg-accent/20 border border-accent/20 transition-all disabled:opacity-50"
-                          title="Download Tax Invoice"
+                          title="Download Receipt"
                         >
                           {downloadingInvoiceId === inv.id ? (
                             <>
@@ -949,7 +946,7 @@ function SubscriptionPage() {
                                 <polyline points="7 10 12 15 17 10" />
                                 <line x1="12" y1="15" x2="12" y2="3" />
                               </svg>
-                              <span>Download Invoice</span>
+                              <span>Download Receipt</span>
                             </>
                           )}
                         </button>
@@ -973,7 +970,7 @@ function SubscriptionPage() {
             </svg>
             <p className="font-semibold text-text">No Payment Records Yet</p>
             <p className="mt-1">
-              Payment receipts and tax invoices will appear here once you make a subscription payment.
+              Payment receipts will appear here once you make a subscription payment.
             </p>
           </div>
         )}

@@ -624,7 +624,7 @@ export async function downloadSubscriptionInvoice(paymentId, fallbackInvoiceNo =
   const disposition = response.headers?.["content-disposition"];
   const filename = resolveFilenameFromDisposition(
     disposition,
-    `Invoice-${fallbackInvoiceNo}.pdf`
+    `Receipt-${fallbackInvoiceNo}.pdf`
   );
 
   const blob = new Blob([response.data], { type: "application/pdf" });
