@@ -235,6 +235,32 @@ function ReportsPage() {
     setIsRangePickerOpen((prev) => !prev);
   }
 
+  function resolveDownloadFileName(extension) {
+    function cleanName(raw) {
+      return String(raw || "")
+        .replace(/[\\/:*?"<>|,;.]+/g, "_")
+        .replace(/[\s_]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    }
+
+    const isManufacturer = filters.userType === "MANUFACTURER";
+    if (isManufacturer) {
+      if (filters.manufacturerId) {
+        const found = manufacturers.find((m) => m.id === filters.manufacturerId);
+        const partyName = cleanName(found?.firmName || found?.name);
+        if (partyName) return `${partyName}.${extension}`;
+      }
+      return `All_Manufacturers_Report.${extension}`;
+    }
+
+    if (filters.customerId) {
+      const found = customers.find((c) => c.id === filters.customerId);
+      const partyName = cleanName(found?.firmName || found?.name);
+      if (partyName) return `${partyName}.${extension}`;
+    }
+    return `All_Customers_Report.${extension}`;
+  }
+
   async function handleDownloadExcel() {
     const currentPlan = String(user?.subscriptionPlan || "TRIAL").toUpperCase();
     const isVip =
@@ -264,7 +290,7 @@ function ReportsPage() {
       await downloadReportFile(
         "order-report.xlsx",
         params,
-        `${filters.userType.toLowerCase()}-report.xlsx`,
+        resolveDownloadFileName("xlsx"),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       );
       toast.success(`${reportTypeLabel} downloaded as Excel`);
@@ -310,7 +336,7 @@ function ReportsPage() {
       await downloadReportFile(
         "order-report.pdf",
         params,
-        `${filters.userType.toLowerCase()}-report.pdf`,
+        resolveDownloadFileName("pdf"),
         "application/pdf"
       );
       toast.success(`${reportTypeLabel} downloaded as PDF`);
