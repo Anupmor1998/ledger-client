@@ -53,6 +53,12 @@ export default defineConfig(({ mode }) => {
       "process.env.API_BASE_URL": JSON.stringify(
         env.API_BASE_URL || "http://localhost:8000/api",
       ),
+      "process.env.ENABLE_SUBSCRIPTION_SIMULATOR": JSON.stringify(
+        env.ENABLE_SUBSCRIPTION_SIMULATOR || ""
+      ),
+      "process.env.APP_ENV": JSON.stringify(
+        env.APP_ENV || mode || "development"
+      ),
     },
   };
 });

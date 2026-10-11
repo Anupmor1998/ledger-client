@@ -39,8 +39,22 @@ export function setupAxiosInterceptors(store) {
       store.dispatch(requestEnded());
       return response;
     },
-    (error) => {
+    async (error) => {
       store.dispatch(requestEnded());
+
+      // If the request was made with responseType: "blob" and failed, decode the error Blob into JSON
+      if (
+        error?.response?.data instanceof Blob &&
+        error.response.data.type?.includes("application/json")
+      ) {
+        try {
+          const text = await error.response.data.text();
+          error.response.data = JSON.parse(text);
+        } catch (_parseErr) {
+          // ignore blob parse error
+        }
+      }
+
       const status = error?.response?.status;
       const message = String(error?.response?.data?.message || "").toLowerCase();
       if (status === 401 || (status === 404 && message.includes("user not found"))) {

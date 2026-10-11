@@ -9,6 +9,8 @@ import {
   deletePaymentEntry,
   getCustomers,
   getEligibleOrdersForPayment,
+  getManufacturerPaymentSummary,
+  getManufacturers,
   getNextPaymentSerialNo,
   getPaymentEntries,
   settleCustomerAccount,
@@ -63,8 +65,10 @@ function PaymentsPage() {
   );
 
   // --- Form State ---
+  const [partyType, setPartyType] = useState("CUSTOMER"); // 'CUSTOMER' | 'MANUFACTURER'
   const [nextSerialNo, setNextSerialNo] = useState(1);
   const [customerId, setCustomerId] = useState("");
+  const [manufacturerId, setManufacturerId] = useState("");
   const [date, setDate] = useState(getTodayDate());
   const [paymentMode, setPaymentMode] = useState("CASH");
   const [amount, setAmount] = useState("");
@@ -80,6 +84,12 @@ function PaymentsPage() {
   // Customer options
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
+
+  // Manufacturer options & statement summary
+  const [manufacturers, setManufacturers] = useState([]);
+  const [loadingManufacturers, setLoadingManufacturers] = useState(false);
+  const [manufacturerSummary, setManufacturerSummary] = useState(null);
+  const [loadingManufacturerSummary, setLoadingManufacturerSummary] = useState(false);
 
   // Modal states
   const [orderModalOpen, setOrderModalOpen] = useState(false);
@@ -104,11 +114,13 @@ function PaymentsPage() {
   // Filters
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput.trim(), 350);
+  const [filterPartyType, setFilterPartyType] = useState("CUSTOMER");
   const [filterMode, setFilterMode] = useState("");
   const [filterAdjusted, setFilterAdjusted] = useState("");
   const [filterSettled, setFilterSettled] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   // Load customer master list
   useEffect(() => {
@@ -135,6 +147,57 @@ function PaymentsPage() {
     };
   }, []);
 
+  // Load manufacturer master list
+  useEffect(() => {
+    let active = true;
+    async function loadManufacturers() {
+      try {
+        setLoadingManufacturers(true);
+        const res = await getManufacturers({ all: true });
+        if (active) {
+          const list = Array.isArray(res)
+            ? res
+            : res?.items || res?.manufacturers || [];
+          setManufacturers(list);
+        }
+      } catch (err) {
+        toast.error("Failed to load manufacturers.");
+      } finally {
+        if (active) setLoadingManufacturers(false);
+      }
+    }
+    loadManufacturers();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load manufacturer summary when selected
+  const refetchManufacturerSummary = useCallback(async (targetMfrId = manufacturerId) => {
+    const idToFetch = targetMfrId || manufacturerId;
+    if (partyType !== "MANUFACTURER" || !idToFetch) {
+      setManufacturerSummary(null);
+      return;
+    }
+    try {
+      setLoadingManufacturerSummary(true);
+      const data = await getManufacturerPaymentSummary(idToFetch);
+      setManufacturerSummary(data);
+    } catch (err) {
+      console.error("Failed to load manufacturer summary", err);
+    } finally {
+      setLoadingManufacturerSummary(false);
+    }
+  }, [partyType, manufacturerId]);
+
+  useEffect(() => {
+    if (partyType !== "MANUFACTURER" || !manufacturerId) {
+      setManufacturerSummary(null);
+      return;
+    }
+    refetchManufacturerSummary(manufacturerId);
+  }, [partyType, manufacturerId, refetchManufacturerSummary]);
+
   const customerOptions = useMemo(() => {
     return customers.map((c) => {
       const firm = c.firmName?.trim();
@@ -159,6 +222,37 @@ function PaymentsPage() {
   const selectedCustomerObj = useMemo(() => {
     return customers.find((c) => c.id === customerId) || null;
   }, [customers, customerId]);
+
+  const manufacturerOptions = useMemo(() => {
+    return manufacturers.map((m) => {
+      const firm = m.firmName?.trim();
+      const person = m.name?.trim();
+      const label =
+        firm && person && firm !== person
+          ? `${firm} (${person})`
+          : firm || person || "Unknown";
+      const commText =
+        m.commissionBase === "LOT"
+          ? Number(m.commissionLotRate || 0) > 0
+            ? `₹${m.commissionLotRate} / Lot`
+            : "0 LOT"
+          : `${m.commissionPercent || 0}%`;
+      const extra = [person !== firm ? person : "", m.phone, `Comm: ${commText}`]
+        .filter(Boolean)
+        .join(" • ");
+      return {
+        value: m.id,
+        label,
+        firmName: m.firmName,
+        name: m.name,
+        helperText: extra,
+      };
+    });
+  }, [manufacturers]);
+
+  const selectedManufacturerObj = useMemo(() => {
+    return manufacturers.find((m) => m.id === manufacturerId) || null;
+  }, [manufacturers, manufacturerId]);
 
   // Load Next Serial No
   const fetchNextSerial = useCallback(async () => {
@@ -186,6 +280,7 @@ function PaymentsPage() {
         page,
         limit: pageSize,
         search: debouncedSearch,
+        partyType: filterPartyType || undefined,
         paymentMode: filterMode,
         adjustedAgainst: filterAdjusted,
         isFullySettled: filterSettled,
@@ -211,6 +306,7 @@ function PaymentsPage() {
     page,
     pageSize,
     debouncedSearch,
+    filterPartyType,
     filterMode,
     filterAdjusted,
     filterSettled,
@@ -352,22 +448,35 @@ function PaymentsPage() {
     const numAmount = Number(amount);
     try {
       setSubmitting(true);
-      await createPaymentEntry({
-        customerId,
-        date,
-        paymentMode,
-        amount: numAmount,
-        remark,
-        adjustedAgainst,
-        orderDateFrom:
-          adjustedAgainst === "ORDER_ID"
-            ? orderDateFrom
-            : orderDateFrom || null,
-        orderDateTo:
-          adjustedAgainst === "ORDER_ID" ? orderDateTo : orderDateTo || null,
-        selectedOrderIds:
-          adjustedAgainst === "ORDER_ID" ? selectedOrderIds : [],
-      });
+      if (partyType === "MANUFACTURER") {
+        await createPaymentEntry({
+          partyType: "MANUFACTURER",
+          manufacturerId,
+          date,
+          paymentMode,
+          amount: numAmount,
+          remark,
+          adjustedAgainst: "PARTIAL",
+        });
+      } else {
+        await createPaymentEntry({
+          partyType: "CUSTOMER",
+          customerId,
+          date,
+          paymentMode,
+          amount: numAmount,
+          remark,
+          adjustedAgainst,
+          orderDateFrom:
+            adjustedAgainst === "ORDER_ID"
+              ? orderDateFrom
+              : orderDateFrom || null,
+          orderDateTo:
+            adjustedAgainst === "ORDER_ID" ? orderDateTo : orderDateTo || null,
+          selectedOrderIds:
+            adjustedAgainst === "ORDER_ID" ? selectedOrderIds : [],
+        });
+      }
 
       toast.success("Payment entry recorded successfully!");
       setAmount("");
@@ -377,6 +486,9 @@ function PaymentsPage() {
       setOverpaymentWarningModalOpen(false);
       fetchNextSerial();
       fetchEntries();
+      if (partyType === "MANUFACTURER" && manufacturerId) {
+        refetchManufacturerSummary(manufacturerId);
+      }
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -390,6 +502,20 @@ function PaymentsPage() {
 
   const handleSubmitPayment = async (e) => {
     e.preventDefault();
+    if (partyType === "MANUFACTURER") {
+      if (!manufacturerId) {
+        toast.error("Please select a manufacturer.");
+        return;
+      }
+      const numAmount = Number(amount);
+      if (!numAmount || numAmount <= 0) {
+        toast.error("Please enter a valid amount greater than 0.");
+        return;
+      }
+      await executeCreatePayment();
+      return;
+    }
+
     if (!customerId) {
       toast.error("Please select a customer.");
       return;
@@ -440,6 +566,9 @@ function PaymentsPage() {
       );
       setSettleModalEntry(null);
       fetchEntries();
+      if (partyType === "MANUFACTURER" && manufacturerId) {
+        refetchManufacturerSummary(manufacturerId);
+      }
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -460,6 +589,9 @@ function PaymentsPage() {
       setDeleteCandidateId(null);
       fetchNextSerial();
       fetchEntries();
+      if (partyType === "MANUFACTURER" && manufacturerId) {
+        refetchManufacturerSummary(manufacturerId);
+      }
     } catch (err) {
       const msg =
         err?.response?.data?.message ||
@@ -505,6 +637,55 @@ function PaymentsPage() {
         </div>
 
         <form onSubmit={handleSubmitPayment} className="space-y-4">
+          {/* Party Type Toggle Tab */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 border-b border-border pb-3">
+            <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted">
+              Party Type:
+            </span>
+            <div className="flex w-full sm:w-auto rounded-xl border border-border bg-surface p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  setPartyType("CUSTOMER");
+                  setManufacturerId("");
+                  setManufacturerSummary(null);
+                }}
+                className={`flex-1 sm:flex-none flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                  partyType === "CUSTOMER"
+                    ? "bg-accent text-white shadow"
+                    : "muted-text hover:text-text"
+                }`}
+              >
+                Customer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPartyType("MANUFACTURER");
+                  setCustomerId("");
+                  setSelectedOrderIds([]);
+                  setEligibleOrders([]);
+                }}
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-lg px-3 sm:px-4 py-2 text-sm font-semibold transition ${
+                  partyType === "MANUFACTURER"
+                    ? "bg-accent text-white shadow"
+                    : "muted-text hover:text-text"
+                }`}
+              >
+                <span>Manufacturer</span>
+                <span
+                  className={`hidden xs:inline-block rounded-full px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider transition ${
+                    partyType === "MANUFACTURER"
+                      ? "bg-white/20 text-white"
+                      : "bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200"
+                  }`}
+                >
+                  On-Account
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Sr.No (Display only) */}
             <div>
@@ -517,24 +698,41 @@ function PaymentsPage() {
               />
             </div>
 
-            {/* Cust Name */}
+            {/* Cust Name or Manufacturer Name */}
             <div className="sm:col-span-1 lg:col-span-2">
-              <SearchableSelect
-                label="Customer Name *"
-                placeholder={
-                  loadingCustomers
-                    ? "Loading customers..."
-                    : "Search customer by firm name or person"
-                }
-                options={customerOptions}
-                value={customerId}
-                onChange={(val) => {
-                  setCustomerId(val);
-                  setSelectedOrderIds([]);
-                  setEligibleOrders([]);
-                }}
-                disabled={loadingCustomers}
-              />
+              {partyType === "MANUFACTURER" ? (
+                <SearchableSelect
+                  label="Manufacturer Name *"
+                  placeholder={
+                    loadingManufacturers
+                      ? "Loading manufacturers..."
+                      : "Search manufacturer by firm name or person"
+                  }
+                  options={manufacturerOptions}
+                  value={manufacturerId}
+                  onChange={(val) => {
+                    setManufacturerId(val);
+                  }}
+                  disabled={loadingManufacturers}
+                />
+              ) : (
+                <SearchableSelect
+                  label="Customer Name *"
+                  placeholder={
+                    loadingCustomers
+                      ? "Loading customers..."
+                      : "Search customer by firm name or person"
+                  }
+                  options={customerOptions}
+                  value={customerId}
+                  onChange={(val) => {
+                    setCustomerId(val);
+                    setSelectedOrderIds([]);
+                    setEligibleOrders([]);
+                  }}
+                  disabled={loadingCustomers}
+                />
+              )}
             </div>
 
             {/* Date */}
@@ -583,12 +781,12 @@ function PaymentsPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className={`form-input font-medium ${
-                  orderSettlementInfo?.type === "EXCESS"
+                  partyType === "CUSTOMER" && orderSettlementInfo?.type === "EXCESS"
                     ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
                     : ""
                 }`}
               />
-              {orderSettlementInfo?.type === "DISCOUNT" && (
+              {partyType === "CUSTOMER" && orderSettlementInfo?.type === "DISCOUNT" && (
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-950 dark:bg-amber-950/60 dark:border-amber-700/80 dark:text-amber-200">
                   <span className="text-sm">🏷️</span>
                   <span>
@@ -601,7 +799,7 @@ function PaymentsPage() {
                   </span>
                 </div>
               )}
-              {orderSettlementInfo?.type === "EXCESS" && (
+              {partyType === "CUSTOMER" && orderSettlementInfo?.type === "EXCESS" && (
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-950 dark:bg-rose-950/60 dark:border-rose-700/80 dark:text-rose-200">
                   <span className="text-sm">⚠️</span>
                   <span>
@@ -613,7 +811,7 @@ function PaymentsPage() {
                   </span>
                 </div>
               )}
-              {orderSettlementInfo?.type === "EXACT" && (
+              {partyType === "CUSTOMER" && orderSettlementInfo?.type === "EXACT" && (
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-950 dark:bg-emerald-950/60 dark:border-emerald-700/80 dark:text-emerald-200">
                   <span className="text-sm">✓</span>
                   <span>
@@ -637,192 +835,267 @@ function PaymentsPage() {
             </div>
           </div>
 
-          {/* Adjusted Against Box */}
-          <div className="rounded-xl border border-border bg-bg/50 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <span className="text-sm font-semibold uppercase tracking-wider text-text">
-                  Adjusted Against *
+          {/* Manufacturer Financial Summary & Commission Badge (when MANUFACTURER is selected) */}
+          {partyType === "MANUFACTURER" && selectedManufacturerObj && (
+            <div className="rounded-xl border border-purple-200 dark:border-purple-900/50 bg-purple-50/40 dark:bg-purple-950/20 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-purple-100 dark:border-purple-900/40 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
+                    Manufacturer Commission Info
+                  </span>
+                  <span className="inline-flex rounded-full bg-purple-100 dark:bg-purple-900/60 px-2.5 py-0.5 text-xs font-bold text-purple-800 dark:text-purple-200">
+                    Rate:{" "}
+                    {selectedManufacturerObj.commissionBase === "LOT"
+                      ? Number(selectedManufacturerObj.commissionLotRate || 0) > 0
+                        ? `₹${selectedManufacturerObj.commissionLotRate} / Lot`
+                        : "0 LOT (No Commission)"
+                      : `${selectedManufacturerObj.commissionPercent || 0}%`}
+                  </span>
+                </div>
+                <span className="text-xs muted-text italic">
+                  Payments from manufacturers are recorded on-account
                 </span>
-                <p className="mt-0.5 text-sm muted-text">
-                  {adjustedAgainst === "ORDER_ID"
-                    ? "Select date range to choose specific customer orders to pay against sequentially."
-                    : "On-account payment without linking to specific orders immediately (can be settled later)."}
-                </p>
               </div>
-              <div className="inline-flex rounded-lg border border-border bg-surface p-1 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setAdjustedAgainst("ORDER_ID")}
-                  className={`rounded-md px-3.5 py-2 text-sm font-semibold transition ${
-                    adjustedAgainst === "ORDER_ID"
-                      ? "bg-accent text-white shadow"
-                      : "muted-text hover:text-text"
-                  }`}
-                >
-                  Against Orders (orderId)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAdjustedAgainst("PARTIAL")}
-                  className={`rounded-md px-3.5 py-2 text-sm font-semibold transition ${
-                    adjustedAgainst === "PARTIAL"
-                      ? "bg-accent text-white shadow"
-                      : "muted-text hover:text-text"
-                  }`}
-                >
-                  Partial / On Account
-                </button>
-              </div>
-            </div>
 
-            {/* ORDER_ID Mode Inputs */}
-            {adjustedAgainst === "ORDER_ID" && (
-              <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-3 sm:items-end">
-                <div>
-                  <span className="mb-1 block text-sm muted-text">
-                    Orders From Date
-                  </span>
-                  <input
-                    type="date"
-                    value={orderDateFrom}
-                    onChange={(e) => setOrderDateFrom(e.target.value)}
-                    className="form-input"
-                  />
+              {loadingManufacturerSummary ? (
+                <div className="py-2 text-xs muted-text">
+                  Loading manufacturer financial summary...
                 </div>
-                <div>
-                  <span className="mb-1 block text-sm muted-text">
-                    Orders To Date
-                  </span>
-                  <input
-                    type="date"
-                    value={orderDateTo}
-                    onChange={(e) => setOrderDateTo(e.target.value)}
-                    className="form-input"
-                  />
+              ) : manufacturerSummary ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 pt-1">
+                  <div className="rounded-lg bg-surface border border-border p-2.5">
+                    <span className="block text-xs muted-text">Total Commission</span>
+                    <strong className="block text-sm font-bold text-text">
+                      {formatCurrency(manufacturerSummary.totalCommissionEarned)}
+                    </strong>
+                    <span className="text-[11px] muted-text">
+                      from {manufacturerSummary.ordersCount} orders
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-surface border border-border p-2.5">
+                    <span className="block text-xs muted-text">Total Received</span>
+                    <strong className="block text-sm font-bold text-emerald-600">
+                      {formatCurrency(manufacturerSummary.totalPaymentsReceived)}
+                    </strong>
+                    <span className="text-[11px] muted-text">
+                      from {manufacturerSummary.paymentsCount} entries
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-surface border border-border p-2.5">
+                    <span className="block text-xs muted-text">Balance Due</span>
+                    <strong className={`block text-sm font-bold ${
+                      manufacturerSummary.balanceDue > 0
+                        ? "text-amber-600"
+                        : "text-emerald-600"
+                    }`}>
+                      {formatCurrency(manufacturerSummary.balanceDue)}
+                    </strong>
+                    <span className="text-[11px] muted-text">
+                      {manufacturerSummary.balanceDue > 0 ? "Pending to receive" : "Fully settled"}
+                    </span>
+                  </div>
+                  <div className="rounded-lg bg-surface border border-border p-2.5">
+                    <span className="block text-xs muted-text">Firm / Contact</span>
+                    <strong className="block text-sm font-medium text-text truncate" title={selectedManufacturerObj.firmName}>
+                      {selectedManufacturerObj.firmName || selectedManufacturerObj.name}
+                    </strong>
+                    <span className="text-[11px] muted-text truncate block">
+                      {selectedManufacturerObj.phone || "No phone"}
+                    </span>
+                  </div>
                 </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Adjusted Against Box (Only for CUSTOMER) */}
+          {partyType === "CUSTOMER" && (
+            <div className="rounded-xl border border-border bg-bg/50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
+                  <span className="text-sm font-semibold uppercase tracking-wider text-text">
+                    Adjusted Against *
+                  </span>
+                  <p className="mt-0.5 text-sm muted-text">
+                    {adjustedAgainst === "ORDER_ID"
+                      ? "Select date range to choose specific customer orders to pay against sequentially."
+                      : "On-account payment without linking to specific orders immediately (can be settled later)."}
+                  </p>
+                </div>
+                <div className="inline-flex rounded-lg border border-border bg-surface p-1 shadow-sm">
                   <button
                     type="button"
-                    disabled={!customerId || loadingOrders}
-                    onClick={() => fetchEligibleOrders(true)}
-                    className="ghost-btn inline-flex w-full items-center justify-center gap-2 border-accent text-accent hover:bg-accent/10 disabled:opacity-50"
+                    onClick={() => setAdjustedAgainst("ORDER_ID")}
+                    className={`rounded-md px-3.5 py-2 text-sm font-semibold transition ${
+                      adjustedAgainst === "ORDER_ID"
+                        ? "bg-accent text-white shadow"
+                        : "muted-text hover:text-text"
+                    }`}
                   >
-                    {loadingOrders ? (
-                      <span>Loading Orders...</span>
-                    ) : (
-                      <>
-                        <svg
-                          className="h-4 w-4 fill-none stroke-current stroke-2"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        <span>
-                          {selectedOrderIds.length > 0
-                            ? `Selected Orders (${selectedOrderIds.length})`
-                            : "Select Orders from Date Range"}
-                        </span>
-                      </>
-                    )}
+                    Against Orders (orderId)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustedAgainst("PARTIAL")}
+                    className={`rounded-md px-3.5 py-2 text-sm font-semibold transition ${
+                      adjustedAgainst === "PARTIAL"
+                        ? "bg-accent text-white shadow"
+                        : "muted-text hover:text-text"
+                    }`}
+                  >
+                    Partial / On Account
                   </button>
                 </div>
-
-                {selectedOrderIds.length > 0 && (
-                  <div className="col-span-full flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-3 text-sm">
-                    <span className="font-medium text-text">
-                      Orders Selected:
-                    </span>
-                    <span className="rounded bg-accent/10 px-2 py-0.5 font-bold text-accent">
-                      {selectedOrderIds.length} orders
-                    </span>
-                    <span className="text-border">|</span>
-                    <span className="muted-text">Total Commission Due:</span>
-                    <span className="font-semibold text-text">
-                      {formatCurrency(selectedOrdersTotalCommission)}
-                    </span>
-                    {amount && (
-                      <>
-                        <span className="text-border">|</span>
-                        <span className="muted-text">Payment Amount:</span>
-                        <span className="font-semibold text-emerald-600">
-                          {formatCurrency(amount)}
-                        </span>
-                      </>
-                    )}
-                    {orderSettlementInfo?.type === "DISCOUNT" && (
-                      <span className="rounded-full bg-amber-100 text-amber-950 dark:bg-amber-950/70 dark:text-amber-200 border border-amber-300 dark:border-amber-700 px-2.5 py-0.5 text-xs font-bold">
-                        Discount:{" "}
-                        {orderSettlementInfo.discountPercent.toFixed(2)}% (
-                        {formatCurrency(orderSettlementInfo.discountAmount)})
-                      </span>
-                    )}
-                    {orderSettlementInfo?.type === "EXCESS" && (
-                      <span className="rounded-full bg-rose-100 text-rose-950 dark:bg-rose-950/70 dark:text-rose-200 border border-rose-300 dark:border-rose-700 px-2.5 py-0.5 text-xs font-bold">
-                        ⚠️ Excess: +
-                        {formatCurrency(orderSettlementInfo.excessAmount)}
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
-            )}
 
-            {/* PARTIAL Mode Optional Date Range */}
-            {adjustedAgainst === "PARTIAL" && (
-              <div className="mt-4 border-t border-border pt-4 space-y-3">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* ORDER_ID Mode Inputs */}
+              {adjustedAgainst === "ORDER_ID" && (
+                <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-3 sm:items-end">
                   <div>
                     <span className="mb-1 block text-sm muted-text">
-                      Applicable Orders From Date (Optional)
+                      Orders From Date
                     </span>
                     <input
                       type="date"
                       value={orderDateFrom}
                       onChange={(e) => setOrderDateFrom(e.target.value)}
-                      className={`form-input ${
-                        settledOverlapEntry
-                          ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
-                          : ""
-                      }`}
+                      className="form-input"
                     />
                   </div>
                   <div>
                     <span className="mb-1 block text-sm muted-text">
-                      Applicable Orders To Date (Optional)
+                      Orders To Date
                     </span>
                     <input
                       type="date"
                       value={orderDateTo}
                       onChange={(e) => setOrderDateTo(e.target.value)}
-                      className={`form-input ${
-                        settledOverlapEntry
-                          ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
-                          : ""
-                      }`}
+                      className="form-input"
                     />
                   </div>
-                </div>
+                  <div>
+                    <button
+                      type="button"
+                      disabled={!customerId || loadingOrders}
+                      onClick={() => fetchEligibleOrders(true)}
+                      className="ghost-btn inline-flex w-full items-center justify-center gap-2 border-accent text-accent hover:bg-accent/10 disabled:opacity-50"
+                    >
+                      {loadingOrders ? (
+                        <span>Loading Orders...</span>
+                      ) : (
+                        <>
+                          <svg
+                            className="h-4 w-4 fill-none stroke-current stroke-2"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          <span>
+                            {selectedOrderIds.length > 0
+                              ? `Selected Orders (${selectedOrderIds.length})`
+                              : "Select Orders from Date Range"}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
-                {settledOverlapEntry && (
-                  <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-950 dark:bg-amber-950/70 dark:border-amber-700 dark:text-amber-200">
-                    <span className="text-base">⚠️</span>
+                  {selectedOrderIds.length > 0 && (
+                    <div className="col-span-full flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface p-3 text-sm">
+                      <span className="font-medium text-text">
+                        Orders Selected:
+                      </span>
+                      <span className="rounded bg-accent/10 px-2 py-0.5 font-bold text-accent">
+                        {selectedOrderIds.length} orders
+                      </span>
+                      <span className="text-border">|</span>
+                      <span className="muted-text">Total Commission Due:</span>
+                      <span className="font-semibold text-text">
+                        {formatCurrency(selectedOrdersTotalCommission)}
+                      </span>
+                      {amount && (
+                        <>
+                          <span className="text-border">|</span>
+                          <span className="muted-text">Payment Amount:</span>
+                          <span className="font-semibold text-emerald-600">
+                            {formatCurrency(amount)}
+                          </span>
+                        </>
+                      )}
+                      {orderSettlementInfo?.type === "DISCOUNT" && (
+                        <span className="rounded-full bg-amber-100 text-amber-950 dark:bg-amber-950/70 dark:text-amber-200 border border-amber-300 dark:border-amber-700 px-2.5 py-0.5 text-xs font-bold">
+                          Discount:{" "}
+                          {orderSettlementInfo.discountPercent.toFixed(2)}% (
+                          {formatCurrency(orderSettlementInfo.discountAmount)})
+                        </span>
+                      )}
+                      {orderSettlementInfo?.type === "EXCESS" && (
+                        <span className="rounded-full bg-rose-100 text-rose-950 dark:bg-rose-950/70 dark:text-rose-200 border border-rose-300 dark:border-rose-700 px-2.5 py-0.5 text-xs font-bold">
+                          ⚠️ Excess: +
+                          {formatCurrency(orderSettlementInfo.excessAmount)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PARTIAL Mode Optional Date Range */}
+              {adjustedAgainst === "PARTIAL" && (
+                <div className="mt-4 border-t border-border pt-4 space-y-3">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <strong className="block font-semibold">
-                        Settled Period Warning (Entry #
-                        {settledOverlapEntry.serialNo})
-                      </strong>
-                      This customer's period (
-                      {formatDateDisplay(settledOverlapEntry.orderDateFrom)} to{" "}
-                      {formatDateDisplay(settledOverlapEntry.orderDateTo)}) has
-                      already been marked as <strong>Fully Settled</strong>. New
-                      payments cannot be recorded for this settled period.
+                      <span className="mb-1 block text-sm muted-text">
+                        Applicable Orders From Date (Optional)
+                      </span>
+                      <input
+                        type="date"
+                        value={orderDateFrom}
+                        onChange={(e) => setOrderDateFrom(e.target.value)}
+                        className={`form-input ${
+                          settledOverlapEntry
+                            ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
+                            : ""
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <span className="mb-1 block text-sm muted-text">
+                        Applicable Orders To Date (Optional)
+                      </span>
+                      <input
+                        type="date"
+                        value={orderDateTo}
+                        onChange={(e) => setOrderDateTo(e.target.value)}
+                        className={`form-input ${
+                          settledOverlapEntry
+                            ? "border-amber-500 focus:border-amber-600 focus:ring-amber-500"
+                            : ""
+                        }`}
+                      />
                     </div>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
+
+                  {settledOverlapEntry && (
+                    <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-950 dark:bg-amber-950/70 dark:border-amber-700 dark:text-amber-200">
+                      <span className="text-base">⚠️</span>
+                      <div>
+                        <strong className="block font-semibold">
+                          Settled Period Warning (Entry #
+                          {settledOverlapEntry.serialNo})
+                        </strong>
+                        This customer's period (
+                        {formatDateDisplay(settledOverlapEntry.orderDateFrom)} to{" "}
+                        {formatDateDisplay(settledOverlapEntry.orderDateTo)}) has
+                        already been marked as <strong>Fully Settled</strong>. New
+                        payments cannot be recorded for this settled period.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
@@ -1064,78 +1337,252 @@ function PaymentsPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <input
-              type="text"
-              placeholder="Search customer, remark, Sr.No..."
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
-            />
-          </div>
-          <div>
-            <select
-              value={filterMode}
-              onChange={(e) => {
-                setFilterMode(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
+        {/* Search & Filter Bar */}
+        <div className="mb-5 space-y-3">
+          {/* Mobile Search + Filter Modal Button */}
+          <div className="flex items-center gap-2 sm:hidden">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search party, remark, Sr.No..."
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileFilterOpen(true)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                filterPartyType !== "CUSTOMER" || filterMode || filterAdjusted || filterDateFrom || filterDateTo
+                  ? "border-accent bg-accent/10 text-accent font-semibold"
+                  : "border-border bg-surface text-text hover:bg-surface-muted"
+              }`}
             >
-              <option value="">All Modes</option>
-              {PAYMENT_MODES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <span>Filters</span>
+              {(filterPartyType !== "CUSTOMER" || filterMode || filterAdjusted || filterDateFrom || filterDateTo) && (
+                <span className="h-2 w-2 rounded-full bg-accent"></span>
+              )}
+            </button>
           </div>
-          <div>
-            <select
-              value={filterAdjusted}
-              onChange={(e) => {
-                setFilterAdjusted(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
-            >
-              <option value="">All Adjustments</option>
-              <option value="ORDER_ID">Against Orders</option>
-              <option value="PARTIAL">Partial / On Account</option>
-            </select>
-          </div>
-          <div>
-            <input
-              type="date"
-              title="From Payment Date"
-              value={filterDateFrom}
-              onChange={(e) => {
-                setFilterDateFrom(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
-            />
-          </div>
-          <div>
-            <input
-              type="date"
-              title="To Payment Date"
-              value={filterDateTo}
-              onChange={(e) => {
-                setFilterDateTo(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
-            />
+
+          {/* Desktop & Tablet Filters Grid */}
+          <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div>
+              <input
+                type="text"
+                placeholder="Search party, remark, Sr.No..."
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <select
+                value={filterPartyType}
+                onChange={(e) => {
+                  setFilterPartyType(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent font-medium truncate"
+              >
+                <option value="">All Parties</option>
+                <option value="CUSTOMER">Customers</option>
+                <option value="MANUFACTURER">Manufacturers</option>
+              </select>
+            </div>
+            <div>
+              <select
+                value={filterMode}
+                onChange={(e) => {
+                  setFilterMode(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent truncate"
+              >
+                <option value="">All Modes</option>
+                {PAYMENT_MODES.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                value={filterAdjusted}
+                onChange={(e) => {
+                  setFilterAdjusted(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent truncate"
+              >
+                <option value="">All Adjustments</option>
+                <option value="ORDER_ID">Against Orders</option>
+                <option value="PARTIAL">Partial / On Account</option>
+              </select>
+            </div>
+            <div>
+              <input
+                type="date"
+                title="From Payment Date"
+                value={filterDateFrom}
+                onChange={(e) => {
+                  setFilterDateFrom(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <input
+                type="date"
+                title="To Payment Date"
+                value={filterDateTo}
+                onChange={(e) => {
+                  setFilterDateTo(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full max-w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Entries Table */}
+        {/* Mobile Filters Modal */}
+        {mobileFilterOpen && (
+          <Modal
+            title="Filter Payment Records"
+            maxWidthClassName="max-w-md"
+            onClose={() => setMobileFilterOpen(false)}
+            footer={
+              <div className="flex items-center justify-end gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterPartyType("CUSTOMER");
+                    setFilterMode("");
+                    setFilterAdjusted("");
+                    setFilterDateFrom("");
+                    setFilterDateTo("");
+                    setPage(1);
+                  }}
+                  className="ghost-btn px-4 py-2"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileFilterOpen(false)}
+                  className="primary-btn w-auto px-5 py-2"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium muted-text">
+                  Party Type
+                </label>
+                <select
+                  value={filterPartyType}
+                  onChange={(e) => {
+                    setFilterPartyType(e.target.value);
+                    setPage(1);
+                  }}
+                  className="form-input text-sm"
+                >
+                  <option value="">All Parties</option>
+                  <option value="CUSTOMER">Customers</option>
+                  <option value="MANUFACTURER">Manufacturers</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium muted-text">
+                  Payment Mode
+                </label>
+                <select
+                  value={filterMode}
+                  onChange={(e) => {
+                    setFilterMode(e.target.value);
+                    setPage(1);
+                  }}
+                  className="form-input text-sm"
+                >
+                  <option value="">All Modes</option>
+                  {PAYMENT_MODES.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium muted-text">
+                  Adjustment Type
+                </label>
+                <select
+                  value={filterAdjusted}
+                  onChange={(e) => {
+                    setFilterAdjusted(e.target.value);
+                    setPage(1);
+                  }}
+                  className="form-input text-sm"
+                >
+                  <option value="">All Adjustments</option>
+                  <option value="ORDER_ID">Against Orders</option>
+                  <option value="PARTIAL">Partial / On Account</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium muted-text">
+                    From Date
+                  </label>
+                  <input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => {
+                      setFilterDateFrom(e.target.value);
+                      setPage(1);
+                    }}
+                    className="form-input text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium muted-text">
+                    To Date
+                  </label>
+                  <input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => {
+                      setFilterDateTo(e.target.value);
+                      setPage(1);
+                    }}
+                    className="form-input text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Entries (Table on Desktop, Cards on Mobile) */}
         {loadingEntries ? (
           <div className="py-12 text-center text-sm muted-text">
             Loading payment records...
@@ -1145,168 +1592,331 @@ function PaymentsPage() {
             No payment records found.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-muted/50 text-left font-medium muted-text">
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Sr. No
-                  </th>
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Date
-                  </th>
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Customer
-                  </th>
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Amount
-                  </th>
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Mode
-                  </th>
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Adjusted Against
-                  </th>
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Status
-                  </th>
-                  <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                    Remark
-                  </th>
-                  <th className="px-3.5 py-3 font-medium text-right whitespace-nowrap">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                {entries.map((item) => {
-                  const isPartial = item.adjustedAgainst === "PARTIAL";
-                  const isSettled = item.isFullySettled;
-                  return (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-surface-muted/40 transition-colors"
-                    >
-                      <td className="px-3.5 py-3 font-bold text-accent">
-                        #{item.serialNo}
-                      </td>
-                      <td className="px-3.5 py-3 muted-text whitespace-nowrap">
-                        {formatDateDisplay(item.date)}
-                      </td>
-                      <td className="px-3.5 py-3">
-                        <div className="font-medium text-text">
-                          {item.customer?.firmName || item.customer?.name}
+          <>
+            {/* Mobile View: Cards */}
+            <div className="space-y-3 md:hidden">
+              {entries.map((item) => {
+                const isManufacturer = item.partyType === "MANUFACTURER";
+                const isPartial = item.adjustedAgainst === "PARTIAL" || isManufacturer;
+                const isSettled = item.isFullySettled;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-border bg-surface p-4 shadow-sm space-y-3"
+                  >
+                    {/* Header: Sr. No, Date, Amount */}
+                    <div className="flex items-start justify-between gap-2 border-b border-border/70 pb-2.5">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-accent text-sm">
+                            #{item.serialNo}
+                          </span>
+                          <span className="text-xs muted-text">
+                            {formatDateDisplay(item.date)}
+                          </span>
                         </div>
-                        {item.customer?.firmName && item.customer?.name && (
-                          <div className="text-xs muted-text">
-                            {item.customer.name}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-3.5 py-3 font-bold text-emerald-600 whitespace-nowrap">
-                        {formatCurrency(item.finalSettledAmount ?? item.amount)}
-                      </td>
-                      <td className="px-3.5 py-3 whitespace-nowrap">
-                        <span className="inline-flex rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-semibold muted-text border border-border">
+                        <div className="mt-1">
+                          {isManufacturer ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="rounded bg-purple-100 dark:bg-purple-900/60 px-1.5 py-0.2 text-[10px] font-bold text-purple-700 dark:text-purple-300">
+                                MFR
+                              </span>
+                              <span className="font-semibold text-text text-sm">
+                                {item.manufacturer?.firmName || item.manufacturer?.name || "Manufacturer"}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="font-semibold text-text text-sm">
+                              {item.customer?.firmName || item.customer?.name}
+                            </div>
+                          )}
+                          {((isManufacturer && item.manufacturer?.firmName && item.manufacturer?.name) ||
+                            (!isManufacturer && item.customer?.firmName && item.customer?.name)) && (
+                            <div className="text-xs muted-text mt-0.5">
+                              {isManufacturer ? item.manufacturer?.name : item.customer?.name}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-bold text-emerald-600 text-base">
+                          {formatCurrency(item.finalSettledAmount ?? item.amount)}
+                        </div>
+                        <span className="inline-flex rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium muted-text border border-border mt-0.5">
                           {item.paymentMode}
                         </span>
-                      </td>
-                      <td className="px-3.5 py-3 whitespace-nowrap">
+                      </div>
+                    </div>
+
+                    {/* Tags row: Adjustment & Status */}
+                    <div className="flex items-center justify-between gap-2 text-xs flex-wrap">
+                      <div className="flex items-center gap-2">
                         {isPartial ? (
-                          <span className="inline-flex rounded-md bg-purple-500/10 px-2.5 py-0.5 text-xs font-semibold text-purple-600">
+                          <span className="inline-flex rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-600">
                             Partial / Account
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
-                            Orders (
-                            {item._count?.allocations ||
-                              item.allocations?.length ||
-                              0}
-                            )
+                          <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                            Orders ({item._count?.allocations || item.allocations?.length || 0})
                           </span>
                         )}
-                      </td>
-                      <td className="px-3.5 py-3 whitespace-nowrap">
+
                         {isSettled ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
                             Settled
                           </span>
                         ) : isPartial ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-600">
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-600"></span>
                             Open Partial
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
                             Allocated
                           </span>
                         )}
-                      </td>
-                      <td
-                        className="px-3.5 py-3 muted-text max-w-xs truncate"
-                        title={item.remark}
-                      >
-                        {item.remark || "-"}
-                      </td>
-                      <td className="px-3.5 py-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-2">
-                          {/* View Details */}
-                          <button
-                            type="button"
-                            onClick={() => setDetailsModalEntry(item)}
-                            className="rounded p-1.5 text-muted hover:bg-surface-muted hover:text-text transition-colors"
-                            title="View Details"
-                          >
-                            <svg
-                              className="h-4 w-4 fill-none stroke-current stroke-2"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                          </button>
+                      </div>
+                    </div>
 
-                          {/* Settle Account Button for Partial Unsettled */}
-                          {isPartial && !isSettled && (
+                    {/* Remark if present */}
+                    {item.remark && (
+                      <p className="text-xs muted-text bg-bg/50 rounded-lg p-2 border border-border/50">
+                        <span className="font-medium text-text">Remark:</span> {item.remark}
+                      </p>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2 border-t border-border/70 pt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setDetailsModalEntry(item)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-muted transition"
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>Details</span>
+                      </button>
+
+                      {isPartial && !isSettled && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettleModalEntry(item);
+                            setSettleAmountInput(item.finalSettledAmount ?? item.amount);
+                          }}
+                          className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition"
+                        >
+                          Settle
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setDeleteCandidateId(item.id)}
+                        className="rounded-lg border border-rose-200 dark:border-rose-900/60 p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                        title="Delete"
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop View: Table */}
+            <div className="hidden md:block overflow-x-auto rounded-lg border border-border">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-surface-muted/50 text-left font-medium muted-text">
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Sr. No
+                    </th>
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Date
+                    </th>
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Party
+                    </th>
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Amount
+                    </th>
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Mode
+                    </th>
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Adjusted Against
+                    </th>
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Status
+                    </th>
+                    <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                      Remark
+                    </th>
+                    <th className="px-3.5 py-3 font-medium text-right whitespace-nowrap">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/70">
+                  {entries.map((item) => {
+                    const isManufacturer = item.partyType === "MANUFACTURER";
+                    const isPartial = item.adjustedAgainst === "PARTIAL" || isManufacturer;
+                    const isSettled = item.isFullySettled;
+                    return (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-surface-muted/40 transition-colors"
+                      >
+                        <td className="px-3.5 py-3 font-bold text-accent">
+                          #{item.serialNo}
+                        </td>
+                        <td className="px-3.5 py-3 muted-text whitespace-nowrap">
+                          {formatDateDisplay(item.date)}
+                        </td>
+                        <td className="px-3.5 py-3">
+                          {isManufacturer ? (
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="rounded bg-purple-100 dark:bg-purple-900/60 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300">
+                                  MFR
+                                </span>
+                                <span className="font-medium text-text">
+                                  {item.manufacturer?.firmName || item.manufacturer?.name || "Manufacturer"}
+                                </span>
+                              </div>
+                              {item.manufacturer?.firmName && item.manufacturer?.name && (
+                                <div className="text-xs muted-text pl-7">
+                                  {item.manufacturer.name}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="font-medium text-text">
+                                {item.customer?.firmName || item.customer?.name}
+                              </div>
+                              {item.customer?.firmName && item.customer?.name && (
+                                <div className="text-xs muted-text">
+                                  {item.customer.name}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-3 font-bold text-emerald-600 whitespace-nowrap">
+                          {formatCurrency(item.finalSettledAmount ?? item.amount)}
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          <span className="inline-flex rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-semibold muted-text border border-border">
+                            {item.paymentMode}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          {isPartial ? (
+                            <span className="inline-flex rounded-md bg-purple-500/10 px-2.5 py-0.5 text-xs font-semibold text-purple-600">
+                              Partial / Account
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+                              Orders (
+                              {item._count?.allocations ||
+                                item.allocations?.length ||
+                                0}
+                              )
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-3 whitespace-nowrap">
+                          {isSettled ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
+                              Settled
+                            </span>
+                          ) : isPartial ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-600">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-600"></span>
+                              Open Partial
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-600">
+                              Allocated
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          className="px-3.5 py-3 muted-text max-w-xs truncate"
+                          title={item.remark}
+                        >
+                          {item.remark || "-"}
+                        </td>
+                        <td className="px-3.5 py-3 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2">
+                            {/* View Details */}
                             <button
                               type="button"
-                              onClick={() => {
-                                setSettleModalEntry(item);
-                                setSettleAmountInput(
-                                  item.finalSettledAmount ?? item.amount,
-                                );
-                              }}
-                              className="rounded bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition-colors"
-                              title="Mark Account as Fully Settled"
+                              onClick={() => setDetailsModalEntry(item)}
+                              className="rounded p-1.5 text-muted hover:bg-surface-muted hover:text-text transition-colors"
+                              title="View Details"
                             >
-                              Settle Account
+                              <svg
+                                className="h-4 w-4 fill-none stroke-current stroke-2"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
                             </button>
-                          )}
 
-                          {/* Delete Button */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteCandidateId(item.id)}
-                            className="rounded p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                            title="Delete Entry"
-                          >
-                            <svg
-                              className="h-4 w-4 fill-none stroke-current stroke-2"
-                              viewBox="0 0 24 24"
+                            {/* Settle Account Button for Partial Unsettled */}
+                            {isPartial && !isSettled && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSettleModalEntry(item);
+                                  setSettleAmountInput(
+                                    item.finalSettledAmount ?? item.amount,
+                                  );
+                                }}
+                                className="rounded bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition-colors"
+                                title="Mark Account as Fully Settled"
+                              >
+                                Settle Account
+                              </button>
+                            )}
+
+                            {/* Delete Button */}
+                            <button
+                              type="button"
+                              onClick={() => setDeleteCandidateId(item.id)}
+                              className="rounded p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                              title="Delete Entry"
                             >
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                              <svg
+                                className="h-4 w-4 fill-none stroke-current stroke-2"
+                                viewBox="0 0 24 24"
+                              >
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* Pagination */}
@@ -1358,10 +1968,13 @@ function PaymentsPage() {
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-bg/50 p-4">
               <div>
-                <span className="muted-text">Customer: </span>
+                <span className="muted-text">
+                  {detailsModalEntry.partyType === "MANUFACTURER" ? "Manufacturer: " : "Customer: "}
+                </span>
                 <strong className="text-text block text-base font-semibold">
-                  {detailsModalEntry.customer?.firmName ||
-                    detailsModalEntry.customer?.name}
+                  {detailsModalEntry.partyType === "MANUFACTURER"
+                    ? detailsModalEntry.manufacturer?.firmName || detailsModalEntry.manufacturer?.name || "Manufacturer"
+                    : detailsModalEntry.customer?.firmName || detailsModalEntry.customer?.name}
                 </strong>
               </div>
               <div>
@@ -1417,7 +2030,9 @@ function PaymentsPage() {
               {!detailsModalEntry.allocations ||
               detailsModalEntry.allocations.length === 0 ? (
                 <p className="muted-text italic text-sm">
-                  {detailsModalEntry.adjustedAgainst === "PARTIAL"
+                  {detailsModalEntry.partyType === "MANUFACTURER"
+                    ? "This is an on-account manufacturer payment. Manufacturer commissions are settled at aggregate/lump-sum level."
+                    : detailsModalEntry.adjustedAgainst === "PARTIAL"
                     ? "This is an on-account partial payment without order-level breakdown."
                     : "No specific allocations found."}
                 </p>
@@ -1476,10 +2091,14 @@ function PaymentsPage() {
         </Modal>
       )}
 
-      {/* 5. Settle Customer Account Modal */}
+      {/* 5. Settle Account Modal */}
       {settleModalEntry && (
         <Modal
-          title="Settle Customer Account"
+          title={
+            settleModalEntry.partyType === "MANUFACTURER"
+              ? "Settle Manufacturer Payment"
+              : "Settle Customer Account"
+          }
           maxWidthClassName="max-w-md"
           onClose={() => setSettleModalEntry(null)}
           footer={
@@ -1497,23 +2116,31 @@ function PaymentsPage() {
                 onClick={handleSettleAccount}
                 className="rounded-lg bg-emerald-600 px-5 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
               >
-                {settling ? "Settling..." : "Confirm & Settle Account"}
+                {settling ? "Settling..." : "Confirm & Settle"}
               </button>
             </div>
           }
         >
           <div className="space-y-4 text-sm">
             <p className="text-text">
-              Marking this partial payment entry as fully settled will settle
-              the customer account and all open orders for this customer in the
-              date range.
+              {settleModalEntry.partyType === "MANUFACTURER"
+                ? "Marking this manufacturer payment as settled records the final agreed payment amount."
+                : "Marking this partial payment entry as fully settled will settle the customer account and all open orders for this customer in the date range."}
             </p>
             <div className="rounded-xl border border-border bg-bg/50 p-4 space-y-1.5">
               <div>
-                <span className="muted-text">Customer: </span>
+                <span className="muted-text">
+                  {settleModalEntry.partyType === "MANUFACTURER"
+                    ? "Manufacturer: "
+                    : "Customer: "}
+                </span>
                 <strong className="text-text font-semibold">
-                  {settleModalEntry.customer?.firmName ||
-                    settleModalEntry.customer?.name}
+                  {settleModalEntry.partyType === "MANUFACTURER"
+                    ? settleModalEntry.manufacturer?.firmName ||
+                      settleModalEntry.manufacturer?.name ||
+                      "Manufacturer"
+                    : settleModalEntry.customer?.firmName ||
+                      settleModalEntry.customer?.name}
                 </strong>
               </div>
               <div>

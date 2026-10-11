@@ -2,8 +2,14 @@ import { useEffect, useState, useMemo } from "react";
 import { toast } from "react-toastify";
 import { createMyWhatsAppGroup, deleteMyWhatsAppGroup, getMyWhatsAppGroups } from "../../lib/api";
 import { sortByText } from "../../utils/sort";
+import { useNavigate } from "react-router-dom";
+import { useAppSelector } from "../../store/hooks";
+import { isSubscriptionExpired } from "../../utils/subscription";
 
 function WhatsAppGroupsMasterTab() {
+  const navigate = useNavigate();
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const isExpired = isSubscriptionExpired(currentUser);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [groupForm, setGroupForm] = useState({ name: "", inviteLink: "" });
@@ -40,6 +46,11 @@ function WhatsAppGroupsMasterTab() {
   }, []);
 
   async function handleAddGroup(event) {
+    event.preventDefault();
+    if (isExpired) {
+      toast.error("Your subscription has expired. Please renew your plan to add WhatsApp groups.");
+      return;
+    }
     event.preventDefault();
     const name = groupForm.name.trim();
     const inviteLink = groupForm.inviteLink.trim();

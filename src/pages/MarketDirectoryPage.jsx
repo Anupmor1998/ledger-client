@@ -4,6 +4,8 @@ import Modal from "../components/Modal";
 import SearchableSelect from "../components/SearchableSelect";
 import AdBanner from "../components/AdBanner";
 import { ADSENSE_CONFIG } from "../config/ads";
+import { useAppSelector } from "../store/hooks";
+import FeatureGateCard from "../components/FeatureGateCard";
 import {
   getMarketDirectory,
   tagPartyQuality,
@@ -43,6 +45,43 @@ function cleanPhoneForWhatsApp(phone) {
 }
 
 function MarketDirectoryPage() {
+  const user = useAppSelector((state) => state.auth.user);
+
+  const currentPlan = String(user?.subscriptionPlan || "TRIAL").toUpperCase();
+  const isVip =
+    user?.subscriptionPlan === "COMPLIMENTARY" ||
+    (user?.subscriptionPlan === "PREMIUM" && user?.billingCycle === "LIFETIME") ||
+    (user?.subscriptionPlan === "PREMIUM" && !user?.planExpiresAt);
+
+  const now = new Date();
+  const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const isTrialExpired = currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
+  const isPlanExpired = user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
+
+  const hasAccess =
+    user?.role === "ADMIN" ||
+    isVip ||
+    (currentPlan === "TRIAL" && !isTrialExpired) ||
+    (currentPlan === "PREMIUM" && !isPlanExpired);
+
+  if (!hasAccess) {
+    return (
+      <FeatureGateCard
+        featureKey="MARKET_DIRECTORY"
+        title="Unlock Market Directory & Leads"
+        subtitle="Discover verified textile buyers and sellers, filter by quality fabric, and connect directly on WhatsApp."
+        requiredTier="Premium"
+        currentPlan={currentPlan}
+        bulletPoints={[
+          "Live marketplace directory of verified buyers and sellers",
+          "Search & filter parties dealing in specific qualities",
+          "Direct WhatsApp lead connect button",
+          "Tag and curate your preferred market vendors",
+        ]}
+      />
+    );
+  }
+
   const [partyType, setPartyType] = useState("buyer"); // "buyer" | "seller"
   const [qualityInput, setQualityInput] = useState("");
   const [debouncedQualitySearch, setDebouncedQualitySearch] = useState("");

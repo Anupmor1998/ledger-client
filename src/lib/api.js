@@ -476,6 +476,11 @@ export async function deletePaymentEntry(id) {
   return response.data;
 }
 
+export async function getManufacturerPaymentSummary(manufacturerId) {
+  const response = await axiosClient.get(`/payments/manufacturer-summary/${manufacturerId}`);
+  return response.data;
+}
+
 export async function createSupportTicket(data) {
   const response = await axiosClient.post("/support/tickets", data);
   return response.data;
@@ -643,6 +648,12 @@ export async function toggleUserFreeAccess(userId, enabled) {
   return response.data;
 }
 
+export async function getInAppReminders() {
+  const response = await axiosClient.get("/subscription/reminders");
+  return response.data;
+}
 
-
-
+export async function testSwitchSubscriptionPlan(mode) {
+  const response = await axiosClient.post("/subscription/test-switch-plan", { mode });
+  return response.data;
+}

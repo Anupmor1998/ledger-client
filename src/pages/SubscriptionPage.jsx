@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import {
@@ -9,6 +9,7 @@ import {
   getSubscriptionInvoices,
   getSubscriptionStatus,
   previewSubscriptionOrder,
+  testSwitchSubscriptionPlan,
   verifySubscriptionPayment,
 } from "../lib/api";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
@@ -33,7 +34,6 @@ const PLAN_TIERS = [
       "Multi-Financial Year Support",
     ],
     excluded: [
-      "100% Ad-Free Experience",
       "Branded PDF Statement Exports",
       "Visual Analytics Dashboard",
       "Market Directory Search & Leads",
@@ -46,10 +46,9 @@ const PLAN_TIERS = [
     highlight: true,
     monthlyPrice: 299,
     yearlyPrice: 2990,
-    subtitle: "High-speed, 100% ad-free experience with professional PDF statements.",
+    subtitle: "High-speed experience with professional branded PDF statements.",
     features: [
       "Everything in Starter",
-      "100% Ad-Free (Zero Distractions)",
       "Zero Load Time (Priority Fast Server)",
       "Branded PDF Reports & Statements (Print-Ready Downloads)",
       "Direct WhatsApp Share for Sauda Slips",
@@ -91,6 +90,7 @@ const TIER_RANKS = {
 function SubscriptionPage() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
+  const location = useLocation();
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
   const [orderPreview, setOrderPreview] = useState(null);
@@ -101,6 +101,19 @@ function SubscriptionPage() {
   const [invoices, setInvoices] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+
+  // Auto-scroll to Choose Plan section if navigated with hash #plans-grid or action
+  useEffect(() => {
+    if (location.hash === "#plans-grid" || location.hash === "#choose-plan" || location.search.includes("scroll=plans")) {
+      const scrollTimer = setTimeout(() => {
+        const el = document.getElementById("plans-grid");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 150);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [location.hash, location.search]);
 
   async function handleDownloadInvoice(inv) {
     if (downloadingInvoiceId) return;
@@ -325,6 +338,24 @@ function SubscriptionPage() {
     }
   }
 
+  const [switchingTestPlan, setSwitchingTestPlan] = useState(false);
+
+  async function handleTestSwitchPlan(mode) {
+    try {
+      setSwitchingTestPlan(true);
+      const res = await testSwitchSubscriptionPlan(mode);
+      if (res?.user) {
+        dispatch(setUserProfile(res.user));
+      }
+      await loadData();
+      toast.success(res?.message || `Switched plan to ${mode}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to switch test plan");
+    } finally {
+      setSwitchingTestPlan(false);
+    }
+  }
+
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
@@ -368,6 +399,87 @@ function SubscriptionPage() {
           <span>Need Help?</span>
         </Link>
       </div>
+
+      {/* 1-Click Plan Testing Simulator (Visible only when configured via env or in staging/dev) */}
+      {(process.env.ENABLE_SUBSCRIPTION_SIMULATOR === "true" ||
+        process.env.APP_ENV === "staging" ||
+        import.meta.env.MODE === "staging") && (
+        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-accent/20 pb-3 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🛠️</span>
+            <div>
+              <h3 className="text-sm font-bold text-text">Subscription Plan Testing Simulator</h3>
+              <p className="text-xs text-muted-text">
+                Test how the entire app, feature gating, reminders, and exports behave across each plan in 1-click:
+              </p>
+            </div>
+          </div>
+          {switchingTestPlan && (
+            <span className="text-xs font-semibold text-accent animate-pulse">Switching...</span>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={switchingTestPlan}
+            onClick={() => handleTestSwitchPlan("TRIAL_ACTIVE")}
+            className="rounded-lg border border-border bg-surface hover:border-accent px-3 py-1.5 text-xs font-semibold text-text shadow-sm transition"
+          >
+            🟢 Active Trial (14d)
+          </button>
+          <button
+            type="button"
+            disabled={switchingTestPlan}
+            onClick={() => handleTestSwitchPlan("TRIAL_EXPIRING")}
+            className="rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 shadow-sm transition"
+          >
+            ⚠️ Expiring Trial (2d)
+          </button>
+          <button
+            type="button"
+            disabled={switchingTestPlan}
+            onClick={() => handleTestSwitchPlan("TRIAL_EXPIRED")}
+            className="rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-700 dark:text-red-300 shadow-sm transition"
+          >
+            🛑 Expired Trial (0d)
+          </button>
+          <button
+            type="button"
+            disabled={switchingTestPlan}
+            onClick={() => handleTestSwitchPlan("STARTER")}
+            className="rounded-lg border border-border bg-surface hover:border-accent px-3 py-1.5 text-xs font-semibold text-text shadow-sm transition"
+          >
+            📦 Starter Plan (Monthly)
+          </button>
+          <button
+            type="button"
+            disabled={switchingTestPlan}
+            onClick={() => handleTestSwitchPlan("GROWTH")}
+            className="rounded-lg border border-accent/40 bg-accent/10 hover:bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent shadow-sm transition"
+          >
+            🚀 Growth / Budget (Monthly)
+          </button>
+          <button
+            type="button"
+            disabled={switchingTestPlan}
+            onClick={() => handleTestSwitchPlan("PREMIUM")}
+            className="rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 px-3 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 shadow-sm transition"
+          >
+            👑 Premium Plan (Yearly)
+          </button>
+          <button
+            type="button"
+            disabled={switchingTestPlan}
+            onClick={() => handleTestSwitchPlan("PLAN_EXPIRED")}
+            className="rounded-lg border border-red-500/30 bg-surface hover:border-red-500 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 shadow-sm transition"
+          >
+            🔒 Expired Paid Plan
+          </button>
+        </div>
+      </div>
+      )}
 
       {/* Active Subscription Summary Card */}
       <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-sm">
@@ -699,14 +811,6 @@ function SubscriptionPage() {
                 <td className="p-3 text-center">Included</td>
                 <td className="p-3 text-center bg-accent/5 font-medium">Included</td>
                 <td className="p-3 text-center font-medium">Included</td>
-              </tr>
-              <tr>
-                <td className="p-3 sm:px-4 font-medium">Ad-Free Experience</td>
-                <td className="p-3 text-center text-muted-text">Standard Ads</td>
-                <td className="p-3 text-center bg-accent/5 font-bold text-accent">
-                  100% Ad-Free
-                </td>
-                <td className="p-3 text-center font-bold text-accent">100% Ad-Free</td>
               </tr>
               <tr>
                 <td className="p-3 sm:px-4 font-medium">Report Formats</td>

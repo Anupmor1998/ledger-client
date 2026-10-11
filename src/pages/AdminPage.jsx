@@ -941,7 +941,7 @@ function AdminPage() {
                   {
                     id: "GROWTH",
                     name: "Growth / Budget",
-                    desc: "Ad-free experience, unlimited customers & manufacturers, 100 exports/mo.",
+                    desc: "Branded PDF reports, unlimited customers & manufacturers, 150 exports/mo.",
                     border: "border-indigo-500/40 hover:border-indigo-500",
                     selectedBg: "bg-indigo-500/10 border-indigo-600 text-indigo-900 dark:text-indigo-200",
                   },

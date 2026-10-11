@@ -2,8 +2,14 @@ import { useEffect, useState, useMemo } from "react";
 import { toast } from "react-toastify";
 import { createMyRemarkTemplate, deleteMyRemarkTemplate, getMyRemarkTemplates } from "../../lib/api";
 import { sortByText } from "../../utils/sort";
+import { useNavigate } from "react-router-dom";
+import { useAppSelector } from "../../store/hooks";
+import { isSubscriptionExpired } from "../../utils/subscription";
 
 function SavedRemarksMasterTab() {
+  const navigate = useNavigate();
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const isExpired = isSubscriptionExpired(currentUser);
   const [remarkTemplates, setRemarkTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [remarkForm, setRemarkForm] = useState("");
@@ -40,6 +46,11 @@ function SavedRemarksMasterTab() {
   }, []);
 
   async function handleAddRemark(event) {
+    event.preventDefault();
+    if (isExpired) {
+      toast.error("Your subscription has expired. Please renew your plan to save remarks.");
+      return;
+    }
     event.preventDefault();
     const text = remarkForm.trim();
     if (!text) {
