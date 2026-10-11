@@ -357,13 +357,6 @@ function PricingPage({ dark, onToggleTheme }) {
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
-                    <span>100% Ad-Free Experience</span>
-                  </div>
-                  <div className="flex items-start gap-2.5 muted-text opacity-50">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 stroke-2 fill-none stroke-current">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
                     <span>Market Directory Search & Leads</span>
                   </div>
                 </div>
@@ -393,7 +386,7 @@ function PricingPage({ dark, onToggleTheme }) {
                   </span>
                 </div>
                 <p className="text-xs muted-text mt-2">
-                  High-speed, 100% ad-free experience with professional PDF statements.
+                  High-speed experience with professional branded PDF statements.
                 </p>
 
                 <div className="mt-6">
@@ -413,12 +406,6 @@ function PricingPage({ dark, onToggleTheme }) {
                 <div className="mt-6 pt-6 border-t border-[var(--color-border)] space-y-3 text-xs">
                   <div className="font-semibold text-[var(--color-accent)] uppercase tracking-wider text-[10px]">
                     Everything in Starter, plus:
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--color-accent)] shrink-0 stroke-2 fill-none stroke-current">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    <span className="font-semibold">100% Ad-Free (Zero Distractions)</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--color-accent)] shrink-0 stroke-2 fill-none stroke-current">
@@ -603,14 +590,6 @@ function PricingPage({ dark, onToggleTheme }) {
                   <td className="p-4 text-center">Included</td>
                   <td className="p-4 text-center bg-[var(--color-accent-soft)]/10 font-medium">Included</td>
                   <td className="p-4 text-center">Included</td>
-                </tr>
-                <tr>
-                  <td className="p-4 sm:px-6 font-medium">Ad-Free Experience</td>
-                  <td className="p-4 text-center muted-text opacity-70">Standard Ads</td>
-                  <td className="p-4 text-center bg-[var(--color-accent-soft)]/10 font-semibold text-[var(--color-accent)]">
-                    100% Ad-Free
-                  </td>
-                  <td className="p-4 text-center font-semibold text-[var(--color-accent)]">100% Ad-Free</td>
                 </tr>
                 <tr>
                   <td className="p-4 sm:px-6 font-medium">Server Speed & Load Times</td>

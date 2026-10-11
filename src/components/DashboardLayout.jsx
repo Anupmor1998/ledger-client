@@ -5,6 +5,8 @@ import { logout } from "../store/slices/authSlice";
 import ThemeToggle from "./ThemeToggle";
 import AdBanner from "./AdBanner";
 import { ADSENSE_CONFIG } from "../config/ads";
+import NotificationBell from "./NotificationBell";
+import SubscriptionReminderBanner from "./SubscriptionReminderBanner";
 
 const navigationGroups = [
   {
@@ -273,84 +275,89 @@ function DashboardLayout({ dark, onToggleTheme }) {
                 />
               </div>
 
-              <div className="hidden md:block">
-                <div className="relative" ref={popoverContainerRef}>
-                  <button
-                    type="button"
-                    onClick={() => setPopoverOpen((prev) => !prev)}
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white"
-                    aria-label="Open user menu"
-                  >
-                    {avatarText}
-                  </button>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <NotificationBell />
 
-                  {popoverOpen ? (
-                    <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg space-y-1">
-                      <div className="px-3 py-2 border-b border-border">
-                        <p className="text-sm font-semibold truncate text-text">
-                          {displayName}
-                        </p>
-                        <p className="text-[11px] text-muted-text truncate">
-                          {user?.firmName || "Broker Account"}
-                        </p>
+                <div className="hidden md:block">
+                  <div className="relative" ref={popoverContainerRef}>
+                    <button
+                      type="button"
+                      onClick={() => setPopoverOpen((prev) => !prev)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white"
+                      aria-label="Open user menu"
+                    >
+                      {avatarText}
+                    </button>
+
+                    {popoverOpen ? (
+                      <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-lg space-y-1">
+                        <div className="px-3 py-2 border-b border-border">
+                          <p className="text-sm font-semibold truncate text-text">
+                            {displayName}
+                          </p>
+                          <p className="text-[11px] text-muted-text truncate">
+                            {user?.firmName || "Broker Account"}
+                          </p>
+                        </div>
+
+                        <Link
+                          to="/subscription"
+                          onClick={() => setPopoverOpen(false)}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-accent hover:bg-bg transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
+                            <path d="M6 3h12l4 6-10 12L2 9l4-6z" />
+                          </svg>
+                          <span>Subscription & Plans</span>
+                        </Link>
+
+                        <Link
+                          to="/profile"
+                          onClick={() => setPopoverOpen(false)}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-text hover:bg-bg hover:text-text transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
+                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                          <span>Profile Settings</span>
+                        </Link>
+
+                        <div className="pt-1 border-t border-border">
+                          <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-bg"
+                        >
+                          Logout
+                        </button>
                       </div>
-
-                      <Link
-                        to="/subscription"
-                        onClick={() => setPopoverOpen(false)}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-accent hover:bg-bg transition-colors"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
-                          <path d="M6 3h12l4 6-10 12L2 9l4-6z" />
-                        </svg>
-                        <span>Subscription & Plans</span>
-                      </Link>
-
-                      <Link
-                        to="/profile"
-                        onClick={() => setPopoverOpen(false)}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-text hover:bg-bg hover:text-text transition-colors"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2">
-                          <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        <span>Profile Settings</span>
-                      </Link>
-
-                      <div className="pt-1 border-t border-border">
-                        <ThemeToggle dark={dark} onToggleTheme={onToggleTheme} />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-bg"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setMobileOpen(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-border md:hidden"
-                aria-label="Open menu"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5 fill-none stroke-current stroke-2"
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(true)}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border md:hidden"
+                  aria-label="Open menu"
                 >
-                  <path d="M4 7h16M4 12h16M4 17h16" />
-                </svg>
-              </button>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5 fill-none stroke-current stroke-2"
+                  >
+                    <path d="M4 7h16M4 12h16M4 17h16" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </header>
 
           <main className="mt-4 min-w-0 overflow-x-hidden">
+            <SubscriptionReminderBanner />
             <Outlet />
           </main>
         </div>

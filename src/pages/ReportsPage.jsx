@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { format, parseISO, subMonths } from "date-fns";
 import { toast } from "react-toastify";
+import Modal from "../components/Modal";
 import { downloadReportFile, getCustomers, getManufacturers, getQualities } from "../lib/api";
 import SearchableSelect from "../components/SearchableSelect";
 import { useAppSelector } from "../store/hooks";
@@ -104,12 +106,13 @@ function getGroupByOptions(userType) {
 }
 
 function ReportsPage() {
-  const selectedFinancialYearStart = useAppSelector(
-    (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
-  );
+  const user = useAppSelector((state) => state.auth.user);
+  const selectedFinancialYearStart =
+    user?.selectedFinancialYearStart || getCurrentFinancialYearStart();
   const [loadingFilters, setLoadingFilters] = useState(true);
   const [downloadingKey, setDownloadingKey] = useState("");
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
+  const [pdfLockedModalOpen, setPdfLockedModalOpen] = useState(false);
   const rangePickerRef = useRef(null);
 
   const [customers, setCustomers] = useState([]);
@@ -233,6 +236,26 @@ function ReportsPage() {
   }
 
   async function handleDownloadExcel() {
+    const currentPlan = String(user?.subscriptionPlan || "TRIAL").toUpperCase();
+    const isVip =
+      user?.subscriptionPlan === "COMPLIMENTARY" ||
+      (user?.subscriptionPlan === "PREMIUM" && user?.billingCycle === "LIFETIME") ||
+      (user?.subscriptionPlan === "PREMIUM" && !user?.planExpiresAt);
+
+    const now = new Date();
+    const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+    const isTrialExpired = currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
+    const isPlanExpired = user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
+
+    if (user?.role !== "ADMIN" && !isVip && (isTrialExpired || isPlanExpired)) {
+      toast.error(
+        currentPlan === "TRIAL"
+          ? "Your 14-day free trial has expired. Please upgrade your plan to download reports."
+          : "Your subscription has expired. Please renew your plan to download reports."
+      );
+      return;
+    }
+
     const reportTypeLabel =
       filters.userType === "MANUFACTURER" ? "Manufacturer Report" : "Customer Report";
     setDownloadingKey("order-report-xlsx");
@@ -247,7 +270,9 @@ function ReportsPage() {
       toast.success(`${reportTypeLabel} downloaded as Excel`);
     } catch (error) {
       const message =
-        error?.response?.data?.message || error?.message || `Unable to download report.`;
+        error?.response?.data?.message ||
+        error?.message ||
+        `Unable to download report.`;
       toast.error(message);
     } finally {
       setDownloadingKey("");
@@ -255,6 +280,28 @@ function ReportsPage() {
   }
 
   async function handleDownloadPdf() {
+    const currentPlan = String(user?.subscriptionPlan || "TRIAL").toUpperCase();
+    const isVip =
+      user?.subscriptionPlan === "COMPLIMENTARY" ||
+      (user?.subscriptionPlan === "PREMIUM" && user?.billingCycle === "LIFETIME") ||
+      (user?.subscriptionPlan === "PREMIUM" && !user?.planExpiresAt);
+
+    const now = new Date();
+    const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+    const isTrialExpired = currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
+    const isPlanExpired = user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
+
+    if (user?.role !== "ADMIN" && !isVip) {
+      if (isTrialExpired || isPlanExpired) {
+        toast.error("Your subscription has expired. Please renew your plan to download reports.");
+        return;
+      }
+      if (currentPlan === "STARTER") {
+        setPdfLockedModalOpen(true);
+        return;
+      }
+    }
+
     const reportTypeLabel =
       filters.userType === "MANUFACTURER" ? "Manufacturer Report" : "Customer Report";
     setDownloadingKey("order-report-pdf");
@@ -524,6 +571,51 @@ function ReportsPage() {
           </div>
         </div>
       </div>
+
+      {pdfLockedModalOpen && (
+        <Modal
+          title="PDF Statement Exports"
+          maxWidthClassName="max-w-md"
+          onClose={() => setPdfLockedModalOpen(false)}
+          footer={
+            <div className="flex items-center justify-end gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setPdfLockedModalOpen(false)}
+                className="ghost-btn px-4 py-2"
+              >
+                Dismiss
+              </button>
+              <Link
+                to="/subscription#plans-grid"
+                onClick={() => {
+                  setPdfLockedModalOpen(false);
+                  const el = document.getElementById("plans-grid");
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className="primary-btn !w-auto px-5 py-2 font-semibold"
+              >
+                Upgrade to Growth / Budget
+              </Link>
+            </div>
+          }
+        >
+          <div className="space-y-3 py-2 text-left">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent">
+              <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current stroke-2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-text">
+              Branded PDF Statement Exports
+            </h3>
+            <p className="text-xs text-muted-text leading-relaxed">
+              Your Starter plan includes fast <strong>Excel (.xlsx) exports</strong>. To export print-ready, professionally branded PDF statements, upgrade to the <strong>Growth / Budget</strong> or <strong>Premium</strong> plan.
+            </p>
+          </div>
+        </Modal>
+      )}
     </section>
   );
 }

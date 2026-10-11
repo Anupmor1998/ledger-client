@@ -10,6 +10,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import CopyableText from "./CopyableText";
 import DataTable from "./DataTable";
 import Modal from "./Modal";
+import { isSubscriptionExpired } from "../utils/subscription";
 
 const emptyForm = {
   firmName: "",
@@ -66,6 +67,8 @@ function PartyTableCard({
   const navigate = useNavigate();
   const isCustomer = entityLabel === "customer";
   const hasGstField = isCustomer;
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const isExpired = isSubscriptionExpired(currentUser);
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
@@ -741,7 +744,13 @@ function PartyTableCard({
           <button
             type="button"
             className="primary-btn w-full sm:w-auto"
-            onClick={() => navigate(addEntryPath)}
+            onClick={() => {
+              if (isExpired) {
+                toast.error("Your subscription has expired. Please renew your plan to add new entries.");
+                return;
+              }
+              navigate(addEntryPath);
+            }}
           >
             Add New Entry
           </button>

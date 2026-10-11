@@ -4,6 +4,9 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
+import { useNavigate } from "react-router-dom";
+import { useAppSelector } from "../store/hooks";
+import { isSubscriptionExpired } from "../utils/subscription";
 import useDebounce from "../hooks/useDebounce";
 import {
   archiveQuality,
@@ -44,6 +47,9 @@ function parseListResponse(payload) {
 }
 
 function QualityPage() {
+  const navigate = useNavigate();
+  const currentUser = useAppSelector((state) => state.auth.user);
+  const isExpired = isSubscriptionExpired(currentUser);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -326,7 +332,13 @@ function QualityPage() {
         <button
           type="button"
           className="primary-btn w-auto inline-flex items-center gap-2"
-          onClick={() => setCreateOpen(true)}
+          onClick={() => {
+              if (isExpired) {
+                toast.error("Your subscription has expired. Please renew your plan to add qualities.");
+                return;
+              }
+              setCreateOpen(true);
+            }}
         >
           <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
             <path d="M12 5v14M5 12h14" />

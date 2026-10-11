@@ -10,6 +10,6 @@ export const ADSENSE_CONFIG = {
     directoryBottom: import.meta.env.VITE_ADSENSE_SLOT_DIRECTORY || "",
   },
 
-  // Whether ads are enabled globally
-  enabled: true,
+  // Whether ads are enabled globally (temporarily disabled/commented out)
+  enabled: false,
 };

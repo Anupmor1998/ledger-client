@@ -18,6 +18,8 @@ import {
 import { getAnalytics, getDashboardSummary } from "../lib/api";
 import AdBanner from "../components/AdBanner";
 import { ADSENSE_CONFIG } from "../config/ads";
+import { useAppSelector } from "../store/hooks";
+import FeatureGateCard from "../components/FeatureGateCard";
 
 const ANALYTICS_FY_STORAGE_KEY = "ledger_analytics_financial_year";
 
@@ -530,6 +532,43 @@ function KeyMetricCard({ label, value, suffix, subtitle }) {
 
 function DashboardOverviewPage() {
   const navigate = useNavigate();
+  const user = useAppSelector((state) => state.auth.user);
+
+  const currentPlan = String(user?.subscriptionPlan || "TRIAL").toUpperCase();
+  const isVip =
+    user?.subscriptionPlan === "COMPLIMENTARY" ||
+    (user?.subscriptionPlan === "PREMIUM" && user?.billingCycle === "LIFETIME") ||
+    (user?.subscriptionPlan === "PREMIUM" && !user?.planExpiresAt);
+
+  const now = new Date();
+  const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
+  const isTrialExpired = currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
+  const isPlanExpired = user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
+
+  const hasAccess =
+    user?.role === "ADMIN" ||
+    isVip ||
+    (currentPlan === "TRIAL" && !isTrialExpired) ||
+    (currentPlan === "PREMIUM" && !isPlanExpired);
+
+  if (!hasAccess) {
+    return (
+      <FeatureGateCard
+        featureKey="ANALYTICS"
+        title="Unlock Deep Visual Analytics"
+        subtitle="Gain real-time visibility into brokerage turnover, party rankings, and quality velocities."
+        requiredTier="Premium"
+        currentPlan={currentPlan}
+        bulletPoints={[
+          "Interactive turnover charts and quarterly comparisons",
+          "Customer & manufacturer brokerage volume rankings",
+          "Quality dispatch velocities and monthly trend lines",
+          "Printable executive business insights",
+        ]}
+      />
+    );
+  }
+
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState("");
