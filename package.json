@@ -33,6 +33,9 @@
     "yup": "^1.7.1"
   },
   "overrides": {
-    "serialize-javascript": "^7.0.5"
+    "serialize-javascript": "^7.0.5",
+    "postcss-selector-parser": "^7.1.6",
+    "chokidar": "^4.0.3",
+    "braces": "npm:@xiaoxige1/braces@^3.2.2"
   }
 }

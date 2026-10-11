@@ -1,12 +1,20 @@
+import { format, parseISO, subMonths } from "date-fns";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { format, parseISO, subMonths } from "date-fns";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
-import { downloadReportFile, getCustomers, getManufacturers, getQualities } from "../lib/api";
 import SearchableSelect from "../components/SearchableSelect";
+import {
+  downloadReportFile,
+  getCustomers,
+  getManufacturers,
+  getQualities,
+} from "../lib/api";
 import { useAppSelector } from "../store/hooks";
-import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
+import {
+  getCurrentFinancialYearStart,
+  getFinancialYearLabel,
+} from "../utils/financialYear";
 import { sortByText } from "../utils/sort";
 
 function toItems(payload) {
@@ -113,6 +121,9 @@ function ReportsPage() {
   const [downloadingKey, setDownloadingKey] = useState("");
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
   const [pdfLockedModalOpen, setPdfLockedModalOpen] = useState(false);
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
+  const [pdfOrientation, setPdfOrientation] = useState("portrait");
+  const [pdfShowPaymentStatus, setPdfShowPaymentStatus] = useState(true);
   const rangePickerRef = useRef(null);
 
   const [customers, setCustomers] = useState([]);
@@ -136,18 +147,32 @@ function ReportsPage() {
     async function loadFilterOptions() {
       setLoadingFilters(true);
       try {
-        const [customerData, manufacturerData, qualityData] = await Promise.all([
-          getCustomers(),
-          getManufacturers(),
-          getQualities({ includeArchived: true }),
-        ]);
+        const [customerData, manufacturerData, qualityData] = await Promise.all(
+          [
+            getCustomers(),
+            getManufacturers(),
+            getQualities({ includeArchived: true }),
+          ],
+        );
 
-        setCustomers(sortByText(toItems(customerData), (item) => item?.firmName || item?.name));
-        setManufacturers(sortByText(toItems(manufacturerData), (item) => item?.firmName || item?.name));
+        setCustomers(
+          sortByText(
+            toItems(customerData),
+            (item) => item?.firmName || item?.name,
+          ),
+        );
+        setManufacturers(
+          sortByText(
+            toItems(manufacturerData),
+            (item) => item?.firmName || item?.name,
+          ),
+        );
         setQualities(sortByText(toItems(qualityData), (item) => item?.name));
       } catch (error) {
         const message =
-          error?.response?.data?.message || error?.message || "Unable to load report filters.";
+          error?.response?.data?.message ||
+          error?.message ||
+          "Unable to load report filters.";
         toast.error(message);
       } finally {
         setLoadingFilters(false);
@@ -162,7 +187,10 @@ function ReportsPage() {
       if (prev.rangePreset !== "CURRENT_FINANCIAL_YEAR") {
         return prev;
       }
-      const { from, to } = getPresetRange("CURRENT_FINANCIAL_YEAR", selectedFinancialYearStart);
+      const { from, to } = getPresetRange(
+        "CURRENT_FINANCIAL_YEAR",
+        selectedFinancialYearStart,
+      );
       if (prev.from === from && prev.to === to) {
         return prev;
       }
@@ -196,7 +224,7 @@ function ReportsPage() {
       userType: filters.userType,
       groupBy: filters.groupBy,
     }),
-    [filters]
+    [filters],
   );
 
   function updateFilter(key, value) {
@@ -246,7 +274,9 @@ function ReportsPage() {
     const isManufacturer = filters.userType === "MANUFACTURER";
     if (isManufacturer) {
       if (filters.manufacturerId) {
-        const found = manufacturers.find((m) => m.id === filters.manufacturerId);
+        const found = manufacturers.find(
+          (m) => m.id === filters.manufacturerId,
+        );
         const partyName = cleanName(found?.firmName || found?.name);
         if (partyName) return `${partyName}.${extension}`;
       }
@@ -265,25 +295,30 @@ function ReportsPage() {
     const currentPlan = String(user?.subscriptionPlan || "TRIAL").toUpperCase();
     const isVip =
       user?.subscriptionPlan === "COMPLIMENTARY" ||
-      (user?.subscriptionPlan === "PREMIUM" && user?.billingCycle === "LIFETIME") ||
+      (user?.subscriptionPlan === "PREMIUM" &&
+        user?.billingCycle === "LIFETIME") ||
       (user?.subscriptionPlan === "PREMIUM" && !user?.planExpiresAt);
 
     const now = new Date();
     const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-    const isTrialExpired = currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
-    const isPlanExpired = user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
+    const isTrialExpired =
+      currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
+    const isPlanExpired =
+      user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
 
     if (user?.role !== "ADMIN" && !isVip && (isTrialExpired || isPlanExpired)) {
       toast.error(
         currentPlan === "TRIAL"
           ? "Your 14-day free trial has expired. Please upgrade your plan to download reports."
-          : "Your subscription has expired. Please renew your plan to download reports."
+          : "Your subscription has expired. Please renew your plan to download reports.",
       );
       return;
     }
 
     const reportTypeLabel =
-      filters.userType === "MANUFACTURER" ? "Manufacturer Report" : "Customer Report";
+      filters.userType === "MANUFACTURER"
+        ? "Manufacturer Report"
+        : "Customer Report";
     setDownloadingKey("order-report-xlsx");
     try {
       const params = { ...commonParams };
@@ -291,7 +326,7 @@ function ReportsPage() {
         "order-report.xlsx",
         params,
         resolveDownloadFileName("xlsx"),
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       );
       toast.success(`${reportTypeLabel} downloaded as Excel`);
     } catch (error) {
@@ -309,17 +344,22 @@ function ReportsPage() {
     const currentPlan = String(user?.subscriptionPlan || "TRIAL").toUpperCase();
     const isVip =
       user?.subscriptionPlan === "COMPLIMENTARY" ||
-      (user?.subscriptionPlan === "PREMIUM" && user?.billingCycle === "LIFETIME") ||
+      (user?.subscriptionPlan === "PREMIUM" &&
+        user?.billingCycle === "LIFETIME") ||
       (user?.subscriptionPlan === "PREMIUM" && !user?.planExpiresAt);
 
     const now = new Date();
     const trialEnd = user?.trialEndsAt ? new Date(user.trialEndsAt) : null;
-    const isTrialExpired = currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
-    const isPlanExpired = user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
+    const isTrialExpired =
+      currentPlan === "TRIAL" && trialEnd && trialEnd <= now;
+    const isPlanExpired =
+      user?.planExpiresAt && new Date(user.planExpiresAt) <= now;
 
     if (user?.role !== "ADMIN" && !isVip) {
       if (isTrialExpired || isPlanExpired) {
-        toast.error("Your subscription has expired. Please renew your plan to download reports.");
+        toast.error(
+          "Your subscription has expired. Please renew your plan to download reports.",
+        );
         return;
       }
       if (currentPlan === "STARTER") {
@@ -328,21 +368,34 @@ function ReportsPage() {
       }
     }
 
+    setPdfExportModalOpen(true);
+  }
+
+  async function executeDownloadPdf() {
     const reportTypeLabel =
-      filters.userType === "MANUFACTURER" ? "Manufacturer Report" : "Customer Report";
+      filters.userType === "MANUFACTURER"
+        ? "Manufacturer Report"
+        : "Customer Report";
     setDownloadingKey("order-report-pdf");
     try {
-      const params = { ...commonParams };
+      const params = {
+        ...commonParams,
+        orientation: pdfOrientation,
+        showPaymentStatus: pdfShowPaymentStatus,
+      };
       await downloadReportFile(
         "order-report.pdf",
         params,
         resolveDownloadFileName("pdf"),
-        "application/pdf"
+        "application/pdf",
       );
+      setPdfExportModalOpen(false);
       toast.success(`${reportTypeLabel} downloaded as PDF`);
     } catch (error) {
       const message =
-        error?.response?.data?.message || error?.message || `Unable to download report.`;
+        error?.response?.data?.message ||
+        error?.message ||
+        `Unable to download report.`;
       toast.error(message);
     } finally {
       setDownloadingKey("");
@@ -356,7 +409,8 @@ function ReportsPage() {
       <div className="auth-card flex flex-1 flex-col p-4 sm:p-6">
         <h2 className="text-xl font-semibold">Reports</h2>
         <p className="mt-1 text-sm muted-text">
-          Select filters and export Excel or PDF reports for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
+          Select filters and export Excel or PDF reports for FY{" "}
+          {getFinancialYearLabel(selectedFinancialYearStart)}.
         </p>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -379,7 +433,10 @@ function ReportsPage() {
             placeholder="Select group"
           />
 
-          <div className="relative block md:col-span-2 xl:col-span-1" ref={rangePickerRef}>
+          <div
+            className="relative block md:col-span-2 xl:col-span-1"
+            ref={rangePickerRef}
+          >
             <span className="mb-1 block text-sm muted-text">Date Range</span>
             <button
               type="button"
@@ -404,8 +461,12 @@ function ReportsPage() {
                   <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-white/15 md:hidden" />
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-text-primary">Choose Date Range</div>
-                      <div className="text-xs muted-text">Pick a preset or set a custom range.</div>
+                      <div className="text-sm font-semibold text-text-primary">
+                        Choose Date Range
+                      </div>
+                      <div className="text-xs muted-text">
+                        Pick a preset or set a custom range.
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -472,7 +533,9 @@ function ReportsPage() {
                         className="form-input"
                         type="date"
                         value={filters.from}
-                        onChange={(event) => updateDateField("from", event.target.value)}
+                        onChange={(event) =>
+                          updateDateField("from", event.target.value)
+                        }
                       />
                     </label>
                     <label className="block">
@@ -483,14 +546,17 @@ function ReportsPage() {
                         className="form-input"
                         type="date"
                         value={filters.to}
-                        onChange={(event) => updateDateField("to", event.target.value)}
+                        onChange={(event) =>
+                          updateDateField("to", event.target.value)
+                        }
                       />
                     </label>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
                     <div className="text-xs muted-text">
-                      {toDisplayDate(filters.from)} - {toDisplayDate(filters.to)}
+                      {toDisplayDate(filters.from)} -{" "}
+                      {toDisplayDate(filters.to)}
                     </div>
                     <button
                       type="button"
@@ -504,7 +570,6 @@ function ReportsPage() {
               </>
             ) : null}
           </div>
-
 
           <SearchableSelect
             label="Particular Customer"
@@ -575,16 +640,22 @@ function ReportsPage() {
 
         <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm muted-text">
-            {loadingFilters ? "Loading filter options..." : "Ready to export once filters are selected."}
+            {loadingFilters
+              ? "Loading filter options..."
+              : "Ready to export once filters are selected."}
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <button
               type="button"
               className="primary-btn w-full sm:w-fit sm:px-6"
-              disabled={downloadingKey === "order-report-xlsx" || loadingFilters}
+              disabled={
+                downloadingKey === "order-report-xlsx" || loadingFilters
+              }
               onClick={handleDownloadExcel}
             >
-              {downloadingKey === "order-report-xlsx" ? "Preparing..." : "Export in Excel"}
+              {downloadingKey === "order-report-xlsx"
+                ? "Preparing..."
+                : "Export in Excel"}
             </button>
             <button
               type="button"
@@ -592,7 +663,9 @@ function ReportsPage() {
               disabled={downloadingKey === "order-report-pdf" || loadingFilters}
               onClick={handleDownloadPdf}
             >
-              {downloadingKey === "order-report-pdf" ? "Preparing..." : "Export in PDF"}
+              {downloadingKey === "order-report-pdf"
+                ? "Preparing..."
+                : "Export in PDF"}
             </button>
           </div>
         </div>
@@ -617,7 +690,8 @@ function ReportsPage() {
                 onClick={() => {
                   setPdfLockedModalOpen(false);
                   const el = document.getElementById("plans-grid");
-                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  if (el)
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
                 className="primary-btn !w-auto px-5 py-2 font-semibold"
               >
@@ -628,7 +702,10 @@ function ReportsPage() {
         >
           <div className="space-y-3 py-2 text-left">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 fill-none stroke-current stroke-2">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6 fill-none stroke-current stroke-2"
+              >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
               </svg>
@@ -637,8 +714,149 @@ function ReportsPage() {
               Branded PDF Statement Exports
             </h3>
             <p className="text-xs text-muted-text leading-relaxed">
-              Your Starter plan includes fast <strong>Excel (.xlsx) exports</strong>. To export print-ready, professionally branded PDF statements, upgrade to the <strong>Growth / Budget</strong> or <strong>Premium</strong> plan.
+              Your Starter plan includes fast{" "}
+              <strong>Excel (.xlsx) exports</strong>. To export print-ready,
+              professionally branded PDF statements, upgrade to the{" "}
+              <strong>Growth / Budget</strong> or <strong>Premium</strong> plan.
             </p>
+          </div>
+        </Modal>
+      )}
+
+      {pdfExportModalOpen && (
+        <Modal
+          title="PDF Export Options"
+          maxWidthClassName="max-w-md"
+          onClose={() => setPdfExportModalOpen(false)}
+          footer={
+            <div className="flex items-center justify-end gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => setPdfExportModalOpen(false)}
+                className="ghost-btn px-4 py-2"
+                disabled={downloadingKey === "order-report-pdf"}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeDownloadPdf}
+                disabled={downloadingKey === "order-report-pdf"}
+                className="primary-btn !w-auto px-5 py-2 font-semibold"
+              >
+                {downloadingKey === "order-report-pdf"
+                  ? "Preparing..."
+                  : "Download PDF"}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-5 py-2 text-left">
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-text">
+                Page Orientation
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPdfOrientation("portrait")}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-3.5 text-center transition ${
+                    pdfOrientation === "portrait"
+                      ? "border-primary bg-primary/15 text-text shadow-sm"
+                      : "border-white/10 bg-white/5 text-muted-text hover:bg-white/10"
+                  }`}
+                >
+                  <svg
+                    className="h-6 w-5"
+                    viewBox="0 0 20 28"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="1.5" y="1.5" width="17" height="25" rx="2" />
+                    <line x1="4.5" y1="6" x2="15.5" y2="6" strokeWidth="1.2" />
+                    <line
+                      x1="4.5"
+                      y1="10"
+                      x2="15.5"
+                      y2="10"
+                      strokeWidth="1.2"
+                    />
+                    <line
+                      x1="4.5"
+                      y1="14"
+                      x2="11.5"
+                      y2="14"
+                      strokeWidth="1.2"
+                    />
+                  </svg>
+                  <span className="text-xs sm:text-sm font-medium">
+                    Portrait{" "}
+                    <span className="text-[10px] text-muted-text">
+                      (Default)
+                    </span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPdfOrientation("landscape")}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-3.5 text-center transition ${
+                    pdfOrientation === "landscape"
+                      ? "border-primary bg-primary/15 text-text shadow-sm"
+                      : "border-white/10 bg-white/5 text-muted-text hover:bg-white/10"
+                  }`}
+                >
+                  <svg
+                    className="h-5 w-6"
+                    viewBox="0 0 28 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="1.5" y="1.5" width="25" height="17" rx="2" />
+                    <line x1="5" y1="5.5" x2="23" y2="5.5" strokeWidth="1.2" />
+                    <line x1="5" y1="9.5" x2="23" y2="9.5" strokeWidth="1.2" />
+                    <line
+                      x1="5"
+                      y1="13.5"
+                      x2="16"
+                      y2="13.5"
+                      strokeWidth="1.2"
+                    />
+                  </svg>
+                  <span className="text-xs sm:text-sm font-medium">
+                    Landscape
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-text">
+                Columns
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5 transition hover:bg-white/10">
+                <input
+                  type="checkbox"
+                  checked={pdfShowPaymentStatus}
+                  onChange={(e) => setPdfShowPaymentStatus(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-white/20 bg-surface text-primary focus:ring-primary"
+                />
+                <div className="flex flex-col text-left">
+                  <span className="text-xs sm:text-sm font-medium text-text">
+                    Show Payment Status column{" "}
+                    <span className="text-[10px] text-muted-text">
+                      (Default)
+                    </span>
+                  </span>
+                  <span className="text-xs text-muted-text mt-0.5">
+                    Uncheck to hide the Payment Status column from the exported
+                    PDF report.
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
         </Modal>
       )}
@@ -647,5 +865,3 @@ function ReportsPage() {
 }
 
 export default ReportsPage;
-
-
