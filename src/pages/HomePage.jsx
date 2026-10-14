@@ -8,6 +8,7 @@ import OrderFormCard from "../components/OrderFormCard";
 import SearchableSelect from "../components/SearchableSelect";
 import { checkPartyDuplicates, createParty, resolvePartyDuplicates } from "../lib/api";
 import partySchema from "../validation/partySchema";
+import usePageTour from "../hooks/usePageTour";
 
 const SCROLL_TOP_OFFSET = 96;
 
@@ -37,6 +38,7 @@ function HomePage() {
   const [resolvingDuplicates, setResolvingDuplicates] = useState(false);
   const orderFormRef = useRef(null);
   const partyFormRef = useRef(null);
+  usePageTour("home");
 
   const {
     register,
@@ -279,7 +281,7 @@ function HomePage() {
         <OrderFormCard refreshSignal={orderFormRefreshSignal} />
       </div>
 
-      <section className="auth-card p-4 sm:p-6" ref={partyFormRef}>
+      <section className="auth-card p-4 sm:p-6" ref={partyFormRef} data-tour="quick-add-party">
         <h2 className="text-lg font-semibold">Quick Add Party</h2>
         <p className="mt-1 text-sm muted-text">
           Use one form for both customer and manufacturer.

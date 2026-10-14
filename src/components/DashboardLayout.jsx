@@ -8,6 +8,7 @@ import NotificationBell from "./NotificationBell";
 import ShareAppModal from "./ShareAppModal";
 import SubscriptionReminderBanner from "./SubscriptionReminderBanner";
 import ThemeToggle from "./ThemeToggle";
+import TourHelpButton from "./TourHelpButton";
 
 const navigationGroups = [
   {
@@ -270,7 +271,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
               />
             </div>
 
-            <nav className="flex flex-col gap-3">
+            <nav className="flex flex-col gap-3" data-tour="sidebar-nav">
               {navigationGroups.map((group) => (
                 <div key={group.category} className="space-y-0.5">
                   <p className="px-2 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-text">
@@ -343,6 +344,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3">
+                <TourHelpButton />
                 <NotificationBell />
 
                 <div className="hidden md:block">

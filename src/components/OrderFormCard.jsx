@@ -530,14 +530,14 @@ function OrderFormCard({ refreshSignal = 0 }) {
   }
 
   return (
-    <section className="auth-card p-4 sm:p-6">
+    <section className="auth-card p-4 sm:p-6" data-tour="quick-order-card">
       <h2 className="text-xl font-semibold">Create Order</h2>
       <p className="mt-1 text-sm muted-text">
         Customer and manufacturer are auto-filled from your last order. Order number is generated
         automatically.
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4" data-tour="quick-order-inputs">
         <div className="grid gap-4 md:grid-cols-2">
           <AutocompleteInput
             label="Customer Name"

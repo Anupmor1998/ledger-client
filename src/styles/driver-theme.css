@@ -1,0 +1,141 @@
+@import "driver.js/dist/driver.css";
+
+/* Sauda Book Custom Driver.js Theme */
+.driver-popover {
+  background-color: var(--color-surface-elevated, #ffffff) !important;
+  color: var(--color-text, #0f172a) !important;
+  border: 1px solid var(--color-border, #dbe3ef) !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 20px 45px -15px rgba(15, 23, 42, 0.3) !important;
+  padding: 1.25rem !important;
+  max-width: 340px !important;
+  min-width: 280px !important;
+  font-family: inherit !important;
+}
+
+.dark .driver-popover {
+  box-shadow: 0 22px 40px -15px rgba(0, 0, 0, 0.7) !important;
+}
+
+.driver-popover-title {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: var(--color-text, #0f172a) !important;
+  margin-bottom: 0.375rem !important;
+  line-height: 1.35 !important;
+  padding-right: 1.5rem !important;
+}
+
+.driver-popover-description {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  color: var(--color-muted, #64748b) !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.driver-popover-close-btn {
+  color: var(--color-muted, #94a3b8) !important;
+  font-size: 1.25rem !important;
+  top: 0.75rem !important;
+  right: 0.75rem !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.driver-popover-close-btn:hover {
+  color: var(--color-text, #0f172a) !important;
+  background-color: var(--color-bg, #f1f5f9) !important;
+}
+
+.driver-popover-footer {
+  margin-top: 1rem !important;
+  padding-top: 0.75rem !important;
+  border-top: 1px solid var(--color-border, #e2e8f0) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: var(--color-accent, #0f766e) !important;
+  background-color: var(--color-accent-soft, #ccfbf1) !important;
+  padding: 0.2rem 0.5rem !important;
+  border-radius: 9999px !important;
+}
+
+.driver-popover-navigation-btns {
+  display: flex !important;
+  gap: 0.5rem !important;
+}
+
+.driver-popover-footer-btn {
+  border-radius: 0.5rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  padding: 0.4rem 0.85rem !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+}
+
+.driver-popover-prev-btn {
+  background-color: transparent !important;
+  border: 1px solid var(--color-border, #cbd5e1) !important;
+  color: var(--color-text, #334155) !important;
+}
+
+.driver-popover-prev-btn:hover {
+  background-color: var(--color-bg, #f8fafc) !important;
+}
+
+.driver-popover-next-btn {
+  background-color: var(--color-accent, #0f766e) !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+
+.driver-popover-next-btn:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Arrow styling */
+.driver-popover-arrow {
+  border-color: var(--color-surface-elevated, #ffffff) !important;
+}
+.driver-popover-arrow-side-left {
+  border-right-color: transparent !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+}
+.driver-popover-arrow-side-right {
+  border-left-color: transparent !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+}
+.driver-popover-arrow-side-top {
+  border-top-color: transparent !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+}
+.driver-popover-arrow-side-bottom {
+  border-bottom-color: transparent !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+}
+
+/* Overlay stage */
+.driver-overlay {
+  background: rgba(15, 23, 42, 0.65) !important;
+  backdrop-filter: blur(2px) !important;
+}
+.dark .driver-overlay {
+  background: rgba(0, 0, 0, 0.75) !important;
+}
+

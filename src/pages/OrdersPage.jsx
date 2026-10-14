@@ -9,6 +9,7 @@ import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
+import usePageTour from "../hooks/usePageTour";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { sortByText, sortOptionsByLabel } from "../utils/sort";
@@ -248,6 +249,7 @@ function OrdersPage() {
   const selectedFinancialYearStart = useAppSelector(
     (state) => state.auth.user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
+  usePageTour("orders");
   const searchParamsKey = searchParams.toString();
   const initialQueryState = useMemo(() => {
     const params = new URLSearchParams(searchParamsKey);
@@ -896,7 +898,7 @@ function OrdersPage() {
 
   return (
     <section className="auth-card p-4 sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" data-tour="orders-header">
         <div>
           <h2 className="text-xl font-semibold">Orders</h2>
           <p className="mt-1 text-sm muted-text">
@@ -905,7 +907,12 @@ function OrdersPage() {
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-            <button type="button" className="ghost-btn w-full sm:w-auto" onClick={openFiltersModal}>
+            <button
+              type="button"
+              className="ghost-btn w-full sm:w-auto"
+              onClick={openFiltersModal}
+              data-tour="orders-filters-btn"
+            >
               Filters
             </button>
             {hasActiveFilters ? (
@@ -920,6 +927,7 @@ function OrdersPage() {
             type="button"
             className="primary-btn w-full px-4 py-3 text-sm sm:w-auto sm:px-5 sm:py-2.5"
             onClick={() => navigate("/?focus=order")}
+            data-tour="orders-add-btn"
           >
             Add New Entry
           </button>
@@ -1039,28 +1047,31 @@ function OrdersPage() {
         </Modal>
       ) : null}
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        loading={loading}
-        tableMinWidthClass="min-w-[1280px]"
-        searchValue={searchInput}
-        onSearchChange={setSearchInput}
-        searchFieldValue={searchField}
-        onSearchFieldChange={setSearchField}
-        searchFieldOptions={ORDER_SEARCH_FIELD_OPTIONS}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        pageIndex={pageIndex}
-        pageSize={pageSize}
-        totalPages={pagination.totalPages || 1}
-        total={pagination.total || 0}
-        onPageChange={setPageIndex}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setPageIndex(0);
-        }}
-      />
+      <div data-tour="orders-table">
+        <DataTable
+          columns={columns}
+          data={rows}
+          loading={loading}
+          tableMinWidthClass="min-w-[1280px]"
+          searchTourId="orders-search-bar"
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          searchFieldValue={searchField}
+          onSearchFieldChange={setSearchField}
+          searchFieldOptions={ORDER_SEARCH_FIELD_OPTIONS}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          totalPages={pagination.totalPages || 1}
+          total={pagination.total || 0}
+          onPageChange={setPageIndex}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPageIndex(0);
+          }}
+        />
+      </div>
 
       {editItem ? (
         <Modal

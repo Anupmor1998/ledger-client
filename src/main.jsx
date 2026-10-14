@@ -11,6 +11,7 @@ import { setSession, setUserProfile, setUserTheme } from "./store/slices/authSli
 import store from "./store";
 import "./index.css";
 import "react-toastify/dist/ReactToastify.css";
+import "./styles/driver-theme.css";
 
 setupAxiosInterceptors(store);
 registerSW({ immediate: true });

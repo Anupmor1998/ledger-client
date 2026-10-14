@@ -6,6 +6,7 @@ import AdBanner from "../components/AdBanner";
 import { ADSENSE_CONFIG } from "../config/ads";
 import { useAppSelector } from "../store/hooks";
 import FeatureGateCard from "../components/FeatureGateCard";
+import usePageTour from "../hooks/usePageTour";
 import {
   getMarketDirectory,
   tagPartyQuality,
@@ -63,6 +64,8 @@ function MarketDirectoryPage() {
     isVip ||
     (currentPlan === "TRIAL" && !isTrialExpired) ||
     (currentPlan === "PREMIUM" && !isPlanExpired);
+
+  usePageTour("marketDirectory", { autoStart: hasAccess });
 
   if (!hasAccess) {
     return (
@@ -339,7 +342,7 @@ function MarketDirectoryPage() {
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full min-w-0">
       {/* Header & Description */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full min-w-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full min-w-0" data-tour="market-header">
         <div className="min-w-0">
           <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-text">
             Market Directory
@@ -352,7 +355,7 @@ function MarketDirectoryPage() {
         {/* Action Controls: Buyer/Seller Toggle + Tag New Party Button */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           {/* Segmented Party Type Toggle */}
-          <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-sm shrink-0">
+          <div className="inline-flex rounded-xl border border-border bg-surface p-1 shadow-sm shrink-0" data-tour="market-type-toggle">
             <button
               type="button"
               onClick={() => setPartyType("buyer")}
@@ -408,7 +411,7 @@ function MarketDirectoryPage() {
       <div className="rounded-xl sm:rounded-2xl border border-border bg-surface p-3 sm:p-5 shadow-sm space-y-3 w-full max-w-full min-w-0 box-border">
         <div className="grid gap-3 sm:gap-4 md:grid-cols-3 w-full min-w-0">
           {/* Smart Quality Search with Suggestions Dropdown */}
-          <div className="md:col-span-2 min-w-0 relative" ref={dropdownRef}>
+          <div className="md:col-span-2 min-w-0 relative" ref={dropdownRef} data-tour="market-quality-search">
             <span className="mb-1 block text-xs font-medium text-text uppercase tracking-wider">
               Search Quality (Name, GSM, Gram, Weight)
             </span>
@@ -519,7 +522,7 @@ function MarketDirectoryPage() {
 
         {/* Quick Quality Chips */}
         {data.topQualities && data.topQualities.length > 0 ? (
-          <div className="border-t border-border/70 pt-2.5 min-w-0">
+          <div className="border-t border-border/70 pt-2.5 min-w-0" data-tour="market-top-qualities">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] sm:text-xs font-medium uppercase tracking-wider muted-text">
                 Popular Qualities:
@@ -804,7 +807,7 @@ function MarketDirectoryPage() {
         </div>
       ) : (
         /* Compact Party Cards Grid */
-        <div className="w-full min-w-0">
+        <div className="w-full min-w-0" data-tour="market-parties-section">
           <div className="flex items-center justify-between mb-2 px-0.5 w-full min-w-0">
             <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-wider muted-text truncate">
               {partyLabelPlural} for {selectedQualityName} ({data.parties?.length || 0})
