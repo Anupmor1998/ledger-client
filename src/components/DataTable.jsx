@@ -25,6 +25,7 @@ function DataTable({
   onPageSizeChange,
   emptyMessage = "No records found.",
   tableMinWidthClass = "min-w-full",
+  searchTourId = "",
 }) {
   const table = useReactTable({
     data,
@@ -60,7 +61,10 @@ function DataTable({
   return (
     <div className="mt-4 space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full flex-col gap-2 sm:max-w-xl sm:flex-row sm:items-center">
+        <div
+          className="flex w-full flex-col gap-2 sm:max-w-xl sm:flex-row sm:items-center"
+          data-tour={searchTourId || undefined}
+        >
           {hasSearchFieldOptions ? (
             <SearchableSelect
               label=""

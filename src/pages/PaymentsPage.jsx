@@ -4,6 +4,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import Modal from "../components/Modal";
 import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
+import usePageTour from "../hooks/usePageTour";
 import {
   createPaymentEntry,
   deletePaymentEntry,
@@ -63,6 +64,7 @@ function PaymentsPage() {
       state.auth.user?.selectedFinancialYearStart ||
       getCurrentFinancialYearStart(),
   );
+  usePageTour("payments");
 
   // --- Form State ---
   const [partyType, setPartyType] = useState("CUSTOMER"); // 'CUSTOMER' | 'MANUFACTURER'
@@ -622,7 +624,7 @@ function PaymentsPage() {
       </div>
 
       {/* 1. Payment Entry Form Card */}
-      <section className="auth-card p-4 sm:p-6">
+      <section className="auth-card p-4 sm:p-6" data-tour="payments-form">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div>
             <h2 className="text-xl font-semibold">Payment Entry Form</h2>
@@ -750,7 +752,7 @@ function PaymentsPage() {
             </div>
 
             {/* Mode of Payment */}
-            <div>
+            <div data-tour="payments-mode-select">
               <span className="mb-1 block text-sm muted-text">
                 Mode of Payment *
               </span>
@@ -1315,7 +1317,7 @@ function PaymentsPage() {
       )}
 
       {/* 3. Payment Entries Table Card */}
-      <section className="auth-card p-4 sm:p-6">
+      <section className="auth-card p-4 sm:p-6" data-tour="payments-history-table">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
           <div>
             <h2 className="text-xl font-semibold">Payment Records</h2>

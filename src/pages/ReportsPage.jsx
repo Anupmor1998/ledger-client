@@ -6,6 +6,7 @@ import Modal from "../components/Modal";
 import { downloadReportFile, getCustomers, getManufacturers, getQualities } from "../lib/api";
 import SearchableSelect from "../components/SearchableSelect";
 import { useAppSelector } from "../store/hooks";
+import usePageTour from "../hooks/usePageTour";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { sortByText } from "../utils/sort";
 
@@ -109,6 +110,7 @@ function ReportsPage() {
   const user = useAppSelector((state) => state.auth.user);
   const selectedFinancialYearStart =
     user?.selectedFinancialYearStart || getCurrentFinancialYearStart();
+  usePageTour("reports");
   const [loadingFilters, setLoadingFilters] = useState(true);
   const [downloadingKey, setDownloadingKey] = useState("");
   const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
@@ -371,17 +373,19 @@ function ReportsPage() {
           Select filters and export Excel or PDF reports for FY {getFinancialYearLabel(selectedFinancialYearStart)}.
         </p>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <SearchableSelect
-            label="User Type"
-            value={filters.userType}
-            onChange={(nextValue) => updateFilter("userType", nextValue)}
-            options={[
-              { value: "CUSTOMER", label: "Customer" },
-              { value: "MANUFACTURER", label: "Manufacturer" },
-            ]}
-            placeholder="Select user type"
-          />
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-tour="reports-filters">
+          <div data-tour="reports-user-type">
+            <SearchableSelect
+              label="User Type"
+              value={filters.userType}
+              onChange={(nextValue) => updateFilter("userType", nextValue)}
+              options={[
+                { value: "CUSTOMER", label: "Customer" },
+                { value: "MANUFACTURER", label: "Manufacturer" },
+              ]}
+              placeholder="Select user type"
+            />
+          </div>
 
           <SearchableSelect
             label="Group By"
@@ -589,7 +593,7 @@ function ReportsPage() {
           <div className="text-sm muted-text">
             {loadingFilters ? "Loading filter options..." : "Ready to export once filters are selected."}
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row" data-tour="reports-export-btns">
             <button
               type="button"
               className="primary-btn w-full sm:w-fit sm:px-6"

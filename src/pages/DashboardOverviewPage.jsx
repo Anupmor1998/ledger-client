@@ -20,6 +20,7 @@ import AdBanner from "../components/AdBanner";
 import { ADSENSE_CONFIG } from "../config/ads";
 import { useAppSelector } from "../store/hooks";
 import FeatureGateCard from "../components/FeatureGateCard";
+import usePageTour from "../hooks/usePageTour";
 
 const ANALYTICS_FY_STORAGE_KEY = "ledger_analytics_financial_year";
 
@@ -551,6 +552,8 @@ function DashboardOverviewPage() {
     (currentPlan === "TRIAL" && !isTrialExpired) ||
     (currentPlan === "PREMIUM" && !isPlanExpired);
 
+  usePageTour("dashboard", { autoStart: hasAccess });
+
   if (!hasAccess) {
     return (
       <FeatureGateCard
@@ -753,7 +756,7 @@ function DashboardOverviewPage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour="analytics-fy-selector">
           <span className="text-xs font-medium muted-text whitespace-nowrap">
             Financial Year:
           </span>
@@ -784,7 +787,7 @@ function DashboardOverviewPage() {
       ) : null}
 
       {/* Primary Order Metrics (4 cards) */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4" data-tour="analytics-summary-cards">
         <KeyMetricCard
           label="Total Orders"
           value={dashboardLoading ? "..." : totalOrders}
@@ -821,7 +824,7 @@ function DashboardOverviewPage() {
       </div>
 
       {/* Revenue & Relationship Metrics (5 cards) */}
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" data-tour="analytics-revenue-cards">
         <KeyMetricCard
           label="Pending Commission"
           value={
@@ -865,7 +868,7 @@ function DashboardOverviewPage() {
       </div>
 
       {/* Top Contenders: Top Customers & Top Manufacturers Leaderboards */}
-      <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-2">
+      <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-2" data-tour="analytics-top-contenders">
         <PartyLeaderboard
           title="Top Customers"
           parties={topCustomers}
@@ -885,17 +888,19 @@ function DashboardOverviewPage() {
       </div>
 
       {/* Declining Customers Alert */}
-      <DecliningCustomersSection
-        decliningMap={decliningMap}
-        comparisonMonths={comparisonMonths}
-        selectedMonth={decliningMonth}
-        onMonthChange={setDecliningMonth}
-        loading={analyticsLoading}
-      />
+      <div data-tour="analytics-declining-customers">
+        <DecliningCustomersSection
+          decliningMap={decliningMap}
+          comparisonMonths={comparisonMonths}
+          selectedMonth={decliningMonth}
+          onMonthChange={setDecliningMonth}
+          loading={analyticsLoading}
+        />
+      </div>
 
       {/* All Graphs at the Bottom */}
       {/* 1. Monthly Commission Trend */}
-      <div className="mt-5 min-w-0 rounded-2xl border border-border bg-surface p-4">
+      <div className="mt-5 min-w-0 rounded-2xl border border-border bg-surface p-4" data-tour="analytics-charts">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-semibold">Monthly Commission Trend</h3>

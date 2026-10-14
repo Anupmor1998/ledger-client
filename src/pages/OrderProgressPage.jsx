@@ -8,6 +8,7 @@ import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
+import usePageTour from "../hooks/usePageTour";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { getOrders, updateOrder } from "../lib/api";
@@ -204,6 +205,7 @@ function createFollowUpWhatsAppLink(phone) {
 }
 
 function OrderProgressPage() {
+  usePageTour("orderProgress");
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab") || "progress";
   const activeTab = rawTab === "transfer" ? "transfer" : "progress";
@@ -632,7 +634,7 @@ function OrderProgressPage() {
   return (
     <section className="space-y-6">
       {/* Horizontal Scrollable Tabs */}
-      <div className="border-b border-border">
+      <div className="border-b border-border" data-tour="order-progress-tabs">
         <nav
           className="flex space-x-2 overflow-x-auto pb-3 no-scrollbar"
           aria-label="Order progress tabs"
@@ -661,7 +663,7 @@ function OrderProgressPage() {
       {activeTab === "transfer" ? (
         <OrderTransferTab />
       ) : (
-        <div className="auth-card p-4 sm:p-6">
+        <div className="auth-card p-4 sm:p-6" data-tour="order-progress-table">
           <h2 className="text-xl font-semibold">Order Progress</h2>
           <p className="mt-1 text-sm muted-text">
             Only pending orders are shown here for FY {getFinancialYearLabel(selectedFinancialYearStart)}.

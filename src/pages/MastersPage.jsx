@@ -5,6 +5,7 @@ import ManufacturersPage from "./ManufacturersPage";
 import QualityPage from "./QualityPage";
 import SavedRemarksMasterTab from "../components/masters/SavedRemarksMasterTab";
 import WhatsAppGroupsMasterTab from "../components/masters/WhatsAppGroupsMasterTab";
+import usePageTour from "../hooks/usePageTour";
 
 const MASTER_TABS = [
   {
@@ -64,6 +65,7 @@ const MASTER_TABS = [
 ];
 
 function MastersPage() {
+  usePageTour("masters");
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab") || "customers";
 
@@ -85,7 +87,7 @@ function MastersPage() {
       </div>
 
       {/* Horizontal Scrollable Tabs */}
-      <div className="border-b border-border">
+      <div className="border-b border-border" data-tour="masters-tabs">
         <nav
           className="flex space-x-2 overflow-x-auto pb-3 no-scrollbar"
           aria-label="Master tabs"
@@ -112,7 +114,7 @@ function MastersPage() {
       </div>
 
       {/* Tab Content Panels */}
-      <div className="pt-1">
+      <div className="pt-1" data-tour="masters-content">
         {activeTab === "customers" && <CustomersPage />}
         {activeTab === "manufacturers" && <ManufacturersPage />}
         {activeTab === "qualities" && <QualityPage />}
