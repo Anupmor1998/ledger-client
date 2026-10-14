@@ -22,18 +22,10 @@ export default function TourHelpButton({ tourKey, className = "" }) {
     <button
       type="button"
       onClick={() => startTour(effectiveTourKey, { force: true })}
-      className={`inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-muted hover:text-accent hover:border-accent hover:bg-bg transition-all shadow-sm ${className}`}
+      className={`inline-flex h-9 sm:h-10 items-center justify-center rounded-lg border border-border bg-surface px-2.5 sm:px-3 text-xs font-semibold text-muted-text hover:text-accent hover:border-accent hover:bg-bg transition-colors shadow-sm ${className}`}
       title="Take a guided tour of this page"
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="h-3.5 w-3.5 fill-none stroke-current stroke-2 text-accent"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      <span className="hidden sm:inline">Tour</span>
+      Tour
     </button>
   );
 }
