@@ -406,7 +406,7 @@ export default function OrderTransferTab() {
         </div>
 
         {/* Period Selector Tabs */}
-        <div className="mt-5 border-b border-border pb-3">
+        <div className="mt-5 border-b border-border pb-3" data-tour="order-transfer-frequency">
           <span className="block text-xs font-semibold uppercase tracking-wider text-muted-text mb-2">
             Select Transfer Frequency:
           </span>
@@ -435,7 +435,7 @@ export default function OrderTransferTab() {
         </div>
 
         {/* Dynamic Period Selectors */}
-        <form onSubmit={handleLoadPreview} className="mt-5 space-y-4">
+        <form onSubmit={handleLoadPreview} className="mt-5 space-y-4" data-tour="order-transfer-form">
           {periodType === "MONTHLY" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
               <SearchableSelect
@@ -909,7 +909,7 @@ export default function OrderTransferTab() {
       )}
 
       {/* Transfer History / Batches Section */}
-      <div className="auth-card p-4 sm:p-6">
+      <div className="auth-card p-4 sm:p-6" data-tour="order-transfer-history">
         <div className="flex items-center justify-between pb-3 border-b border-border">
           <div>
             <h3 className="text-base font-semibold text-text">Transfer History & Undo</h3>

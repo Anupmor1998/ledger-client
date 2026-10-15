@@ -48,14 +48,14 @@ export function startTour(tourKey, options = {}) {
     return null;
   }
 
-  // Filter steps to only elements currently present in the DOM
-  const validSteps = tourConfig.steps.filter((step) => {
+  // Verify that the page has mounted at least one tour anchor
+  const hasPageMounted = tourConfig.steps.some((step) => {
     if (!step.element) return false;
     const el = document.querySelector(step.element);
     return Boolean(el && el.offsetParent !== null);
   });
 
-  if (validSteps.length === 0) {
+  if (!hasPageMounted) {
     // If elements are not yet rendered, don't launch broken tour
     return null;
   }
@@ -74,11 +74,16 @@ export function startTour(tourKey, options = {}) {
     showProgress: true,
     animate: true,
     allowClose: true,
-    overlayColor: "rgba(15, 23, 42, 0.65)",
+    overlayColor: "#000000",
+    overlayOpacity: 0.65,
+    stagePadding: 8,
+    stageRadius: 8,
+    waitForElement: 1000,
+    skipMissingElement: true,
     nextBtnText: "Next →",
     prevBtnText: "← Back",
     doneBtnText: "Got it! 🎉",
-    steps: validSteps,
+    steps: tourConfig.steps,
     onDestroyed: () => {
       markTourAsSeen(tourKey);
       activeDriverInstance = null;
