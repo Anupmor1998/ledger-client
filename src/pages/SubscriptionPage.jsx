@@ -6,10 +6,11 @@ import {
   createSubscriptionOrder,
   downloadSubscriptionInvoice,
   failSubscriptionOrder,
+  getAvailableCoupons,
   getSubscriptionInvoices,
   getSubscriptionStatus,
   previewSubscriptionOrder,
-  testSwitchSubscriptionPlan,
+  validateCouponCode,
   verifySubscriptionPayment,
 } from "../lib/api";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
@@ -101,6 +102,12 @@ function SubscriptionPage() {
   const [invoices, setInvoices] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [showOffersModal, setShowOffersModal] = useState(false);
 
   // Auto-scroll to Choose Plan section if navigated with hash #plans-grid or action
   useEffect(() => {
@@ -128,12 +135,22 @@ function SubscriptionPage() {
     }
   }
 
+  async function fetchAvailableCoupons() {
+    try {
+      const res = await getAvailableCoupons();
+      setAvailableCoupons(Array.isArray(res?.coupons) ? res.coupons : []);
+    } catch (_err) {
+      // Non-blocking
+    }
+  }
+
   async function loadData() {
     try {
       setLoadingData(true);
-      const [statusRes, invoicesRes] = await Promise.all([
+      const [statusRes, invoicesRes, couponsRes] = await Promise.all([
         getSubscriptionStatus().catch(() => null),
         getSubscriptionInvoices().catch(() => ({ invoices: [] })),
+        getAvailableCoupons().catch(() => ({ coupons: [] })),
       ]);
 
       if (statusRes) {
@@ -144,6 +161,9 @@ function SubscriptionPage() {
       }
       if (invoicesRes?.invoices) {
         setInvoices(invoicesRes.invoices);
+      }
+      if (couponsRes?.coupons) {
+        setAvailableCoupons(couponsRes.coupons);
       }
     } catch (_err) {
       // Graceful fallback
@@ -212,7 +232,11 @@ function SubscriptionPage() {
   function handleOpenCheckout(plan) {
     setSelectedPlanForCheckout(plan);
     setOrderPreview(null);
+    setCouponInput("");
+    setAppliedCoupon(null);
+    setCouponError("");
     setLoadingPreview(true);
+    fetchAvailableCoupons();
 
     previewSubscriptionOrder({
       plan: plan.id,
@@ -227,6 +251,74 @@ function SubscriptionPage() {
     if (isCheckingOut || isVerifying) return;
     setSelectedPlanForCheckout(null);
     setOrderPreview(null);
+    setCouponInput("");
+    setAppliedCoupon(null);
+    setCouponError("");
+  }
+
+  async function applySpecificCoupon(code) {
+    const normalized = String(code || "").trim().toUpperCase();
+    if (!normalized) return;
+    setCouponInput(normalized);
+    setCouponError("");
+    if (!selectedPlanForCheckout) return;
+
+    try {
+      setIsApplyingCoupon(true);
+      const res = await validateCouponCode({
+        code: normalized,
+        plan: selectedPlanForCheckout.id,
+        billingCycle: billingCycle.toUpperCase(),
+      });
+
+      setAppliedCoupon(res.coupon);
+      setOrderPreview((prev) => ({
+        ...prev,
+        discountAmount: res.discountAmount,
+        finalPrice: res.finalPrice,
+        coupon: res.coupon,
+      }));
+      toast.success(
+        `Coupon "${res.coupon.code}" applied! Saved ₹${res.discountAmount.toLocaleString("en-IN")}`
+      );
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Invalid coupon code";
+      setCouponError(msg);
+      toast.error(msg);
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  }
+
+  async function handleApplyCoupon(e) {
+    if (e) e.preventDefault();
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      setCouponError("Please enter a coupon code");
+      return;
+    }
+    await applySpecificCoupon(code);
+  }
+
+  async function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+    if (!selectedPlanForCheckout) return;
+
+    try {
+      setLoadingPreview(true);
+      const res = await previewSubscriptionOrder({
+        plan: selectedPlanForCheckout.id,
+        billingCycle: billingCycle.toUpperCase(),
+      });
+      setOrderPreview(res);
+      toast.info("Coupon removed");
+    } catch (_err) {
+      // ignore
+    } finally {
+      setLoadingPreview(false);
+    }
   }
 
   async function handleProceedToRazorpay() {
@@ -235,13 +327,25 @@ function SubscriptionPage() {
     try {
       setIsCheckingOut(true);
 
-      // 1. Create order on server
+      // 1. Create order on server (passing applied coupon code if any)
       const orderPayload = {
         plan: selectedPlanForCheckout.id,
         billingCycle: billingCycle.toUpperCase(),
+        couponCode: appliedCoupon?.code || undefined,
       };
 
       const orderData = await createSubscriptionOrder(orderPayload);
+
+      // If 100% coupon discount resulted in an instant free activation
+      if (orderData?.freeUpgrade) {
+        toast.success(orderData.message || "Subscription activated successfully!");
+        setSelectedPlanForCheckout(null);
+        setAppliedCoupon(null);
+        setCouponInput("");
+        await loadData();
+        setIsCheckingOut(false);
+        return;
+      }
 
       if (!orderData?.razorpayKeyId) {
         toast.info(
@@ -338,24 +442,6 @@ function SubscriptionPage() {
     }
   }
 
-  const [switchingTestPlan, setSwitchingTestPlan] = useState(false);
-
-  async function handleTestSwitchPlan(mode) {
-    try {
-      setSwitchingTestPlan(true);
-      const res = await testSwitchSubscriptionPlan(mode);
-      if (res?.user) {
-        dispatch(setUserProfile(res.user));
-      }
-      await loadData();
-      toast.success(res?.message || `Switched plan to ${mode}`);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to switch test plan");
-    } finally {
-      setSwitchingTestPlan(false);
-    }
-  }
-
   return (
     <div className="space-y-6 pb-12">
       {/* Page Header */}
@@ -399,87 +485,6 @@ function SubscriptionPage() {
           <span>Need Help?</span>
         </Link>
       </div>
-
-      {/* 1-Click Plan Testing Simulator (Visible only when configured via env or in staging/dev) */}
-      {(process.env.ENABLE_SUBSCRIPTION_SIMULATOR === "true" ||
-        process.env.APP_ENV === "staging" ||
-        import.meta.env.MODE === "staging") && (
-        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4 sm:p-5 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-accent/20 pb-3 mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🛠️</span>
-            <div>
-              <h3 className="text-sm font-bold text-text">Subscription Plan Testing Simulator</h3>
-              <p className="text-xs text-muted-text">
-                Test how the entire app, feature gating, reminders, and exports behave across each plan in 1-click:
-              </p>
-            </div>
-          </div>
-          {switchingTestPlan && (
-            <span className="text-xs font-semibold text-accent animate-pulse">Switching...</span>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={switchingTestPlan}
-            onClick={() => handleTestSwitchPlan("TRIAL_ACTIVE")}
-            className="rounded-lg border border-border bg-surface hover:border-accent px-3 py-1.5 text-xs font-semibold text-text shadow-sm transition"
-          >
-            🟢 Active Trial (14d)
-          </button>
-          <button
-            type="button"
-            disabled={switchingTestPlan}
-            onClick={() => handleTestSwitchPlan("TRIAL_EXPIRING")}
-            className="rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 shadow-sm transition"
-          >
-            ⚠️ Expiring Trial (2d)
-          </button>
-          <button
-            type="button"
-            disabled={switchingTestPlan}
-            onClick={() => handleTestSwitchPlan("TRIAL_EXPIRED")}
-            className="rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-700 dark:text-red-300 shadow-sm transition"
-          >
-            🛑 Expired Trial (0d)
-          </button>
-          <button
-            type="button"
-            disabled={switchingTestPlan}
-            onClick={() => handleTestSwitchPlan("STARTER")}
-            className="rounded-lg border border-border bg-surface hover:border-accent px-3 py-1.5 text-xs font-semibold text-text shadow-sm transition"
-          >
-            📦 Starter Plan (Monthly)
-          </button>
-          <button
-            type="button"
-            disabled={switchingTestPlan}
-            onClick={() => handleTestSwitchPlan("GROWTH")}
-            className="rounded-lg border border-accent/40 bg-accent/10 hover:bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent shadow-sm transition"
-          >
-            🚀 Growth / Budget (Monthly)
-          </button>
-          <button
-            type="button"
-            disabled={switchingTestPlan}
-            onClick={() => handleTestSwitchPlan("PREMIUM")}
-            className="rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 px-3 py-1.5 text-xs font-bold text-purple-700 dark:text-purple-300 shadow-sm transition"
-          >
-            👑 Premium Plan (Yearly)
-          </button>
-          <button
-            type="button"
-            disabled={switchingTestPlan}
-            onClick={() => handleTestSwitchPlan("PLAN_EXPIRED")}
-            className="rounded-lg border border-red-500/30 bg-surface hover:border-red-500 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 shadow-sm transition"
-          >
-            🔒 Expired Paid Plan
-          </button>
-        </div>
-      </div>
-      )}
 
       {/* Active Subscription Summary Card */}
       <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6 shadow-sm">
@@ -1015,12 +1020,14 @@ function SubscriptionPage() {
                   </>
                 ) : (
                   <span>
-                    Proceed to Pay ₹
-                    {orderPreview?.finalPrice != null
-                      ? orderPreview.finalPrice.toLocaleString("en-IN")
-                      : isYearly
-                      ? selectedPlanForCheckout.yearlyPrice.toLocaleString("en-IN")
-                      : selectedPlanForCheckout.monthlyPrice.toLocaleString("en-IN")}
+                    {orderPreview?.finalPrice === 0
+                      ? "Activate Plan for Free (₹0)"
+                      : `Proceed to Pay ₹${(orderPreview?.finalPrice != null
+                          ? orderPreview.finalPrice
+                          : isYearly
+                          ? selectedPlanForCheckout.yearlyPrice
+                          : selectedPlanForCheckout.monthlyPrice
+                        ).toLocaleString("en-IN")}`}
                   </span>
                 )}
               </button>
@@ -1056,7 +1063,114 @@ function SubscriptionPage() {
                   <span>
                     Unused Credit ({orderPreview.remainingDays} days on {orderPreview.previousPlan}):
                   </span>
-                  <span>-₹{orderPreview.unusedCredit}</span>
+                  <span>-₹{orderPreview.unusedCredit.toLocaleString("en-IN")}</span>
+                </div>
+              )}
+
+              {/* Coupon Code Section */}
+              <div className="pt-1 pb-1">
+                {!appliedCoupon ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => {
+                            setCouponInput(e.target.value.toUpperCase());
+                            if (couponError) setCouponError("");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleApplyCoupon();
+                            }
+                          }}
+                          placeholder="Coupon code (e.g. DISCOUNT20)"
+                          className="w-full uppercase text-xs font-semibold tracking-wider px-3 py-2 rounded-lg border border-border bg-surface focus:outline-none focus:ring-1 focus:ring-accent"
+                          disabled={isApplyingCoupon || isCheckingOut}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={isApplyingCoupon || !couponInput.trim() || isCheckingOut}
+                        className="ghost-btn !border-accent/40 text-accent hover:bg-accent/10 px-3.5 py-2 text-xs font-bold rounded-lg disabled:opacity-50 inline-flex items-center gap-1.5"
+                      >
+                        {isApplyingCoupon ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                            </svg>
+                            <span>Checking...</span>
+                          </>
+                        ) : (
+                          <span>Apply</span>
+                        )}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-[11px] text-red-500 font-medium">{couponError}</p>
+                    )}
+
+                    {/* Compact 1-line Available Offers Banner */}
+                    {availableCoupons.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowOffersModal(true)}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl border border-dashed border-accent/40 bg-accent/[0.04] hover:bg-accent/[0.09] transition text-left cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="p-1 rounded-md bg-accent/15 text-accent">
+                            <svg className="h-3.5 w-3.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                              <line x1="7" y1="7" x2="7.01" y2="7" />
+                            </svg>
+                          </span>
+                          <div>
+                            <span className="text-xs font-bold text-text">
+                              {availableCoupons.length} {availableCoupons.length === 1 ? "Offer" : "Offers"} Available
+                            </span>
+                            <span className="text-[10px] text-muted-text block">
+                              Tap to view discount vouchers & save more
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-bold text-accent group-hover:translate-x-0.5 transition-transform flex items-center gap-1 shrink-0">
+                          View Offers &rarr;
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded-lg text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded font-black tracking-wider text-[11px] bg-emerald-600 text-white shadow-xs">
+                        {appliedCoupon.code}
+                      </span>
+                      <span className="text-emerald-700 dark:text-emerald-300 font-semibold text-[11px]">
+                        {appliedCoupon.discountType === "PERCENTAGE"
+                          ? `${appliedCoupon.discountValue}% OFF`
+                          : `₹${appliedCoupon.discountValue} OFF`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="text-muted-text hover:text-red-500 font-bold text-xs p-1"
+                      title="Remove coupon"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {orderPreview?.discountAmount > 0 && (
+                <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
+                  <span>Coupon Discount ({appliedCoupon?.code}):</span>
+                  <span>-₹{orderPreview.discountAmount.toLocaleString("en-IN")}</span>
                 </div>
               )}
 
@@ -1071,9 +1185,9 @@ function SubscriptionPage() {
                       ? selectedPlanForCheckout.yearlyPrice.toLocaleString("en-IN")
                       : selectedPlanForCheckout.monthlyPrice.toLocaleString("en-IN")}
                   </span>
-                  {orderPreview?.unusedCredit > 0 && (
+                  {((orderPreview?.unusedCredit || 0) + (orderPreview?.discountAmount || 0) > 0) && (
                     <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                      Instant discount of ₹{orderPreview.unusedCredit} applied
+                      Total savings: ₹{((orderPreview?.unusedCredit || 0) + (orderPreview?.discountAmount || 0)).toLocaleString("en-IN")}
                     </div>
                   )}
                 </div>
@@ -1096,6 +1210,117 @@ function SubscriptionPage() {
                   : "Validity will be extended immediately upon payment approval."}
               </p>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Dedicated Available Offers & Coupons Modal */}
+      {showOffersModal && (
+        <Modal
+          title={`Available Offers & Coupons (${availableCoupons.length})`}
+          onClose={() => setShowOffersModal(false)}
+          footer={
+            <div className="flex items-center justify-between w-full pt-1">
+              <span className="text-[11px] text-muted-text">
+                Tap &ldquo;Apply Code&rdquo; on any voucher to apply it immediately.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowOffersModal(false)}
+                className="ghost-btn text-xs py-1.5 px-4 font-semibold"
+              >
+                Close
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3.5 text-xs max-h-[65vh] overflow-y-auto pr-0.5">
+            {availableCoupons.length === 0 ? (
+              <div className="p-8 text-center text-muted-text">
+                <p className="font-semibold text-text">No public offers active right now</p>
+                <p className="text-[11px] mt-1">
+                  If you have an exclusive or private coupon code, you can enter it directly in the checkout box.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availableCoupons.map((coupon) => {
+                  const isSelected = appliedCoupon?.code === coupon.code;
+                  return (
+                    <div
+                      key={coupon.id}
+                      className={`relative overflow-hidden rounded-xl border transition-all p-3.5 sm:p-4 ${
+                        isSelected
+                          ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/50 shadow-sm"
+                          : "border-border bg-bg hover:border-accent/40 hover:bg-surface shadow-xs"
+                      }`}
+                    >
+                      {/* Left accent ribbon bar */}
+                      <div
+                        className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                          isSelected ? "bg-emerald-500" : "bg-accent"
+                        }`}
+                      />
+
+                      <div className="pl-2 flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2.5 py-1 rounded-md font-mono font-black text-xs tracking-wider bg-accent/15 text-accent border border-accent/25">
+                              {coupon.code}
+                            </span>
+                            <span className="font-black text-sm text-text">
+                              {coupon.discountType === "PERCENTAGE"
+                                ? `${coupon.discountValue}% OFF`
+                                : `₹${coupon.discountValue.toLocaleString("en-IN")} FLAT OFF`}
+                            </span>
+                          </div>
+
+                          {coupon.description && (
+                            <p className="text-xs text-text/80 font-medium leading-relaxed mt-1">
+                              {coupon.description}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-text pt-1">
+                            {coupon.minOrderAmount > 0 && (
+                              <span>Min order: ₹{coupon.minOrderAmount.toLocaleString("en-IN")}</span>
+                            )}
+                            {coupon.discountType === "PERCENTAGE" && coupon.maxDiscount && (
+                              <span>• Max discount: ₹{coupon.maxDiscount.toLocaleString("en-IN")}</span>
+                            )}
+                            {coupon.expiresAt && (
+                              <span>
+                                • Valid till {new Date(coupon.expiresAt).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            applySpecificCoupon(coupon.code);
+                            setShowOffersModal(false);
+                          }}
+                          disabled={isApplyingCoupon || isSelected}
+                          className={`px-3.5 py-2 rounded-lg text-xs font-bold shrink-0 transition shadow-xs cursor-pointer ${
+                            isSelected
+                              ? "bg-emerald-600 text-white cursor-default"
+                              : "primary-btn !w-auto text-xs py-2 px-4 font-bold"
+                          }`}
+                        >
+                          {isSelected ? "Applied ✓" : "Apply Code"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </Modal>
       )}

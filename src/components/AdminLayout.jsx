@@ -259,6 +259,28 @@ function AdminLayout({ dark, onToggleTheme }) {
                     </span>
                   )}
                 </NavLink>
+
+                <NavLink
+                  to="/admin/coupons"
+                  className={({ isActive }) =>
+                    `flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                      isActive ? "bg-accent text-white" : "hover:bg-bg"
+                    }`
+                  }
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                      <line x1="7" y1="7" x2="7.01" y2="7" />
+                    </svg>
+                    <span className="truncate">Discount Coupons</span>
+                  </div>
+                </NavLink>
               </div>
 
               <CollectionNavSection
@@ -418,6 +440,29 @@ function AdminLayout({ dark, onToggleTheme }) {
                   {supportStats?.total || 0}
                 </span>
               )}
+            </NavLink>
+
+            <NavLink
+              to="/admin/coupons"
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                  isActive ? "bg-accent text-white" : "hover:bg-bg"
+                }`
+              }
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                  <line x1="7" y1="7" x2="7.01" y2="7" />
+                </svg>
+                <span className="truncate">Discount Coupons</span>
+              </div>
             </NavLink>
           </div>
 

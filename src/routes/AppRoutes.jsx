@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AdminLayout from "../components/AdminLayout";
 import DashboardLayout from "../components/DashboardLayout";
+import AdminCouponsPage from "../pages/AdminCouponsPage";
 import AdminPage from "../pages/AdminPage";
 import AdminSupportTicketsPage from "../pages/AdminSupportTicketsPage";
 import DashboardOverviewPage from "../pages/DashboardOverviewPage";
@@ -77,6 +78,7 @@ function AppRoutes({ dark, onToggleTheme }) {
           >
             <Route index element={<Navigate to="users" replace />} />
             <Route path="support" element={<AdminSupportTicketsPage />} />
+            <Route path="coupons" element={<AdminCouponsPage />} />
             <Route path=":collectionKey" element={<AdminPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/admin/users" replace />} />
