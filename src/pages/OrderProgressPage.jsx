@@ -674,6 +674,7 @@ function OrderProgressPage() {
               <button
                 key={tab.id}
                 type="button"
+                data-tour={`order-progress-tab-${tab.id}`}
                 onClick={() => handleTabSelect(tab.id)}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium whitespace-nowrap transition ${
                   isActive

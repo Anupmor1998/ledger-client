@@ -109,24 +109,80 @@ export const PAGE_TOURS = {
 
   orderProgress: {
     key: "orderProgress",
-    title: "Order Delivery Progress",
+    title: "Order Delivery Progress & Transfer",
     steps: [
       {
         element: '[data-tour="order-progress-tabs"]',
         popover: {
-          title: "Progress & Transfer Tabs 🚚",
+          title: "Progress & Transfer Hub 🚚",
           description:
-            "Switch between active order delivery tracking and carrying forward pending balances across financial years.",
+            "Seamlessly switch between tracking daily delivery fulfillment and transferring open balances into new financial periods.",
           side: "bottom",
           align: "start",
         },
       },
       {
+        element: '[data-tour="order-progress-tab-progress"]',
+        popover: {
+          title: "Delivery Progress Tab 📦",
+          description:
+            "View and manage pending orders for the selected financial year, monitor remaining lots, and log mill dispatches.",
+          side: "bottom",
+          align: "start",
+        },
+        onHighlightStarted: (el) => {
+          el?.click();
+        },
+      },
+      {
         element: '[data-tour="order-progress-table"]',
         popover: {
-          title: "Delivery & Completion",
+          title: "Record Dispatches & Complete Orders ✅",
           description:
-            "Record dispatched lots and meters as shipments arrive from the mill. Once fulfilled, mark Completed to finalize commissions.",
+            "Enter received lots and meters as shipments arrive from weavers. Mark orders Completed once fully dispatched to finalize brokerages.",
+          side: "top",
+          align: "center",
+        },
+      },
+      {
+        element: '[data-tour="order-progress-tab-transfer"]',
+        popover: {
+          title: "Transfer Record (Carry Forward) 🔄",
+          description:
+            "Carry forward incomplete pending orders into a new month, quarter, or financial year. Transferred orders retain their original order number and reference original creation dates.",
+          side: "bottom",
+          align: "start",
+        },
+        onHighlightStarted: (el) => {
+          el?.click();
+        },
+      },
+      {
+        element: '[data-tour="order-transfer-frequency"]',
+        popover: {
+          title: "Transfer Frequency Options ⏱️",
+          description:
+            "Choose your carry-forward cycle: Monthly, Quarterly, Half-Yearly, or Yearly to match your brokerage settlement workflow.",
+          side: "bottom",
+          align: "start",
+        },
+      },
+      {
+        element: '[data-tour="order-transfer-form"]',
+        popover: {
+          title: "Select Periods & Load Orders 📅",
+          description:
+            "Pick the source period (where pending orders currently sit) and target period, then click 'Load Transferable Records' to preview open balances.",
+          side: "top",
+          align: "center",
+        },
+      },
+      {
+        element: '[data-tour="order-transfer-history"]',
+        popover: {
+          title: "Transfer History & 1-Click Undo ⏪",
+          description:
+            "Audit all past carry forward batches. If an order was transferred by mistake, use 'Undo Batch' to safely revert it with full data integrity.",
           side: "top",
           align: "center",
         },
@@ -210,24 +266,129 @@ export const PAGE_TOURS = {
 
   masters: {
     key: "masters",
-    title: "Master Records",
+    title: "Master Records Directory",
     steps: [
       {
         element: '[data-tour="masters-tabs"]',
         popover: {
-          title: "Directory Masters 📇",
+          title: "Master Records Directory 📇",
           description:
-            "Manage your Customers, Manufacturers, Qualities, Saved Remark templates, and WhatsApp groups from one place.",
+            "Central directory for all your business entities: Customers, Weaving Mills, Fabric Qualities, Saved Remarks, and WhatsApp Groups.",
           side: "bottom",
           align: "start",
         },
       },
       {
-        element: '[data-tour="masters-content"]',
+        element: '[data-tour="masters-tab-customers"]',
         popover: {
-          title: "Commission & Brokerage Rates",
+          title: "Customers Tab 👥",
           description:
-            "Configure commission settings per party (Lot Rate vs Percentage). Rates set here auto-populate when creating orders.",
+            "Manage buyer accounts, GST numbers, contact persons, and individual brokerage commission structures (Lot Rate ₹/lot vs Percentage %).",
+          side: "bottom",
+          align: "start",
+        },
+        onHighlightStarted: (el) => {
+          el?.click();
+        },
+      },
+      {
+        element: '[data-tour="masters-customers-card"]',
+        popover: {
+          title: "Customer Directory & Ledger 💼",
+          description:
+            "Search and filter buyers, edit contact details, merge duplicate records, and recalculate commission on open orders in 1-click.",
+          side: "top",
+          align: "center",
+        },
+      },
+      {
+        element: '[data-tour="masters-tab-manufacturers"]',
+        popover: {
+          title: "Manufacturers Tab 🏭",
+          description:
+            "Store weaving mills, contact info, mill codes, and commission rates that automatically populate when booking orders.",
+          side: "bottom",
+          align: "start",
+        },
+        onHighlightStarted: (el) => {
+          el?.click();
+        },
+      },
+      {
+        element: '[data-tour="masters-manufacturers-card"]',
+        popover: {
+          title: "Mill Management & Qualities ⚙️",
+          description:
+            "Add new mills, configure brokerage rates (Lot Rate or Percentage), and link fabric qualities produced by each weaver.",
+          side: "top",
+          align: "center",
+        },
+      },
+      {
+        element: '[data-tour="masters-tab-qualities"]',
+        popover: {
+          title: "Fabric Qualities Tab 🧵",
+          description:
+            "Manage fabric varieties with detailed technical specifications like yarn counts, GSM, reed/pick, piece lengths, and default rates.",
+          side: "bottom",
+          align: "start",
+        },
+        onHighlightStarted: (el) => {
+          el?.click();
+        },
+      },
+      {
+        element: '[data-tour="masters-qualities-card"]',
+        popover: {
+          title: "Qualities Catalogue & Archive 📐",
+          description:
+            "Add new fabric qualities, filter specifications, and toggle active or archived status to keep your order booking forms uncluttered.",
+          side: "top",
+          align: "center",
+        },
+      },
+      {
+        element: '[data-tour="masters-tab-remarks"]',
+        popover: {
+          title: "Saved Remarks Tab 📝",
+          description:
+            "Pre-save standard contract clauses, delivery conditions, and payment terms to insert with 1-click on order contracts.",
+          side: "bottom",
+          align: "start",
+        },
+        onHighlightStarted: (el) => {
+          el?.click();
+        },
+      },
+      {
+        element: '[data-tour="masters-remarks-card"]',
+        popover: {
+          title: "Remark Templates Manager ✍️",
+          description:
+            "Create reusable remark templates. Avoid repetitive typing and eliminate contract ambiguity with parties.",
+          side: "top",
+          align: "center",
+        },
+      },
+      {
+        element: '[data-tour="masters-tab-whatsapp"]',
+        popover: {
+          title: "WhatsApp Groups Tab 💬",
+          description:
+            "Configure party broadcast groups and group invite links for instant order note and reminder sharing.",
+          side: "bottom",
+          align: "start",
+        },
+        onHighlightStarted: (el) => {
+          el?.click();
+        },
+      },
+      {
+        element: '[data-tour="masters-whatsapp-card"]',
+        popover: {
+          title: "WhatsApp Groups Directory 📲",
+          description:
+            "Add party WhatsApp groups by name and paste invite links. Enables 1-click sharing of PDF contract notes directly from orders.",
           side: "top",
           align: "center",
         },

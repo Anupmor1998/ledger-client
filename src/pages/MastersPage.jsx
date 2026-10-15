@@ -98,6 +98,7 @@ function MastersPage() {
               <button
                 key={tab.id}
                 type="button"
+                data-tour={`masters-tab-${tab.id}`}
                 onClick={() => handleTabSelect(tab.id)}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium whitespace-nowrap transition ${
                   isActive
@@ -115,11 +116,31 @@ function MastersPage() {
 
       {/* Tab Content Panels */}
       <div className="pt-1" data-tour="masters-content">
-        {activeTab === "customers" && <CustomersPage />}
-        {activeTab === "manufacturers" && <ManufacturersPage />}
-        {activeTab === "qualities" && <QualityPage />}
-        {activeTab === "remarks" && <SavedRemarksMasterTab />}
-        {activeTab === "whatsapp" && <WhatsAppGroupsMasterTab />}
+        {activeTab === "customers" && (
+          <div data-tour="masters-customers-card">
+            <CustomersPage />
+          </div>
+        )}
+        {activeTab === "manufacturers" && (
+          <div data-tour="masters-manufacturers-card">
+            <ManufacturersPage />
+          </div>
+        )}
+        {activeTab === "qualities" && (
+          <div data-tour="masters-qualities-card">
+            <QualityPage />
+          </div>
+        )}
+        {activeTab === "remarks" && (
+          <div data-tour="masters-remarks-card">
+            <SavedRemarksMasterTab />
+          </div>
+        )}
+        {activeTab === "whatsapp" && (
+          <div data-tour="masters-whatsapp-card">
+            <WhatsAppGroupsMasterTab />
+          </div>
+        )}
       </div>
     </section>
   );
