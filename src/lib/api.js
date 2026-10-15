@@ -657,3 +657,39 @@ export async function testSwitchSubscriptionPlan(mode) {
   const response = await axiosClient.post("/subscription/test-switch-plan", { mode });
   return response.data;
 }
+
+export async function validateCouponCode(data) {
+  const response = await axiosClient.post("/subscription/validate-coupon", data);
+  return response.data;
+}
+
+export async function getAvailableCoupons() {
+  const response = await axiosClient.get("/subscription/available-coupons");
+  return response.data;
+}
+
+export async function getAdminCoupons(params = {}) {
+  const response = await axiosClient.get("/admin/coupons", { params });
+  return response.data;
+}
+
+export async function createAdminCoupon(data) {
+  const response = await axiosClient.post("/admin/coupons", data);
+  return response.data;
+}
+
+export async function generateAdminCouponBatch(data) {
+  const response = await axiosClient.post("/admin/coupons/generate-batch", data);
+  return response.data;
+}
+
+export async function updateAdminCoupon(id, data) {
+  const response = await axiosClient.patch(`/admin/coupons/${id}`, data);
+  return response.data;
+}
+
+export async function deleteAdminCoupon(id) {
+  const response = await axiosClient.delete(`/admin/coupons/${id}`);
+  return response.data;
+}
+
