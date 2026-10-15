@@ -1068,13 +1068,16 @@ export default function OrderTransferTab() {
                         selectedBatchDetails.carriedOrders.map((order) => (
                           <div key={order.id} className="rounded-lg border border-border p-3 text-sm">
                             <p className="font-medium">
-                              New Order #{order.orderNo}
-                              {order.sourceOrderNo
+                              Order #{order.originalOrderNo || order.orderNo}
+                              {order.sourceOrderNo && order.sourceOrderNo !== (order.originalOrderNo || order.orderNo)
                                 ? ` | Source Order #${order.sourceOrderNo} (${order.sourceOrderFyLabel})`
+                                : order.sourceOrderFyLabel
+                                ? ` (${order.sourceOrderFyLabel})`
                                 : ""}
                             </p>
                             <p className="mt-1 muted-text text-xs">
                               {order.customerName} | {order.manufacturerName} | {order.qualityName}
+                              {order.sourceOrderDate || order.originalOrderDate ? ` | Orig Date: ${formatDate(order.sourceOrderDate || order.originalOrderDate)}` : ""}
                             </p>
                             <p className="mt-1 text-xs">
                               Qty: {order.quantity} {order.quantityUnit} | Meter: {Number(order.meter || 0).toFixed(2)}
