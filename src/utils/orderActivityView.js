@@ -9,6 +9,7 @@ const ACTION_LABELS = {
   CANCELLED: "Order cancelled",
   DELETED: "Order deleted",
   CARRIED_FORWARD: "Order carried forward",
+  TRANSFERRED: "Order transferred",
 };
 
 const ACTION_TONES = {
@@ -20,6 +21,7 @@ const ACTION_TONES = {
   CANCELLED: "border-red-400/40 bg-red-500/10 text-red-600",
   DELETED: "border-red-400/40 bg-red-500/10 text-red-600",
   CARRIED_FORWARD: "border-violet-400/40 bg-violet-500/10 text-violet-600",
+  TRANSFERRED: "border-indigo-400/40 bg-indigo-500/10 text-indigo-600",
 };
 
 const FIELD_LABELS = {
@@ -39,6 +41,8 @@ const FIELD_LABELS = {
   paymentDueOn: "Payment Days",
   fyStartYear: "Financial Year",
   orderNo: "Order No",
+  originalOrderNo: "Original Order No",
+  originalOrderDate: "Original Order Date",
   isCarryForward: "Carry Forward",
   carriedForwardFromOrderId: "Source Order",
   transferBatchId: "Transfer Batch",

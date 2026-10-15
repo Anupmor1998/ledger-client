@@ -696,14 +696,43 @@ function OrdersPage() {
         header: "Order No",
         accessorKey: "orderNo",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
+        cell: ({ row }) => {
+          const displayOrderNo = row.original.originalOrderNo || row.original.orderNo;
+          const isCarry = row.original.isCarryForward;
+          return (
+            <div className="flex items-center gap-1.5">
+              <CopyableText value={displayOrderNo} nowrap />
+              {isCarry ? (
+                <span
+                  className="rounded bg-indigo-500/10 px-1 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400"
+                  title="Carried forward order"
+                >
+                  Transfer
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "orderDate",
         header: "Order Date",
         accessorKey: "orderDate",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={formatDate(getValue())} nowrap />,
+        cell: ({ row }) => {
+          const orderDate = row.original.orderDate;
+          const origDate = row.original.originalOrderDate;
+          return (
+            <div className="text-left">
+              <CopyableText value={formatDate(orderDate)} nowrap />
+              {origDate && formatDate(origDate) !== formatDate(orderDate) ? (
+                <span className="mt-0.5 block text-[11px] muted-text" title="Original order date">
+                  Orig: {formatDate(origDate)}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "customerName",
@@ -806,7 +835,20 @@ function OrdersPage() {
         header: "Status",
         accessorKey: "status",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue() || "-"} nowrap />,
+        cell: ({ getValue }) => {
+          const val = String(getValue() || "").toUpperCase();
+          let badgeClass = "text-text border-border bg-surface";
+          if (val === "COMPLETED") badgeClass = "text-emerald-600 bg-emerald-500/10 border-emerald-400/40";
+          else if (val === "PENDING") badgeClass = "text-amber-600 bg-amber-500/10 border-amber-400/40";
+          else if (val === "CANCELLED") badgeClass = "text-red-600 bg-red-500/10 border-red-400/40";
+          else if (val === "TRANSFERRED") badgeClass = "text-indigo-600 bg-indigo-500/10 border-indigo-400/40";
+
+          return (
+            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${badgeClass}`}>
+              {val || "-"}
+            </span>
+          );
+        },
       },
       {
         id: "progressCommissionAmount",
@@ -861,7 +903,7 @@ function OrdersPage() {
                 <path d="M13 7l4 4" />
               </svg>
             </button>
-            {["COMPLETED", "CANCELLED"].includes(String(row.original.status || "").toUpperCase()) ? (
+            {["COMPLETED", "CANCELLED", "TRANSFERRED"].includes(String(row.original.status || "").toUpperCase()) ? (
               <button
                 type="button"
                 className="rounded-lg border border-amber-400/40 p-2 text-amber-600 hover:bg-amber-50"
@@ -970,6 +1012,7 @@ function OrdersPage() {
                 { value: "PENDING", label: "Pending" },
                 { value: "COMPLETED", label: "Completed" },
                 { value: "CANCELLED", label: "Cancelled" },
+                { value: "TRANSFERRED", label: "Transferred" },
               ]}
               placeholder="Select status"
             />

@@ -179,7 +179,7 @@ function normalizeOrderStatusQuery(value) {
   if (!status) {
     return "PENDING";
   }
-  return ["PENDING", "COMPLETED", "CANCELLED"].includes(status) ? status : "PENDING";
+  return ["PENDING", "COMPLETED", "CANCELLED", "TRANSFERRED"].includes(status) ? status : "PENDING";
 }
 
 function buildFollowUpWhatsAppLink(phone) {
@@ -429,14 +429,43 @@ function OrderProgressPage() {
         header: "Order No",
         accessorKey: "orderNo",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={getValue()} nowrap />,
+        cell: ({ row }) => {
+          const displayOrderNo = row.original.originalOrderNo || row.original.orderNo;
+          const isCarry = row.original.isCarryForward;
+          return (
+            <div className="flex items-center gap-1.5">
+              <CopyableText value={displayOrderNo} nowrap />
+              {isCarry ? (
+                <span
+                  className="rounded bg-indigo-500/10 px-1 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400"
+                  title="Carried forward order"
+                >
+                  Transfer
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "orderDate",
         header: "Order Date",
         accessorKey: "orderDate",
         enableSorting: true,
-        cell: ({ getValue }) => <CopyableText value={formatDate(getValue())} nowrap />,
+        cell: ({ row }) => {
+          const orderDate = row.original.orderDate;
+          const origDate = row.original.originalOrderDate;
+          return (
+            <div className="text-left">
+              <CopyableText value={formatDate(orderDate)} nowrap />
+              {origDate && formatDate(origDate) !== formatDate(orderDate) ? (
+                <span className="mt-0.5 block text-[11px] muted-text" title="Original order date">
+                  Orig: {formatDate(origDate)}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "customer",
