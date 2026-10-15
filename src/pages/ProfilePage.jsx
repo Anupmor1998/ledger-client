@@ -24,7 +24,7 @@ function ProfilePage() {
     user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
   const [financialYearSaving, setFinancialYearSaving] = useState(false);
-  const financialYearOptions = buildFinancialYearOptions(8, 3);
+  const financialYearOptions = buildFinancialYearOptions(20, 5);
 
   const {
     register,

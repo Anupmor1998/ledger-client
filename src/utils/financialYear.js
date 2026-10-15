@@ -1,3 +1,7 @@
+export const APP_INCEPTION_FY_START_YEAR = 2025; // FY 2025-26 (App launch)
+export const APP_INCEPTION_CALENDAR_YEAR = 2025;
+export const DEFAULT_FUTURE_YEARS_COUNT = 5;
+
 export function getCurrentFinancialYearStart(date = new Date()) {
   const month = date.getMonth() + 1;
   const year = date.getFullYear();
@@ -13,7 +17,7 @@ export function getFinancialYearLabel(startYear) {
   return `${year}-${nextShortYear}`;
 }
 
-export function buildFinancialYearOptions(range = 6, futureRange = 0) {
+export function buildFinancialYearOptions(range = 20, futureRange = DEFAULT_FUTURE_YEARS_COUNT) {
   const current = getCurrentFinancialYearStart();
   const options = [];
 
@@ -27,6 +31,9 @@ export function buildFinancialYearOptions(range = 6, futureRange = 0) {
 
   for (let index = 0; index < range; index += 1) {
     const startYear = current - index;
+    if (startYear < APP_INCEPTION_FY_START_YEAR) {
+      break;
+    }
     options.push({
       value: startYear,
       label: getFinancialYearLabel(startYear),

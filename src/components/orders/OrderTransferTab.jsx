@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { format, isValid, parseISO } from "date-fns";
 import ConfirmDialog from "../ConfirmDialog";
-import SearchableSelect from "../SearchableSelect";
 import { useAppSelector } from "../../store/hooks";
-import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../../utils/financialYear";
+import {
+  APP_INCEPTION_CALENDAR_YEAR,
+  APP_INCEPTION_FY_START_YEAR,
+  getCurrentFinancialYearStart,
+  getFinancialYearLabel,
+} from "../../utils/financialYear";
 import {
   executeYearTransfer,
   getYearTransferBatchDetails,
@@ -76,26 +80,50 @@ export default function OrderTransferTab() {
     currentCalMonth === 1 ? 12 : currentCalMonth - 1
   );
   const [sourceMonthYear, setSourceMonthYear] = useState(
-    currentCalMonth === 1 ? currentCalYear - 1 : currentCalYear
+    Math.max(
+      APP_INCEPTION_CALENDAR_YEAR,
+      currentCalMonth === 1 ? currentCalYear - 1 : currentCalYear
+    )
   );
   const [targetMonth, setTargetMonth] = useState(currentCalMonth);
-  const [targetMonthYear, setTargetMonthYear] = useState(currentCalYear);
+  const [targetMonthYear, setTargetMonthYear] = useState(
+    Math.max(APP_INCEPTION_CALENDAR_YEAR, currentCalYear)
+  );
 
   // Quarterly state
   const [sourceQuarter, setSourceQuarter] = useState(1);
-  const [sourceQuarterFy, setSourceQuarterFy] = useState(selectedFinancialYearStart);
+  const [sourceQuarterFy, setSourceQuarterFy] = useState(
+    Math.max(APP_INCEPTION_FY_START_YEAR, selectedFinancialYearStart)
+  );
   const [targetQuarter, setTargetQuarter] = useState(2);
-  const [targetQuarterFy, setTargetQuarterFy] = useState(selectedFinancialYearStart);
+  const [targetQuarterFy, setTargetQuarterFy] = useState(
+    Math.max(APP_INCEPTION_FY_START_YEAR, selectedFinancialYearStart)
+  );
 
   // Half-Yearly state
   const [sourceHalf, setSourceHalf] = useState(1);
-  const [sourceHalfFy, setSourceHalfFy] = useState(selectedFinancialYearStart);
+  const [sourceHalfFy, setSourceHalfFy] = useState(
+    Math.max(APP_INCEPTION_FY_START_YEAR, selectedFinancialYearStart)
+  );
   const [targetHalf, setTargetHalf] = useState(2);
-  const [targetHalfFy, setTargetHalfFy] = useState(selectedFinancialYearStart);
+  const [targetHalfFy, setTargetHalfFy] = useState(
+    Math.max(APP_INCEPTION_FY_START_YEAR, selectedFinancialYearStart)
+  );
 
-  // Yearly state
-  const [sourceYearlyFy, setSourceYearlyFy] = useState(selectedFinancialYearStart - 1);
-  const [targetYearlyFy, setTargetYearlyFy] = useState(selectedFinancialYearStart);
+  // Yearly state (clamped to APP_INCEPTION_FY_START_YEAR)
+  const defaultSourceYearly = Math.max(
+    APP_INCEPTION_FY_START_YEAR,
+    selectedFinancialYearStart === APP_INCEPTION_FY_START_YEAR
+      ? APP_INCEPTION_FY_START_YEAR
+      : selectedFinancialYearStart - 1
+  );
+  const defaultTargetYearly =
+    defaultSourceYearly === selectedFinancialYearStart
+      ? defaultSourceYearly + 1
+      : selectedFinancialYearStart;
+
+  const [sourceYearlyFy, setSourceYearlyFy] = useState(defaultSourceYearly);
+  const [targetYearlyFy, setTargetYearlyFy] = useState(defaultTargetYearly);
 
   // Preview & Selection state
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -116,23 +144,24 @@ export default function OrderTransferTab() {
   const [batchDetailsLoading, setBatchDetailsLoading] = useState(false);
   const [undoingBatchId, setUndoingBatchId] = useState(null);
 
-  // FY Options (+/- 4 years)
+  // FY Options (from APP_INCEPTION_FY_START_YEAR up to current + 5 years dynamically)
   const fyOptions = useMemo(() => {
     const list = [];
-    for (let offset = -4; offset <= 4; offset += 1) {
-      const startYear = selectedFinancialYearStart + offset;
+    const maxYear = Math.max(selectedFinancialYearStart, currentCalYear) + 5;
+    for (let startYear = APP_INCEPTION_FY_START_YEAR; startYear <= maxYear; startYear += 1) {
       list.push({
         value: startYear,
         label: `FY ${getFinancialYearLabel(startYear)}`,
       });
     }
     return list;
-  }, [selectedFinancialYearStart]);
+  }, [selectedFinancialYearStart, currentCalYear]);
 
-  // Year Options for Month Picker
+  // Year Options for Month Picker (from APP_INCEPTION_CALENDAR_YEAR up to current + 5 years dynamically)
   const yearOptions = useMemo(() => {
     const list = [];
-    for (let y = currentCalYear - 4; y <= currentCalYear + 4; y += 1) {
+    const maxYear = currentCalYear + 5;
+    for (let y = APP_INCEPTION_CALENDAR_YEAR; y <= maxYear; y += 1) {
       list.push({ value: y, label: String(y) });
     }
     return list;
@@ -438,105 +467,217 @@ export default function OrderTransferTab() {
         <form onSubmit={handleLoadPreview} className="mt-5 space-y-4" data-tour="order-transfer-form">
           {periodType === "MONTHLY" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-              <SearchableSelect
-                label="Source Month"
-                value={String(sourceMonth)}
-                onChange={(val) => setSourceMonth(Number(val))}
-                options={MONTH_NAMES.map((m) => ({ value: String(m.value), label: m.label }))}
-              />
-              <SearchableSelect
-                label="Source Year"
-                value={String(sourceMonthYear)}
-                onChange={(val) => setSourceMonthYear(Number(val))}
-                options={yearOptions.map((y) => ({ value: String(y.value), label: y.label }))}
-              />
-              <SearchableSelect
-                label="Target Month"
-                value={String(targetMonth)}
-                onChange={(val) => setTargetMonth(Number(val))}
-                options={MONTH_NAMES.map((m) => ({ value: String(m.value), label: m.label }))}
-              />
-              <SearchableSelect
-                label="Target Year"
-                value={String(targetMonthYear)}
-                onChange={(val) => setTargetMonthYear(Number(val))}
-                options={yearOptions.map((y) => ({ value: String(y.value), label: y.label }))}
-              />
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Source Month</span>
+                <select
+                  className="form-input"
+                  value={sourceMonth}
+                  onChange={(e) => setSourceMonth(Number(e.target.value))}
+                >
+                  {MONTH_NAMES.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Source Year</span>
+                <select
+                  className="form-input"
+                  value={sourceMonthYear}
+                  onChange={(e) => setSourceMonthYear(Number(e.target.value))}
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y.value} value={y.value}>
+                      {y.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Target Month</span>
+                <select
+                  className="form-input"
+                  value={targetMonth}
+                  onChange={(e) => setTargetMonth(Number(e.target.value))}
+                >
+                  {MONTH_NAMES.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Target Year</span>
+                <select
+                  className="form-input"
+                  value={targetMonthYear}
+                  onChange={(e) => setTargetMonthYear(Number(e.target.value))}
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y.value} value={y.value}>
+                      {y.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
 
           {periodType === "QUARTERLY" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-              <SearchableSelect
-                label="Source Quarter"
-                value={String(sourceQuarter)}
-                onChange={(val) => setSourceQuarter(Number(val))}
-                options={QUARTER_NAMES.map((q) => ({ value: String(q.value), label: q.label }))}
-              />
-              <SearchableSelect
-                label="Source Financial Year"
-                value={String(sourceQuarterFy)}
-                onChange={(val) => setSourceQuarterFy(Number(val))}
-                options={fyOptions.map((f) => ({ value: String(f.value), label: f.label }))}
-              />
-              <SearchableSelect
-                label="Target Quarter"
-                value={String(targetQuarter)}
-                onChange={(val) => setTargetQuarter(Number(val))}
-                options={QUARTER_NAMES.map((q) => ({ value: String(q.value), label: q.label }))}
-              />
-              <SearchableSelect
-                label="Target Financial Year"
-                value={String(targetQuarterFy)}
-                onChange={(val) => setTargetQuarterFy(Number(val))}
-                options={fyOptions.map((f) => ({ value: String(f.value), label: f.label }))}
-              />
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Source Quarter</span>
+                <select
+                  className="form-input"
+                  value={sourceQuarter}
+                  onChange={(e) => setSourceQuarter(Number(e.target.value))}
+                >
+                  {QUARTER_NAMES.map((q) => (
+                    <option key={q.value} value={q.value}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Source Financial Year</span>
+                <select
+                  className="form-input"
+                  value={sourceQuarterFy}
+                  onChange={(e) => setSourceQuarterFy(Number(e.target.value))}
+                >
+                  {fyOptions.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Target Quarter</span>
+                <select
+                  className="form-input"
+                  value={targetQuarter}
+                  onChange={(e) => setTargetQuarter(Number(e.target.value))}
+                >
+                  {QUARTER_NAMES.map((q) => (
+                    <option key={q.value} value={q.value}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Target Financial Year</span>
+                <select
+                  className="form-input"
+                  value={targetQuarterFy}
+                  onChange={(e) => setTargetQuarterFy(Number(e.target.value))}
+                >
+                  {fyOptions.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
 
           {periodType === "HALF_YEARLY" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-              <SearchableSelect
-                label="Source Half"
-                value={String(sourceHalf)}
-                onChange={(val) => setSourceHalf(Number(val))}
-                options={HALF_NAMES.map((h) => ({ value: String(h.value), label: h.label }))}
-              />
-              <SearchableSelect
-                label="Source Financial Year"
-                value={String(sourceHalfFy)}
-                onChange={(val) => setSourceHalfFy(Number(val))}
-                options={fyOptions.map((f) => ({ value: String(f.value), label: f.label }))}
-              />
-              <SearchableSelect
-                label="Target Half"
-                value={String(targetHalf)}
-                onChange={(val) => setTargetHalf(Number(val))}
-                options={HALF_NAMES.map((h) => ({ value: String(h.value), label: h.label }))}
-              />
-              <SearchableSelect
-                label="Target Financial Year"
-                value={String(targetHalfFy)}
-                onChange={(val) => setTargetHalfFy(Number(val))}
-                options={fyOptions.map((f) => ({ value: String(f.value), label: f.label }))}
-              />
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Source Half</span>
+                <select
+                  className="form-input"
+                  value={sourceHalf}
+                  onChange={(e) => setSourceHalf(Number(e.target.value))}
+                >
+                  {HALF_NAMES.map((h) => (
+                    <option key={h.value} value={h.value}>
+                      {h.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Source Financial Year</span>
+                <select
+                  className="form-input"
+                  value={sourceHalfFy}
+                  onChange={(e) => setSourceHalfFy(Number(e.target.value))}
+                >
+                  {fyOptions.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Target Half</span>
+                <select
+                  className="form-input"
+                  value={targetHalf}
+                  onChange={(e) => setTargetHalf(Number(e.target.value))}
+                >
+                  {HALF_NAMES.map((h) => (
+                    <option key={h.value} value={h.value}>
+                      {h.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Target Financial Year</span>
+                <select
+                  className="form-input"
+                  value={targetHalfFy}
+                  onChange={(e) => setTargetHalfFy(Number(e.target.value))}
+                >
+                  {fyOptions.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
 
           {periodType === "YEARLY" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-              <SearchableSelect
-                label="Source Financial Year"
-                value={String(sourceYearlyFy)}
-                onChange={(val) => setSourceYearlyFy(Number(val))}
-                options={fyOptions.map((f) => ({ value: String(f.value), label: f.label }))}
-              />
-              <SearchableSelect
-                label="Target Financial Year"
-                value={String(targetYearlyFy)}
-                onChange={(val) => setTargetYearlyFy(Number(val))}
-                options={fyOptions.map((f) => ({ value: String(f.value), label: f.label }))}
-              />
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Source Financial Year</span>
+                <select
+                  className="form-input"
+                  value={sourceYearlyFy}
+                  onChange={(e) => setSourceYearlyFy(Number(e.target.value))}
+                >
+                  {fyOptions.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm muted-text">Target Financial Year</span>
+                <select
+                  className="form-input"
+                  value={targetYearlyFy}
+                  onChange={(e) => setTargetYearlyFy(Number(e.target.value))}
+                >
+                  {fyOptions.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
 
