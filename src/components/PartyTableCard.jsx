@@ -337,7 +337,7 @@ function PartyTableCard({
   const commissionSettingsChanged = hasCommissionSettingsChanged();
 
   useEffect(() => {
-    if (!isCustomer || !editItem || !previewCommissionUpdateFn || !commissionSettingsChanged) {
+    if (!editItem || !previewCommissionUpdateFn || !commissionSettingsChanged) {
       setCommissionRecalculationPreview(null);
       setCommissionRecalculationPreviewLoading(false);
       return undefined;
@@ -373,7 +373,7 @@ function PartyTableCard({
     return () => {
       cancelled = true;
     };
-  }, [commissionSettingsChanged, editItem, isCustomer, previewCommissionUpdateFn]);
+  }, [commissionSettingsChanged, editItem, previewCommissionUpdateFn]);
 
   function openMerge(item) {
     setMergeItem(item);
@@ -439,6 +439,8 @@ function PartyTableCard({
                 form.commissionBase === "PERCENT" ? Number(form.commissionPercent || 0) : 0,
               commissionLotRate:
                 form.commissionBase === "LOT" ? Number(form.commissionLotRate || 0) : null,
+              applyCommissionToSelectedFinancialYear:
+                applyCommissionToSelectedFinancialYear && commissionSettingsChanged,
             }),
       };
 
@@ -869,7 +871,7 @@ function PartyTableCard({
                 </label>
               )}
             </div>
-            {isCustomer ? (
+            {previewCommissionUpdateFn ? (
               <>
                 <label className="flex items-start gap-3 rounded-xl border border-border/70 bg-bg/40 p-3">
                   <input
@@ -880,11 +882,13 @@ function PartyTableCard({
                     onChange={(event) => setApplyCommissionToSelectedFinancialYear(event.target.checked)}
                   />
                   <span className="text-sm muted-text">
-                    Apply this commission change to this customer&apos;s existing orders in selected FY{" "}
+                    Apply this commission change to this {entityLabel}&apos;s existing orders in selected FY{" "}
                     {getFinancialYearLabel(selectedFinancialYearStart)}.
-                    <span className="mt-1 block text-xs">
-                      Orders with received payments will be skipped to keep payment history safe.
-                    </span>
+                    {isCustomer ? (
+                      <span className="mt-1 block text-xs">
+                        Orders with received payments will be skipped to keep payment history safe.
+                      </span>
+                    ) : null}
                   </span>
                 </label>
                 {commissionSettingsChanged ? (
@@ -897,12 +901,14 @@ function PartyTableCard({
                           In FY {getFinancialYearLabel(commissionRecalculationPreview.selectedFinancialYearStart)},{" "}
                           {commissionRecalculationPreview.updatableOrders || 0} orders will be updated.
                         </p>
-                        <p className="mt-1 text-xs">
-                          Pending payments to sync: {commissionRecalculationPreview.updatablePendingPayments || 0}
-                          {" | "}
-                          Orders skipped due to received payments:{" "}
-                          {commissionRecalculationPreview.skippedOrdersWithPayments || 0}
-                        </p>
+                        {isCustomer ? (
+                          <p className="mt-1 text-xs">
+                            Pending payments to sync: {commissionRecalculationPreview.updatablePendingPayments || 0}
+                            {" | "}
+                            Orders skipped due to received payments:{" "}
+                            {commissionRecalculationPreview.skippedOrdersWithPayments || 0}
+                          </p>
+                        ) : null}
                       </>
                     ) : (
                       <p>Unable to preview selected-FY commission updates right now.</p>
