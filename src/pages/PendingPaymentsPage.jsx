@@ -73,6 +73,7 @@ function statusClass(status) {
   if (status === "SETTLED") return "text-violet-600";
   if (status === "PAID") return "text-emerald-600";
   if (status === "PARTIAL") return "text-amber-600";
+  if (status === "TRANSFERRED") return "text-indigo-600 font-medium";
   return "text-sky-600";
 }
 
@@ -340,13 +341,17 @@ function PendingPaymentsPage() {
         enableSorting: false,
         cell: ({ row }) => {
           const isChecked = selectedIds.includes(row.original.id);
+          const isTransferred = row.original.status === "TRANSFERRED";
+          const isSettledOrPaid = row.original.status === "PAID" || row.original.status === "SETTLED";
+          const isDisabled = isTransferred || isSettledOrPaid;
           return (
             <label className="flex items-center justify-end md:justify-center">
               <input
                 type="checkbox"
                 className="theme-choice theme-checkbox"
                 checked={isChecked}
-                onChange={() => toggleSelection(row.original)}
+                disabled={isDisabled}
+                onChange={() => !isDisabled && toggleSelection(row.original)}
               />
             </label>
           );
@@ -371,7 +376,30 @@ function PendingPaymentsPage() {
         accessorFn: (row) => row.order?.orderNo || "-",
         header: "Order No",
         enableSorting: false,
-        cell: ({ row }) => <CopyableText value={row.original.order?.orderNo || "-"} nowrap />,
+        cell: ({ row }) => {
+          const order = row.original.order;
+          if (!order) return "-";
+          const baseNo = order.originalOrderNo || order.orderNo;
+          const isCarry = Boolean(
+            order.isCarryForward ||
+            order.carriedForwardFromOrderId ||
+            row.original.isCarryForward
+          );
+          const displayNo = isCarry ? `${baseNo}#` : baseNo;
+          return (
+            <div className="flex items-center gap-1.5">
+              <CopyableText value={displayNo} nowrap />
+              {isCarry ? (
+                <span
+                  className="rounded bg-indigo-500/10 px-1 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400"
+                  title="Carried forward"
+                >
+                  Transfer
+                </span>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "amountDue",
@@ -503,9 +531,12 @@ function PendingPaymentsPage() {
               value={draftFilters.status}
               onChange={(nextValue) => setDraftFilters((prev) => ({ ...prev, status: nextValue }))}
               options={[
-                { value: "", label: "All" },
+                { value: "", label: "All Active (Pending/Partial)" },
                 { value: "PENDING", label: "Pending" },
                 { value: "PARTIAL", label: "Partial" },
+                { value: "PAID", label: "Paid" },
+                { value: "SETTLED", label: "Settled" },
+                { value: "TRANSFERRED", label: "Transferred" },
               ]}
               placeholder="Select status"
             />
