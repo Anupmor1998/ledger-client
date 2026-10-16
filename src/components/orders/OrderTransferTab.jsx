@@ -1209,7 +1209,7 @@ export default function OrderTransferTab() {
                         selectedBatchDetails.carriedOrders.map((order) => (
                           <div key={order.id} className="rounded-lg border border-border p-3 text-sm">
                             <p className="font-medium">
-                              Order #{order.originalOrderNo || order.orderNo}
+                              Order #{order.originalOrderNo || order.orderNo}#
                               {order.sourceOrderNo && order.sourceOrderNo !== (order.originalOrderNo || order.orderNo)
                                 ? ` | Source Order #${order.sourceOrderNo} (${order.sourceOrderFyLabel})`
                                 : order.sourceOrderFyLabel

@@ -430,8 +430,9 @@ function OrderProgressPage() {
         accessorKey: "orderNo",
         enableSorting: true,
         cell: ({ row }) => {
-          const displayOrderNo = row.original.originalOrderNo || row.original.orderNo;
-          const isCarry = row.original.isCarryForward;
+          const baseOrderNo = row.original.originalOrderNo || row.original.orderNo;
+          const isCarry = Boolean(row.original.isCarryForward || row.original.carriedForwardFromOrderId);
+          const displayOrderNo = isCarry ? `${baseOrderNo}#` : baseOrderNo;
           return (
             <div className="flex items-center gap-1.5">
               <CopyableText value={displayOrderNo} nowrap />
