@@ -512,7 +512,7 @@ function DecliningCustomersSection({
   );
 }
 
-function KeyMetricCard({ label, value, suffix, subtitle }) {
+function KeyMetricCard({ label, value, suffix, subtitle, subtitleTitle }) {
   return (
     <div className="rounded-2xl border border-border bg-bg p-3 sm:p-4 flex flex-col justify-between">
       <div>
@@ -526,7 +526,23 @@ function KeyMetricCard({ label, value, suffix, subtitle }) {
           ) : null}
         </p>
       </div>
-      {subtitle ? <p className="mt-1 text-xs muted-text">{subtitle}</p> : null}
+      {subtitle ? (
+        typeof subtitle === "string" ? (
+          <p
+            className="mt-1 text-xs muted-text truncate"
+            title={subtitleTitle || subtitle}
+          >
+            {subtitle}
+          </p>
+        ) : (
+          <div
+            className="mt-1 text-xs muted-text"
+            title={subtitleTitle}
+          >
+            {subtitle}
+          </div>
+        )
+      ) : null}
     </div>
   );
 }
@@ -741,6 +757,17 @@ function DashboardOverviewPage() {
     [commissionTrendChart],
   );
 
+  const totalCommissionAmount =
+    keyMetrics.totalCommission ?? dashboardSummary?.totalCommissionAmount ?? totalCommissionInFy;
+  const customerCommissionAmount =
+    keyMetrics.customerTotalCommission ?? dashboardSummary?.totalCustomerCommission ?? 0;
+  const manufacturerCommissionAmount =
+    keyMetrics.manufacturerTotalCommission ?? dashboardSummary?.totalManufacturerCommission ?? 0;
+  const customerPendingCommission =
+    dashboardSummary?.customerPendingCommissionAmount || 0;
+  const manufacturerPendingCommission =
+    dashboardSummary?.manufacturerPendingCommissionAmount || 0;
+
   const openPendingOrders = () => {
     navigate("/order-progress?status=PENDING");
   };
@@ -823,8 +850,23 @@ function DashboardOverviewPage() {
         />
       </div>
 
-      {/* Revenue & Relationship Metrics (5 cards) */}
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" data-tour="analytics-revenue-cards">
+      {/* Revenue & Relationship Metrics (6 cards) */}
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-tour="analytics-revenue-cards">
+        <KeyMetricCard
+          label="Total Commission"
+          value={
+            analyticsLoading && dashboardLoading
+              ? "..."
+              : `Rs. ${formatCompactAmount(totalCommissionAmount)}`
+          }
+          subtitle={
+            <div className="flex flex-col text-[11px] leading-tight text-muted-text">
+              <span className="truncate">Cust: Rs. {formatCompactAmount(customerCommissionAmount)}</span>
+              <span className="truncate">Mfr: Rs. {formatCompactAmount(manufacturerCommissionAmount)}</span>
+            </div>
+          }
+          subtitleTitle={`Customer: Rs. ${Number(customerCommissionAmount).toLocaleString("en-IN")} | Manufacturer: Rs. ${Number(manufacturerCommissionAmount).toLocaleString("en-IN")}`}
+        />
         <KeyMetricCard
           label="Pending Commission"
           value={
@@ -832,7 +874,13 @@ function DashboardOverviewPage() {
               ? "..."
               : `Rs. ${formatCompactAmount(pendingCommission)}`
           }
-          subtitle="Outstanding balance"
+          subtitle={
+            <div className="flex flex-col text-[11px] leading-tight text-muted-text">
+              <span className="truncate">Cust: Rs. {formatCompactAmount(customerPendingCommission)}</span>
+              <span className="truncate">Mfr: Rs. {formatCompactAmount(manufacturerPendingCommission)}</span>
+            </div>
+          }
+          subtitleTitle={`Customer Pending: Rs. ${Number(customerPendingCommission).toLocaleString("en-IN")} | Manufacturer Pending: Rs. ${Number(manufacturerPendingCommission).toLocaleString("en-IN")}`}
         />
         <KeyMetricCard
           label="Avg Commission"
