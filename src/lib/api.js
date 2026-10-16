@@ -132,6 +132,13 @@ export async function updateManufacturer(id, data) {
   return response.data;
 }
 
+export async function previewManufacturerCommissionRecalculation(id) {
+  const response = await axiosClient.get(
+    `/manufacturers/${id}/commission-recalculation-preview`,
+  );
+  return response.data;
+}
+
 export async function deleteManufacturer(id) {
   const response = await axiosClient.delete(`/manufacturers/${id}`);
   return response.data;
