@@ -16,6 +16,7 @@ import { sortByText, sortOptionsByLabel } from "../utils/sort";
 import AutocompleteInput from "./AutocompleteInput";
 import SearchableSelect from "./SearchableSelect";
 import Modal from "./Modal";
+import { trackEvent } from "../lib/analytics";
 
 function getTodayDate() {
   return new Date().toISOString().slice(0, 10);
@@ -406,10 +407,15 @@ function OrderFormCard({ refreshSignal = 0 }) {
     clearErrors("qualityName");
   }
 
-  function openWhatsAppLink(url) {
+  function openWhatsAppLink(url, target = "party") {
     if (!url) {
       return;
     }
+
+    trackEvent("order_whatsapp_shared", {
+      target,
+      orderNo: whatsappModalData?.orderNo || undefined,
+    });
 
     window.open(url, "_blank", "noopener,noreferrer");
   }
@@ -418,6 +424,12 @@ function OrderFormCard({ refreshSignal = 0 }) {
     if (!whatsappModalData?.groupMessage || !selectedGroupId) return;
     const group = whatsappGroups.find((item) => item.id === selectedGroupId);
     if (!group?.inviteLink) return;
+
+    trackEvent("order_whatsapp_shared", {
+      target: "group",
+      groupName: group.name,
+      orderNo: whatsappModalData?.orderNo || undefined,
+    });
 
     try {
       await navigator.clipboard.writeText(whatsappModalData.groupMessage);
@@ -474,6 +486,16 @@ function OrderFormCard({ refreshSignal = 0 }) {
 
     try {
       const createdOrder = await createOrder(payload);
+
+      trackEvent("order_created", {
+        orderNo: createdOrder?.orderNo,
+        quantityUnit: payload.quantityUnit,
+        quantity: payload.quantity,
+        rate: payload.rate,
+        hasDyeingGuarantees: payload.dyeingGuarantees,
+        paymentDueOn: payload.paymentDueOn,
+      });
+
       const refreshedQualityOptions = await loadQualityOptions();
 
       const refreshedMatch = findOptionByLabel(
@@ -754,7 +776,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
               <button
                 type="button"
                 className="primary-btn w-auto"
-                onClick={() => openWhatsAppLink(whatsappModalData.manufacturerLink)}
+                onClick={() => openWhatsAppLink(whatsappModalData.manufacturerLink, "manufacturer")}
                 disabled={!whatsappModalData.manufacturerLink}
               >
                 Send To Manufacturer
@@ -762,7 +784,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
               <button
                 type="button"
                 className="primary-btn w-auto"
-                onClick={() => openWhatsAppLink(whatsappModalData.customerLink)}
+                onClick={() => openWhatsAppLink(whatsappModalData.customerLink, "customer")}
                 disabled={!whatsappModalData.customerLink}
               >
                 Send To Customer

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { trackEvent } from "../lib/analytics";
 
 function PricingPage({ dark, onToggleTheme }) {
   const [billingCycle, setBillingCycle] = useState("monthly");
@@ -237,7 +238,10 @@ function PricingPage({ dark, onToggleTheme }) {
           <div className="mt-8 inline-flex items-center p-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
             <button
               type="button"
-              onClick={() => setBillingCycle("monthly")}
+              onClick={() => {
+                setBillingCycle("monthly");
+                trackEvent("pricing_billing_cycle_changed", { billingCycle: "monthly" });
+              }}
               className={`px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 !isYearly
                   ? "bg-[var(--color-accent)] text-white shadow-sm"
@@ -248,7 +252,10 @@ function PricingPage({ dark, onToggleTheme }) {
             </button>
             <button
               type="button"
-              onClick={() => setBillingCycle("yearly")}
+              onClick={() => {
+                setBillingCycle("yearly");
+                trackEvent("pricing_billing_cycle_changed", { billingCycle: "yearly" });
+              }}
               className={`px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 ${
                 isYearly
                   ? "bg-[var(--color-accent)] text-white shadow-sm"
@@ -365,6 +372,13 @@ function PricingPage({ dark, onToggleTheme }) {
               <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
                 <Link
                   to="/signup"
+                  onClick={() =>
+                    trackEvent("pricing_plan_cta_clicked", {
+                      plan: "STARTER",
+                      billingCycle,
+                      price: isYearly ? 990 : 99,
+                    })
+                  }
                   className="ghost-btn !w-full text-center text-xs py-2.5 font-semibold block hover:border-[var(--color-accent)]"
                 >
                   Start 14-Day Free Trial
@@ -457,6 +471,13 @@ function PricingPage({ dark, onToggleTheme }) {
               <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
                 <Link
                   to="/signup"
+                  onClick={() =>
+                    trackEvent("pricing_plan_cta_clicked", {
+                      plan: "GROWTH",
+                      billingCycle,
+                      price: isYearly ? 2990 : 299,
+                    })
+                  }
                   className="primary-btn !w-full text-center text-xs py-2.5 font-bold block shadow-md"
                 >
                   Start 14-Day Free Trial
@@ -537,6 +558,13 @@ function PricingPage({ dark, onToggleTheme }) {
               <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
                 <Link
                   to="/signup"
+                  onClick={() =>
+                    trackEvent("pricing_plan_cta_clicked", {
+                      plan: "PREMIUM",
+                      billingCycle,
+                      price: isYearly ? 3990 : 399,
+                    })
+                  }
                   className="ghost-btn !w-full text-center text-xs py-2.5 font-semibold block hover:border-[var(--color-accent)]"
                 >
                   Start 14-Day Free Trial

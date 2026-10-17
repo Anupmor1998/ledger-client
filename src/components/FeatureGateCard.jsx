@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { trackEvent } from "../lib/analytics";
 
 function FeatureGateCard({
   featureKey = "ANALYTICS",
@@ -13,6 +15,13 @@ function FeatureGateCard({
     "Priority fast-server processing",
   ],
 }) {
+  useEffect(() => {
+    trackEvent("feature_gate_viewed", {
+      featureKey,
+      requiredTier,
+      currentPlan,
+    });
+  }, [featureKey, requiredTier, currentPlan]);
   return (
     <div className="mx-auto max-w-4xl py-6 sm:py-10">
       <div className="relative overflow-hidden rounded-2xl border border-border bg-surface p-6 sm:p-10 shadow-lg">
@@ -67,6 +76,11 @@ function FeatureGateCard({
             <Link
               to="/subscription#plans-grid"
               onClick={() => {
+                trackEvent("feature_gate_upgrade_clicked", {
+                  featureKey,
+                  requiredTier,
+                  currentPlan,
+                });
                 const el = document.getElementById("plans-grid");
                 if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
               }}

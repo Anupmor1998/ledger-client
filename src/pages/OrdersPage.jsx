@@ -10,6 +10,7 @@ import Modal from "../components/Modal";
 import SearchableSelect from "../components/SearchableSelect";
 import useDebounce from "../hooks/useDebounce";
 import usePageTour from "../hooks/usePageTour";
+import { trackEvent } from "../lib/analytics";
 import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { sortByText, sortOptionsByLabel } from "../utils/sort";
@@ -587,6 +588,9 @@ function OrdersPage() {
     setReopenLoading(true);
     try {
       await updateOrder(reopenItem.id, { status: "PENDING" });
+      trackEvent("order_reopened", {
+        orderNo: reopenItem.orderNo,
+      });
       await loadData();
       toast.success("Order reopened successfully");
       setReopenItem(null);
@@ -598,8 +602,14 @@ function OrdersPage() {
     }
   }
 
-  function openWhatsAppLink(url) {
+  function openWhatsAppLink(url, target = "party") {
     if (!url) return;
+
+    trackEvent("order_whatsapp_shared", {
+      target,
+      orderNo: whatsappModalData?.orderNo || undefined,
+    });
+
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
@@ -607,6 +617,12 @@ function OrdersPage() {
     if (!whatsappModalData?.groupMessage || !selectedGroupId) return;
     const group = whatsappGroups.find((item) => item.id === selectedGroupId);
     if (!group?.inviteLink) return;
+
+    trackEvent("order_whatsapp_shared", {
+      target: "group",
+      groupName: group.name,
+      orderNo: whatsappModalData?.orderNo || undefined,
+    });
 
     try {
       await navigator.clipboard.writeText(whatsappModalData.groupMessage);
@@ -1382,7 +1398,7 @@ function OrdersPage() {
               <button
                 type="button"
                 className="primary-btn w-auto"
-                onClick={() => openWhatsAppLink(whatsappModalData.manufacturerLink)}
+                onClick={() => openWhatsAppLink(whatsappModalData.manufacturerLink, "manufacturer")}
                 disabled={!whatsappModalData.manufacturerLink}
               >
                 Send To Manufacturer
@@ -1390,7 +1406,7 @@ function OrdersPage() {
               <button
                 type="button"
                 className="primary-btn w-auto"
-                onClick={() => openWhatsAppLink(whatsappModalData.customerLink)}
+                onClick={() => openWhatsAppLink(whatsappModalData.customerLink, "customer")}
                 disabled={!whatsappModalData.customerLink}
               >
                 Send To Customer

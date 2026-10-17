@@ -1,5 +1,6 @@
 import { getAuthTokenFromCookie } from "./authCookie";
 import axiosClient from "./axiosClient";
+import { trackEvent } from "./analytics";
 
 function normalizeListParams(params = {}) {
   const normalized = { ...params };
@@ -51,6 +52,11 @@ export async function createParty(data) {
   const endpoint =
     userType === "manufacturer" ? "/manufacturers" : "/customers";
   const response = await axiosClient.post(endpoint, payload);
+  trackEvent("party_created", {
+    partyType: userType === "manufacturer" ? "MANUFACTURER" : "CUSTOMER",
+    hasFirmName: Boolean(payload.firmName?.trim()),
+    commissionBase: payload.commissionBase || "LOT",
+  });
   return response.data;
 }
 
@@ -440,6 +446,13 @@ export async function downloadReportFile(
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+
+  const format = String(path || "").toLowerCase().endsWith(".pdf") ? "PDF" : "EXCEL";
+  trackEvent("report_downloaded", {
+    path,
+    format,
+    filename,
+  });
 }
 
 export async function getNextPaymentSerialNo(params = {}) {
@@ -458,6 +471,11 @@ export async function getEligibleOrdersForPayment(params = {}) {
 
 export async function createPaymentEntry(data) {
   const response = await axiosClient.post("/payments", data);
+  trackEvent("payment_entry_created", {
+    partyType: data.partyType,
+    paymentMode: data.paymentMode,
+    amount: data.amount,
+  });
   return response.data;
 }
 
