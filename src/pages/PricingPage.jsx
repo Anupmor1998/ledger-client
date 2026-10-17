@@ -1,11 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { trackEvent } from "../lib/analytics";
+import { getPublicOfferBanners } from "../lib/api";
+import OfferBanner from "../components/OfferBanner";
 
 function PricingPage({ dark, onToggleTheme }) {
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [openFaq, setOpenFaq] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [offerBanner, setOfferBanner] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    getPublicOfferBanners()
+      .then((res) => {
+        if (isMounted && Array.isArray(res?.offers) && res.offers.length > 0) {
+          setOfferBanner(res.offers[0]);
+        }
+      })
+      .catch(() => {
+        // Non-blocking
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const isYearly = billingCycle === "yearly";
 
@@ -217,6 +236,12 @@ function PricingPage({ dark, onToggleTheme }) {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6 text-center">
+          {offerBanner && (
+            <div className="mb-8 text-left">
+              <OfferBanner coupon={offerBanner} />
+            </div>
+          )}
+
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/20 text-[var(--color-accent)] text-xs font-semibold mb-5">
             <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
               <circle cx="12" cy="12" r="10" />

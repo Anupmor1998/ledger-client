@@ -10,6 +10,7 @@ import {
   getSubscriptionInvoices,
   getSubscriptionStatus,
   previewSubscriptionOrder,
+  testSwitchSubscriptionPlan,
   validateCouponCode,
   verifySubscriptionPayment,
 } from "../lib/api";
@@ -17,6 +18,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
 import { loadRazorpaySDK } from "../utils/razorpay";
 import { trackEvent } from "../lib/analytics";
+import OfferBanner, { BANNER_THEMES } from "../components/OfferBanner";
 
 const PLAN_TIERS = [
   {
@@ -109,6 +111,26 @@ function SubscriptionPage() {
   const [couponError, setCouponError] = useState("");
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [showOffersModal, setShowOffersModal] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+
+  const isSimulatorEnabled =
+    String(process.env.ENABLE_SUBSCRIPTION_SIMULATOR).toLowerCase() === "true";
+
+  async function handleSimulatePlan(mode) {
+    try {
+      setSimulating(true);
+      const res = await testSwitchSubscriptionPlan(mode);
+      if (res?.user) {
+        dispatch(setUserProfile(res.user));
+      }
+      await loadData();
+      toast.success(res?.message || `Switched plan to ${mode}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to switch test plan");
+    } finally {
+      setSimulating(false);
+    }
+  }
 
   // Auto-scroll to Choose Plan section if navigated with hash #plans-grid or action
   useEffect(() => {
@@ -229,6 +251,73 @@ function SubscriptionPage() {
   }, [serverSubscription, user]);
 
   const isYearly = billingCycle === "yearly";
+
+  // Suppress promotional offer banners for users who already have an active highest-tier (PREMIUM) subscription
+  const isHighestPlanActive =
+    subscriptionState.plan === "PREMIUM" &&
+    !subscriptionState.isTrial &&
+    subscriptionState.status === "ACTIVE" &&
+    subscriptionState.daysRemaining > 14;
+
+  const featuredBanner = useMemo(() => {
+    if (isHighestPlanActive) return null;
+    return availableCoupons.find((c) => c.showBanner) || null;
+  }, [availableCoupons, isHighestPlanActive]);
+
+  function handleApplyBannerCoupon(coupon) {
+    // Smart target plan: Never downgrade a user
+    const userRank = TIER_RANKS[subscriptionState.plan] || 0;
+    let targetPlan;
+    if (selectedPlanForCheckout) {
+      targetPlan = selectedPlanForCheckout;
+    } else if (userRank >= TIER_RANKS.GROWTH) {
+      targetPlan = PLAN_TIERS.find((p) => p.id === "PREMIUM") || PLAN_TIERS[2];
+    } else {
+      targetPlan = PLAN_TIERS.find((p) => p.id === "GROWTH") || PLAN_TIERS[1];
+    }
+
+    setSelectedPlanForCheckout(targetPlan);
+    setCouponInput(coupon.code);
+    setAppliedCoupon(null);
+    setCouponError("");
+    setLoadingPreview(true);
+
+    trackEvent("offer_banner_claimed", {
+      code: coupon.code,
+      theme: coupon.bannerTheme || "EMERALD",
+      planId: targetPlan.id,
+    });
+
+    previewSubscriptionOrder({
+      plan: targetPlan.id,
+      billingCycle: billingCycle.toUpperCase(),
+    })
+      .then(async (previewRes) => {
+        setOrderPreview(previewRes);
+        try {
+          setIsApplyingCoupon(true);
+          const couponRes = await validateCouponCode({
+            code: coupon.code,
+            plan: plan.id,
+            billingCycle: billingCycle.toUpperCase(),
+          });
+          setAppliedCoupon(couponRes.coupon);
+          setOrderPreview((prev) => ({
+            ...prev,
+            discountAmount: couponRes.discountAmount,
+            finalPrice: couponRes.finalPrice,
+            coupon: couponRes.coupon,
+          }));
+          toast.success(`Coupon "${coupon.code}" applied!`);
+        } catch (_err) {
+          // Keep input so user can see it
+        } finally {
+          setIsApplyingCoupon(false);
+        }
+      })
+      .catch(() => setOrderPreview(null))
+      .finally(() => setLoadingPreview(false));
+  }
 
   function handleOpenCheckout(plan) {
     setSelectedPlanForCheckout(plan);
@@ -505,6 +594,90 @@ function SubscriptionPage() {
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Subscription State Testing Simulator (Dev & Staging) */}
+      {isSimulatorEnabled && (
+        <div className="rounded-2xl border-2 border-dashed border-amber-500/40 bg-amber-500/5 p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs">
+                🧪
+              </span>
+              <div>
+                <h3 className="text-xs sm:text-sm font-bold text-text flex items-center gap-2">
+                  <span>Subscription Flow Simulator</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-200">
+                    Testing Mode
+                  </span>
+                </h3>
+                <p className="text-[11px] text-muted-text mt-0.5">
+                  Click any state below to instantly switch your account to test offer banners, upgrade flows, renewals, and coupon limits.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-text">
+              <span>Active State:</span>
+              <span className="font-bold text-text px-2.5 py-1 rounded-md bg-surface border border-border shadow-2xs">
+                {subscriptionState.plan} ({subscriptionState.status}) &bull; {subscriptionState.daysRemaining}d left
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-[11px] font-bold text-muted-text uppercase tracking-wider mr-1">
+              Switch To:
+            </span>
+            {[
+              {
+                mode: "TRIAL_ACTIVE",
+                label: "Trial (14d Active)",
+                color: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:bg-sky-500/20",
+              },
+              {
+                mode: "TRIAL_EXPIRING",
+                label: "Trial Expiring (2d Left)",
+                color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20",
+              },
+              {
+                mode: "TRIAL_EXPIRED",
+                label: "Trial Expired (0d)",
+                color: "bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30 hover:bg-red-500/20",
+              },
+              {
+                mode: "STARTER",
+                label: "Starter (Monthly 30d)",
+                color: "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 hover:bg-blue-500/20",
+              },
+              {
+                mode: "GROWTH",
+                label: "Growth (Monthly 30d)",
+                color: "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-500/20",
+              },
+              {
+                mode: "PREMIUM",
+                label: "Premium (Yearly 365d)",
+                color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20",
+              },
+              {
+                mode: "PLAN_EXPIRED",
+                label: "Plan Expired (-2d)",
+                color: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 hover:bg-rose-500/20",
+              },
+            ].map((btn) => (
+              <button
+                key={btn.mode}
+                type="button"
+                disabled={simulating}
+                onClick={() => handleSimulatePlan(btn.mode)}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-2xs active:scale-95 disabled:opacity-50 cursor-pointer ${btn.color}`}
+              >
+                {simulating ? "Switching..." : btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
@@ -621,6 +794,14 @@ function SubscriptionPage() {
           </button>
         </div>
       </div>
+
+      {/* Featured Festive & Occasion Offer Banner */}
+      {featuredBanner && (
+        <OfferBanner
+          coupon={featuredBanner}
+          onApply={handleApplyBannerCoupon}
+        />
+      )}
 
       {/* Plan Selection Section */}
       <div id="plans-grid" className="pt-4 space-y-6">
@@ -1313,20 +1494,26 @@ function SubscriptionPage() {
               <div className="space-y-3">
                 {availableCoupons.map((coupon) => {
                   const isSelected = appliedCoupon?.code === coupon.code;
+                  const theme = BANNER_THEMES[coupon.bannerTheme || "EMERALD"] || BANNER_THEMES.EMERALD;
+                  const badgeText = coupon.bannerBadge || (coupon.showBanner ? theme.badgeDefault : null);
+
                   return (
                     <div
                       key={coupon.id}
                       className={`relative overflow-hidden rounded-xl border transition-all p-3.5 sm:p-4 ${
                         isSelected
                           ? "border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/50 shadow-sm"
+                          : coupon.showBanner
+                          ? `border-accent/40 bg-surface shadow-xs`
                           : "border-border bg-bg hover:border-accent/40 hover:bg-surface shadow-xs"
                       }`}
                     >
                       {/* Left accent ribbon bar */}
                       <div
-                        className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                          isSelected ? "bg-emerald-500" : "bg-accent"
-                        }`}
+                        className={`absolute left-0 top-0 bottom-0 w-1.5`}
+                        style={{
+                          backgroundColor: isSelected ? "#10b981" : theme.accentColor || "var(--color-accent)",
+                        }}
                       />
 
                       <div className="pl-2 flex items-start justify-between gap-3">
@@ -1340,11 +1527,24 @@ function SubscriptionPage() {
                                 ? `${coupon.discountValue}% OFF`
                                 : `₹${coupon.discountValue.toLocaleString("en-IN")} FLAT OFF`}
                             </span>
+                            {badgeText && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${theme.badgeBg}`}
+                              >
+                                {badgeText}
+                              </span>
+                            )}
                           </div>
 
-                          {coupon.description && (
-                            <p className="text-xs text-text/80 font-medium leading-relaxed mt-1">
-                              {coupon.description}
+                          {coupon.bannerHeadline ? (
+                            <p className="text-xs text-text font-bold leading-relaxed mt-1">
+                              {coupon.bannerHeadline}
+                            </p>
+                          ) : null}
+
+                          {(coupon.bannerSubtitle || coupon.description) && (
+                            <p className="text-xs text-muted-text font-medium leading-relaxed mt-0.5">
+                              {coupon.bannerSubtitle || coupon.description}
                             </p>
                           )}
 
