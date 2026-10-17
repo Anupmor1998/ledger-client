@@ -693,6 +693,11 @@ export async function getAvailableCoupons() {
   return response.data;
 }
 
+export async function getPublicOfferBanners() {
+  const response = await axiosClient.get("/subscription/public-offers");
+  return response.data;
+}
+
 export async function getAdminCoupons(params = {}) {
   const response = await axiosClient.get("/admin/coupons", { params });
   return response.data;

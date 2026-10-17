@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import DatePicker from "../components/DatePicker";
+import OfferBanner, { BANNER_THEMES } from "../components/OfferBanner";
 import useDebounce from "../hooks/useDebounce";
 import {
   createAdminCoupon,
@@ -90,6 +91,11 @@ function AdminCouponsPage() {
     maxUses: "",
     maxUsesPerUser: "1",
     isPublic: true,
+    showBanner: false,
+    bannerTheme: "EMERALD",
+    bannerHeadline: "",
+    bannerSubtitle: "",
+    bannerBadge: "",
     expiresAt: "",
   });
 
@@ -203,6 +209,11 @@ function AdminCouponsPage() {
         maxUses: "",
         maxUsesPerUser: "1",
         isPublic: true,
+        showBanner: false,
+        bannerTheme: "EMERALD",
+        bannerHeadline: "",
+        bannerSubtitle: "",
+        bannerBadge: "",
         expiresAt: "",
       });
       fetchCoupons();
@@ -252,6 +263,11 @@ function AdminCouponsPage() {
         maxUses: editingCoupon.maxUses ? Number(editingCoupon.maxUses) : null,
         maxUsesPerUser: editingCoupon.maxUsesPerUser ? Number(editingCoupon.maxUsesPerUser) : 1,
         expiresAt: editingCoupon.expiresAt || null,
+        showBanner: Boolean(editingCoupon.showBanner),
+        bannerTheme: editingCoupon.bannerTheme || "EMERALD",
+        bannerHeadline: editingCoupon.bannerHeadline || null,
+        bannerSubtitle: editingCoupon.bannerSubtitle || null,
+        bannerBadge: editingCoupon.bannerBadge || null,
       });
       toast.success("Coupon updated successfully");
       setEditingCoupon(null);
@@ -492,6 +508,15 @@ function AdminCouponsPage() {
                               <CopyIcon className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100" />
                             )}
                           </button>
+                          {coupon.showBanner && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 border border-amber-500/30"
+                              title={`Featured Offer Banner (${coupon.bannerTheme || "EMERALD"})`}
+                            >
+                              <span>★</span>
+                              <span>Banner</span>
+                            </span>
+                          )}
                         </div>
                         {coupon.description && (
                           <p className="mt-1 text-[11px] text-muted-text truncate max-w-xs">
@@ -591,6 +616,11 @@ function AdminCouponsPage() {
                             onClick={() =>
                               setEditingCoupon({
                                 ...coupon,
+                                showBanner: Boolean(coupon.showBanner),
+                                bannerTheme: coupon.bannerTheme || "EMERALD",
+                                bannerHeadline: coupon.bannerHeadline || "",
+                                bannerSubtitle: coupon.bannerSubtitle || "",
+                                bannerBadge: coupon.bannerBadge || "",
                                 expiresAt: coupon.expiresAt
                                   ? format(new Date(coupon.expiresAt), "yyyy-MM-dd")
                                   : "",
@@ -835,6 +865,139 @@ function AdminCouponsPage() {
                   When enabled, all users will see this coupon on the subscription checkout modal and can apply it with 1 click.
                 </span>
               </label>
+            </div>
+
+            {/* Banner & Occasion Styling Section */}
+            <div className="rounded-xl border border-border bg-bg/40 p-3.5 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="single-showBanner"
+                  checked={singleForm.showBanner}
+                  onChange={(e) =>
+                    setSingleForm({ ...singleForm, showBanner: e.target.checked })
+                  }
+                  className="mt-0.5 rounded border-border text-accent focus:ring-accent h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="single-showBanner" className="text-xs cursor-pointer select-none">
+                  <span className="font-bold text-text flex items-center gap-1.5">
+                    <span>🎉 Feature as Festive / Occasion Offer Banner</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                      Hero & Compact Banner
+                    </span>
+                  </span>
+                  <span className="text-muted-text text-[11px] block mt-0.5">
+                    Displays an eye-catching interactive offer banner on the Subscription & Pricing pages to boost conversions.
+                  </span>
+                </label>
+              </div>
+
+              {singleForm.showBanner && (
+                <div className="pt-2 border-t border-border space-y-3">
+                  {/* Occasion / Theme Selector */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                      Occasion & Visual Style Theme
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {Object.values(BANNER_THEMES).map((thm) => {
+                        const isSelected = (singleForm.bannerTheme || "EMERALD") === thm.id;
+                        return (
+                          <button
+                            key={thm.id}
+                            type="button"
+                            onClick={() => setSingleForm({ ...singleForm, bannerTheme: thm.id })}
+                            className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                              isSelected
+                                ? "border-accent bg-accent/10 text-text font-bold shadow-xs"
+                                : "border-border bg-surface text-muted-text hover:bg-bg hover:text-text"
+                            }`}
+                          >
+                            <span
+                              className="h-3.5 w-3.5 rounded-full shrink-0"
+                              style={{ backgroundColor: thm.accentColor }}
+                            />
+                            <span className="truncate">{thm.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Banner Badge */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                        Badge Tag (e.g. DIWALI SPECIAL)
+                      </label>
+                      <input
+                        type="text"
+                        value={singleForm.bannerBadge}
+                        onChange={(e) =>
+                          setSingleForm({ ...singleForm, bannerBadge: e.target.value })
+                        }
+                        placeholder={
+                          BANNER_THEMES[singleForm.bannerTheme || "EMERALD"]?.badgeDefault || "EXCLUSIVE OFFER"
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                    </div>
+
+                    {/* Headline */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                        Headline (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={singleForm.bannerHeadline}
+                        onChange={(e) =>
+                          setSingleForm({ ...singleForm, bannerHeadline: e.target.value })
+                        }
+                        placeholder="e.g. 🪔 Happy Diwali Special Discount!"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Subtitle */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                      Subtitle / Subtext (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={singleForm.bannerSubtitle}
+                      onChange={(e) =>
+                        setSingleForm({ ...singleForm, bannerSubtitle: e.target.value })
+                      }
+                      placeholder="e.g. Get flat ₹500 off on all annual subscription plans for a limited period."
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                  </div>
+
+                  {/* Live Preview */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-accent uppercase tracking-wider mb-1.5">
+                      Live Banner Preview
+                    </label>
+                    <div className="rounded-xl border border-border p-2 bg-bg/80">
+                      <OfferBanner
+                        coupon={{
+                          code: singleForm.code || "SAMPLE20",
+                          discountType: singleForm.discountType,
+                          discountValue: singleForm.discountValue || 20,
+                          bannerTheme: singleForm.bannerTheme || "EMERALD",
+                          bannerHeadline: singleForm.bannerHeadline,
+                          bannerSubtitle: singleForm.bannerSubtitle,
+                          bannerBadge: singleForm.bannerBadge,
+                        }}
+                        variant="compact"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </Modal>
@@ -1205,6 +1368,148 @@ function AdminCouponsPage() {
               <p className="mt-1 text-[11px] text-muted-text">
                 Clear the expiry date to make this coupon never expire.
               </p>
+            </div>
+
+            {/* Banner & Occasion Styling Section in Edit Modal */}
+            <div className="rounded-xl border border-border bg-bg/40 p-3.5 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="edit-showBanner"
+                  checked={Boolean(editingCoupon.showBanner)}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, showBanner: e.target.checked })
+                  }
+                  className="mt-0.5 rounded border-border text-accent focus:ring-accent h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="edit-showBanner" className="text-xs cursor-pointer select-none">
+                  <span className="font-bold text-text flex items-center gap-1.5">
+                    <span>🎉 Feature as Festive / Occasion Offer Banner</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                      Hero & Compact Banner
+                    </span>
+                  </span>
+                  <span className="text-muted-text text-[11px] block mt-0.5">
+                    Displays an eye-catching interactive offer banner on the Subscription & Pricing pages to boost conversions.
+                  </span>
+                </label>
+              </div>
+
+              {editingCoupon.showBanner && (
+                <div className="pt-2 border-t border-border space-y-3">
+                  {/* Occasion / Theme Selector */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                      Occasion & Visual Style Theme
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {Object.values(BANNER_THEMES).map((thm) => {
+                        const isSelected = (editingCoupon.bannerTheme || "EMERALD") === thm.id;
+                        return (
+                          <button
+                            key={thm.id}
+                            type="button"
+                            onClick={() =>
+                              setEditingCoupon({ ...editingCoupon, bannerTheme: thm.id })
+                            }
+                            className={`flex items-center gap-2 p-2 rounded-lg border text-left text-xs transition ${
+                              isSelected
+                                ? "border-accent bg-accent/10 text-text font-bold shadow-xs"
+                                : "border-border bg-surface text-muted-text hover:bg-bg hover:text-text"
+                            }`}
+                          >
+                            <span
+                              className="h-3.5 w-3.5 rounded-full shrink-0"
+                              style={{ backgroundColor: thm.accentColor }}
+                            />
+                            <span className="truncate">{thm.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Banner Badge */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                        Badge Tag (e.g. DIWALI SPECIAL)
+                      </label>
+                      <input
+                        type="text"
+                        value={editingCoupon.bannerBadge || ""}
+                        onChange={(e) =>
+                          setEditingCoupon({ ...editingCoupon, bannerBadge: e.target.value })
+                        }
+                        placeholder={
+                          BANNER_THEMES[editingCoupon.bannerTheme || "EMERALD"]?.badgeDefault ||
+                          "EXCLUSIVE OFFER"
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                    </div>
+
+                    {/* Headline */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                        Headline (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={editingCoupon.bannerHeadline || ""}
+                        onChange={(e) =>
+                          setEditingCoupon({
+                            ...editingCoupon,
+                            bannerHeadline: e.target.value,
+                          })
+                        }
+                        placeholder="e.g. 🪔 Happy Diwali Special Discount!"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Subtitle */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                      Subtitle / Subtext (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={editingCoupon.bannerSubtitle || ""}
+                      onChange={(e) =>
+                        setEditingCoupon({
+                          ...editingCoupon,
+                          bannerSubtitle: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Get flat ₹500 off on all annual subscription plans for a limited period."
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                  </div>
+
+                  {/* Live Preview */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-accent uppercase tracking-wider mb-1.5">
+                      Live Banner Preview
+                    </label>
+                    <div className="rounded-xl border border-border p-2 bg-bg/80">
+                      <OfferBanner
+                        coupon={{
+                          code: editingCoupon.code,
+                          discountType: editingCoupon.discountType,
+                          discountValue: editingCoupon.discountValue,
+                          bannerTheme: editingCoupon.bannerTheme || "EMERALD",
+                          bannerHeadline: editingCoupon.bannerHeadline,
+                          bannerSubtitle: editingCoupon.bannerSubtitle,
+                          bannerBadge: editingCoupon.bannerBadge,
+                        }}
+                        variant="compact"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </Modal>
