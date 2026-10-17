@@ -59,6 +59,12 @@ export default defineConfig(({ mode }) => {
       "process.env.APP_ENV": JSON.stringify(
         env.APP_ENV || mode || "development"
       ),
+      "process.env.POSTHOG_KEY": JSON.stringify(
+        env.POSTHOG_KEY || ""
+      ),
+      "process.env.POSTHOG_HOST": JSON.stringify(
+        env.POSTHOG_HOST || "https://us.i.posthog.com"
+      ),
     },
   };
 });

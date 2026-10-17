@@ -13,6 +13,7 @@ import { useAppSelector } from "../store/hooks";
 import { getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { getOrders, updateOrder } from "../lib/api";
 import OrderTransferTab from "../components/orders/OrderTransferTab";
+import { trackEvent } from "../lib/analytics";
 
 const ORDER_PROGRESS_PAGE_TABS = [
   {
@@ -393,6 +394,11 @@ function OrderProgressPage() {
             }
           : { status: "COMPLETED" };
       await updateOrder(order.id, payload);
+      trackEvent("order_completed", {
+        orderNo: order.orderNo,
+        mode,
+        quantityUnit: order.quantityUnit,
+      });
       await loadData();
       toast.success("Order marked as completed");
       setEditItem(null);
@@ -411,6 +417,9 @@ function OrderProgressPage() {
     setCancelLoading(true);
     try {
       await updateOrder(cancelItem.id, { status: "CANCELLED" });
+      trackEvent("order_cancelled", {
+        orderNo: cancelItem.orderNo,
+      });
       await loadData();
       toast.success("Order marked as cancelled");
       setCancelItem(null);

@@ -16,6 +16,7 @@ import {
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
 import { loadRazorpaySDK } from "../utils/razorpay";
+import { trackEvent } from "../lib/analytics";
 
 const PLAN_TIERS = [
   {
@@ -238,6 +239,13 @@ function SubscriptionPage() {
     setLoadingPreview(true);
     fetchAvailableCoupons();
 
+    trackEvent("subscription_plan_selected", {
+      planId: plan.id,
+      planName: plan.name,
+      billingCycle,
+      price: billingCycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice,
+    });
+
     previewSubscriptionOrder({
       plan: plan.id,
       billingCycle: billingCycle.toUpperCase(),
@@ -278,12 +286,32 @@ function SubscriptionPage() {
         finalPrice: res.finalPrice,
         coupon: res.coupon,
       }));
+
+      trackEvent("subscription_coupon_applied", {
+        couponCode: res.coupon.code,
+        planId: selectedPlanForCheckout.id,
+        planName: selectedPlanForCheckout.name,
+        discountAmount: res.discountAmount,
+        finalPrice: res.finalPrice,
+        discountPercent: res.coupon.discountPercent || undefined,
+        success: true,
+      });
+
       toast.success(
         `Coupon "${res.coupon.code}" applied! Saved ₹${res.discountAmount.toLocaleString("en-IN")}`
       );
     } catch (err) {
       const msg = err?.response?.data?.message || "Invalid coupon code";
       setCouponError(msg);
+
+      trackEvent("subscription_coupon_applied", {
+        couponCode: normalized,
+        planId: selectedPlanForCheckout.id,
+        planName: selectedPlanForCheckout.name,
+        success: false,
+        error: msg,
+      });
+
       toast.error(msg);
     } finally {
       setIsApplyingCoupon(false);
@@ -338,6 +366,12 @@ function SubscriptionPage() {
 
       // If 100% coupon discount resulted in an instant free activation
       if (orderData?.freeUpgrade) {
+        trackEvent("subscription_free_upgrade_activated", {
+          planId: selectedPlanForCheckout.id,
+          planName: selectedPlanForCheckout.name,
+          couponCode: appliedCoupon?.code || null,
+        });
+
         toast.success(orderData.message || "Subscription activated successfully!");
         setSelectedPlanForCheckout(null);
         setAppliedCoupon(null);
@@ -354,6 +388,15 @@ function SubscriptionPage() {
         setIsCheckingOut(false);
         return;
       }
+
+      trackEvent("subscription_checkout_initiated", {
+        planId: selectedPlanForCheckout.id,
+        planName: selectedPlanForCheckout.name,
+        billingCycle: billingCycle.toUpperCase(),
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        couponCode: appliedCoupon?.code || null,
+      });
 
       // 2. Load Razorpay script
       const sdkReady = await loadRazorpaySDK();
@@ -386,6 +429,10 @@ function SubscriptionPage() {
         },
         modal: {
           ondismiss: function () {
+            trackEvent("subscription_checkout_cancelled", {
+              planId: selectedPlanForCheckout.id,
+              planName: selectedPlanForCheckout.name,
+            });
             setIsCheckingOut(false);
           },
         },
@@ -401,6 +448,14 @@ function SubscriptionPage() {
             if (verifyResult?.user) {
               dispatch(setUserProfile(verifyResult.user));
             }
+
+            trackEvent("subscription_payment_success", {
+              planId: selectedPlanForCheckout.id,
+              planName: selectedPlanForCheckout.name,
+              billingCycle: billingCycle.toUpperCase(),
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+            });
 
             toast.success(verifyResult?.message || "Plan upgraded successfully!");
             setSelectedPlanForCheckout(null);
@@ -418,6 +473,12 @@ function SubscriptionPage() {
 
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", async function (failResponse) {
+        trackEvent("subscription_payment_failed", {
+          planId: selectedPlanForCheckout.id,
+          planName: selectedPlanForCheckout.name,
+          reason: failResponse.error?.description || "Payment failed",
+        });
+
         toast.error(failResponse.error?.description || "Payment failed or cancelled by user.");
         try {
           await failSubscriptionOrder({
@@ -575,7 +636,10 @@ function SubscriptionPage() {
           <div className="inline-flex items-center rounded-xl border border-border bg-surface p-1 shadow-sm self-start sm:self-auto">
             <button
               type="button"
-              onClick={() => setBillingCycle("monthly")}
+              onClick={() => {
+                setBillingCycle("monthly");
+                trackEvent("subscription_billing_cycle_changed", { billingCycle: "monthly" });
+              }}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 !isYearly
                   ? "bg-accent text-white shadow-sm"
@@ -586,7 +650,10 @@ function SubscriptionPage() {
             </button>
             <button
               type="button"
-              onClick={() => setBillingCycle("yearly")}
+              onClick={() => {
+                setBillingCycle("yearly");
+                trackEvent("subscription_billing_cycle_changed", { billingCycle: "yearly" });
+              }}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 isYearly
                   ? "bg-accent text-white shadow-sm"
