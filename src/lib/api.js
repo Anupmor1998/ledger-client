@@ -723,3 +723,27 @@ export async function deleteAdminCoupon(id) {
   return response.data;
 }
 
+export async function getVerificationStatus() {
+  const response = await axiosClient.get("/verification/status");
+  return response.data;
+}
+
+export async function sendEmailVerificationOtp() {
+  const response = await axiosClient.post("/verification/send-email-otp");
+  return response.data;
+}
+
+export async function verifyEmailOtp(otp) {
+  const response = await axiosClient.post("/verification/verify-email-otp", { otp });
+  return response.data;
+}
+
+export async function verifyPhoneWithFirebase(idToken, phoneNumber) {
+  const response = await axiosClient.post("/verification/verify-phone-firebase", {
+    idToken,
+    phoneNumber,
+  });
+  return response.data;
+}
+
+

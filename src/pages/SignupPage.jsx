@@ -20,7 +20,7 @@ function SignupPage() {
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(signupSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: { name: "", email: "", contactPhone: "", password: "" },
   });
 
   async function onSubmit(values) {
@@ -57,10 +57,41 @@ function SignupPage() {
 
         <label className="block">
           <span className="mb-1 block text-sm muted-text">Email</span>
-          <input className="form-input" type="email" {...register("email")} />
+          <input className="form-input" type="email" placeholder="name@company.com" {...register("email")} />
           {errors.email ? (
             <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
           ) : null}
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-sm muted-text">Mobile Number</span>
+          <div className="flex items-stretch rounded-lg shadow-xs overflow-hidden border border-border focus-within:ring-2 focus-within:ring-accent/20 focus-within:border-accent transition-colors bg-surface">
+            <div className="flex items-center gap-1.5 px-3 bg-surface/80 border-r border-border text-sm font-semibold text-text select-none shrink-0 whitespace-nowrap">
+              <svg className="w-4 h-3 rounded-[2px] shadow-xs shrink-0" viewBox="0 0 640 480" aria-label="India Flag">
+                <path fill="#f93" d="M0 0h640v160H0z"/>
+                <path fill="#fff" d="M0 160h640v160H0z"/>
+                <path fill="#128807" d="M0 320h640v160H0z"/>
+                <circle cx="320" cy="240" r="40" fill="#008"/>
+                <circle cx="320" cy="240" r="32" fill="#fff"/>
+                <circle cx="320" cy="240" r="8" fill="#008"/>
+              </svg>
+              <span>+91</span>
+            </div>
+            <input
+              className="w-full bg-transparent px-3 py-3 text-base text-text outline-none"
+              type="tel"
+              placeholder="9876543210"
+              maxLength={10}
+              {...register("contactPhone")}
+            />
+          </div>
+          {errors.contactPhone ? (
+            <p className="mt-1 text-sm text-red-500">{errors.contactPhone.message}</p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted-text">
+              10-digit mobile number for order notifications & ledger verification.
+            </p>
+          )}
         </label>
 
         <label className="block">

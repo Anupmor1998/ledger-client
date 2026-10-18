@@ -9,6 +9,10 @@ import {
   updateMyPreferences,
 } from "../lib/api";
 import SearchableSelect from "../components/SearchableSelect";
+import {
+  EmailVerificationModal,
+  PhoneVerificationModal,
+} from "../components/VerificationModals";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
 import { buildFinancialYearOptions, getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
@@ -20,6 +24,8 @@ function ProfilePage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [selectedFinancialYearStart, setSelectedFinancialYearStart] = useState(
     user?.selectedFinancialYearStart || getCurrentFinancialYearStart()
   );
@@ -111,6 +117,15 @@ function ProfilePage() {
 
     loadProfileExtras();
   }, [dispatch, reset]);
+
+  function handleEmailVerified() {
+    dispatch(setUserProfile({ isEmailVerified: true }));
+  }
+
+  function handlePhoneVerified(newPhone) {
+    dispatch(setUserProfile({ contactPhone: newPhone, isPhoneVerified: true }));
+    reset((prev) => ({ ...prev, contactPhone: newPhone }));
+  }
 
   async function onSubmit(values) {
     try {
@@ -218,7 +233,28 @@ function ProfilePage() {
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-sm muted-text">Email</span>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm muted-text">Email Address</span>
+            {user?.isEmailVerified ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 select-none">
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 shrink-0">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                </svg>
+                <span>Verified</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowEmailModal(true)}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30 transition cursor-pointer"
+              >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none stroke-2 shrink-0">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span>Verify Email</span>
+              </button>
+            )}
+          </div>
           <input className="form-input" type="email" {...register("email")} />
           {errors.email ? <p className="mt-1 text-sm text-red-500">{errors.email.message}</p> : null}
         </label>
@@ -276,16 +312,38 @@ function ProfilePage() {
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-sm font-medium text-text">
-                Contact Phone Number(s)
-              </span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-text">
+                  Contact Phone Number
+                </span>
+                {user?.isPhoneVerified ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 select-none">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 shrink-0">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                    </svg>
+                    <span>Verified</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowPhoneModal(true)}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30 transition cursor-pointer"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none stroke-2 shrink-0">
+                      <rect x="5" y="2" width="14" height="20" rx="3" ry="3" />
+                      <path d="M12 18h.01" strokeLinecap="round" />
+                    </svg>
+                    <span>Verify Phone</span>
+                  </button>
+                )}
+              </div>
               <input
                 className="form-input"
-                placeholder="e.g. 9876543210, 9898989898"
+                placeholder="e.g. 9876543210"
                 {...register("contactPhone")}
               />
               <span className="mt-1 block text-[11px] muted-text">
-                Header Line 3 on PDF/Excel reports
+                Header Line 3 on PDF/Excel reports & SMS verification
               </span>
               {errors.contactPhone ? (
                 <p className="mt-1 text-xs text-red-500">{errors.contactPhone.message}</p>
@@ -481,6 +539,21 @@ function ProfilePage() {
           {isSubmitting ? "Saving..." : "Save Changes"}
         </button>
       </form>
+
+      {/* Email & Phone Verification Modals */}
+      <EmailVerificationModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        userEmail={user?.email}
+        onVerified={handleEmailVerified}
+      />
+
+      <PhoneVerificationModal
+        isOpen={showPhoneModal}
+        onClose={() => setShowPhoneModal(false)}
+        currentPhone={watchPhone || user?.contactPhone}
+        onVerified={handlePhoneVerified}
+      />
     </section>
   );
 }
