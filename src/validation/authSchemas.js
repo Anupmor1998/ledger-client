@@ -8,6 +8,15 @@ const loginSchema = yup.object({
 const signupSchema = yup.object({
   name: yup.string().trim().nullable().transform((value) => (value === "" ? null : value)),
   email: yup.string().trim().email("Enter a valid email").required("Email is required"),
+  contactPhone: yup
+    .string()
+    .trim()
+    .required("Mobile phone number is required")
+    .test("valid-phone", "Enter a valid 10-digit mobile number", (value) => {
+      if (!value) return false;
+      const digits = String(value).replace(/\D/g, "");
+      return digits.length === 10;
+    }),
   password: yup
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -46,7 +55,12 @@ const profileSchema = yup.object({
     .string()
     .trim()
     .nullable()
-    .transform((value) => (value === "" ? null : value)),
+    .transform((value) => (value === "" ? null : value))
+    .test("valid-phone", "Enter a valid 10-digit mobile number", (value) => {
+      if (!value) return true;
+      const digits = String(value).replace(/\D/g, "");
+      return digits.length === 10;
+    }),
   businessAddress: yup
     .string()
     .trim()
