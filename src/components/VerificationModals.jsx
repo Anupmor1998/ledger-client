@@ -17,7 +17,7 @@ import {
 /**
  * 6-Block OTP Input with auto-advance, backspace navigation, and paste support
  */
-function SixDigitOtpBoxes({ value, onChange, disabled }) {
+function SixDigitOtpBoxes({ value, onChange, onEnter, disabled }) {
   const inputsRef = useRef([]);
   const digits = Array.from({ length: 6 }, (_, i) => value[i] || "");
 
@@ -62,6 +62,11 @@ function SixDigitOtpBoxes({ value, onChange, disabled }) {
     } else if (e.key === "ArrowRight" && index < 5) {
       e.preventDefault();
       inputsRef.current[index + 1]?.focus();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (onEnter) {
+        onEnter();
+      }
     }
   }
 
@@ -240,6 +245,7 @@ export function EmailVerificationModal({ isOpen, onClose, userEmail, onVerified 
                 value={otp}
                 onChange={setOtp}
                 disabled={isVerifying}
+                onEnter={handleVerify}
               />
               <p className="mt-1 text-center text-[11px] text-muted-text">
                 Check your inbox (and spam folder) for the email from Sauda Book. Valid for 10 minutes.
@@ -475,12 +481,18 @@ export function PhoneVerificationModal({ isOpen, onClose, currentPhone, onVerifi
                   maxLength={10}
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && phoneNumber.length === 10 && !loading) {
+                      e.preventDefault();
+                      handleSendSmsOtp();
+                    }
+                  }}
                   placeholder="9876543210"
                   className="w-full bg-transparent px-3 py-2.5 text-sm font-semibold tracking-wide text-text outline-none"
                 />
               </div>
               <p className="mt-1 text-[11px] text-muted-text">
-                Google will send a 6-digit OTP directly to this mobile phone number via SMS.
+                A 6-digit OTP will be sent directly to this mobile phone number via SMS.
               </p>
             </div>
 
@@ -494,7 +506,7 @@ export function PhoneVerificationModal({ isOpen, onClose, currentPhone, onVerifi
                 {loading ? (
                   <>
                     <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Sending SMS via Google Firebase...</span>
+                    <span>Sending SMS Verification Code...</span>
                   </>
                 ) : (
                   <span>Send SMS Verification Code</span>
@@ -540,9 +552,10 @@ export function PhoneVerificationModal({ isOpen, onClose, currentPhone, onVerifi
                 value={otp}
                 onChange={setOtp}
                 disabled={loading}
+                onEnter={handleConfirmOtp}
               />
               <p className="mt-1 text-center text-[11px] text-muted-text">
-                Enter the 6-digit one-time password sent by Google SMS.
+                Enter the 6-digit one-time password sent to your mobile phone via SMS.
               </p>
             </div>
 
