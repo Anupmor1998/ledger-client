@@ -482,14 +482,6 @@ export async function fetchReportPdfBlob(
   return { blob, url, filename };
 }
 
-export async function createReportShareLink(params = {}) {
-  const response = await axiosClient.post("/reports/share-link", params);
-  trackEvent("report_share_link_created", {
-    userType: params.userType,
-    hasParty: Boolean(params.customerId || params.manufacturerId),
-  });
-  return response.data;
-}
 
 export async function getNextPaymentSerialNo(params = {}) {
   const response = await axiosClient.get("/payments/next-serial", {

@@ -292,23 +292,37 @@ function ReportsPage() {
     }
 
     const isManufacturer = filters.userType === "MANUFACTURER";
-    if (isManufacturer) {
-      if (filters.manufacturerId) {
-        const found = manufacturers.find(
-          (m) => m.id === filters.manufacturerId,
-        );
-        const partyName = cleanName(found?.firmName || found?.name);
-        if (partyName) return `${partyName}.${extension}`;
-      }
-      return `All_Manufacturers_Report.${extension}`;
-    }
+    const rawIds = isManufacturer ? filters.manufacturerId : filters.customerId;
+    const selectedIds = (
+      Array.isArray(rawIds) ? rawIds : (rawIds ? String(rawIds).split(",") : [])
+    )
+      .map((id) => String(id || "").trim())
+      .filter(Boolean);
 
-    if (filters.customerId) {
-      const found = customers.find((c) => c.id === filters.customerId);
+    const list = isManufacturer ? manufacturers : customers;
+
+    if (selectedIds.length === 1) {
+      const found = list.find((item) => String(item.id) === String(selectedIds[0]));
       const partyName = cleanName(found?.firmName || found?.name);
       if (partyName) return `${partyName}.${extension}`;
+    } else if (selectedIds.length > 1) {
+      const matched = selectedIds
+        .map((id) => list.find((item) => String(item.id) === String(id)))
+        .filter(Boolean);
+      const names = matched
+        .slice(0, 3)
+        .map((item) => cleanName(item.firmName || item.name))
+        .filter(Boolean)
+        .join("_");
+      if (names) {
+        const extra = matched.length > 3 ? `_and_${matched.length - 3}_more` : "";
+        return `${names}${extra}.${extension}`;
+      }
     }
-    return `All_Customers_Report.${extension}`;
+
+    return isManufacturer
+      ? `All_Manufacturers_Report.${extension}`
+      : `All_Customers_Report.${extension}`;
   }
 
   async function handleDownloadExcel() {

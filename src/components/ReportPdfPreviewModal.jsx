@@ -3,23 +3,10 @@ import { toast } from "react-toastify";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import Modal from "./Modal";
-import SearchableSelect from "./SearchableSelect";
-import { createReportShareLink, getMyWhatsAppGroups } from "../lib/api";
 
 // Configure PDF.js worker
 if (typeof window !== "undefined" && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-}
-
-function cleanPhoneForWhatsApp(phone) {
-  if (!phone) return "";
-  let digits = String(phone).replace(/\D/g, "");
-  if (digits.length === 10) {
-    digits = `91${digits}`;
-  } else if (digits.length === 11 && digits.startsWith("0")) {
-    digits = `91${digits.slice(1)}`;
-  }
-  return digits;
 }
 
 function WhatsAppIcon({ className = "h-4 w-4" }) {
@@ -214,13 +201,7 @@ export default function ReportPdfPreviewModal({
   const [zoom, setZoom] = useState(1.0);
   const [viewerMode, setViewerMode] = useState("canvas"); // "canvas" | "iframe"
 
-  const [shareData, setShareData] = useState(null);
-  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
-  const [whatsappGroups, setWhatsappGroups] = useState([]);
-  const [selectedGroupId, setSelectedGroupId] = useState("");
-  const [showGroupShare, setShowGroupShare] = useState(false);
-  const [customPhone, setCustomPhone] = useState("");
-  const [showPhoneEditor, setShowPhoneEditor] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   // Measure container width for responsive canvas rendering
   const updateContainerWidth = useCallback(() => {
@@ -293,168 +274,45 @@ export default function ReportPdfPreviewModal({
     };
   }, [isOpen, pdfBlob, pdfUrl]);
 
-  // Load WhatsApp groups if available
-  useEffect(() => {
-    let active = true;
-    async function loadGroups() {
-      try {
-        const groups = await getMyWhatsAppGroups();
-        if (active) {
-          setWhatsappGroups(Array.isArray(groups) ? groups : []);
-        }
-      } catch (_e) {
-        if (active) setWhatsappGroups([]);
-      }
-    }
-    if (isOpen) {
-      loadGroups();
-    }
-    return () => {
-      active = false;
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen) {
-      resolveShareData();
-    }
-  }, [isOpen]);
-
   if (!isOpen || !pdfUrl) return null;
 
-  async function resolveShareData() {
-    if (shareData) return shareData;
-    setIsGeneratingShare(true);
-    try {
-      const data = await createReportShareLink(reportParams);
-      setShareData(data);
-      if (data?.party?.phone && !customPhone) {
-        setCustomPhone(data.party.phone);
-      }
-      return data;
-    } catch (error) {
-      const msg =
-        error?.response?.data?.message ||
-        error?.message ||
-        "Unable to generate WhatsApp share link.";
-      toast.error(msg);
-      return null;
-    } finally {
-      setIsGeneratingShare(false);
-    }
-  }
-
-  async function handleSendWhatsApp() {
-    const data = await resolveShareData();
-    if (!data) return;
-
-    const partyPhone =
-      customPhone ||
-      data.party?.phone ||
-      selectedParty?.phone ||
-      selectedParty?.contactPhone ||
-      "";
-    const cleanPhone = cleanPhoneForWhatsApp(partyPhone);
-
-    if (!cleanPhone) {
-      setShowPhoneEditor(true);
-      toast.info("Please enter the 10-digit WhatsApp number below to send directly.");
-      return;
-    }
-
-    const messageEncoded = encodeURIComponent(data.whatsappText);
-    const waUrl = `https://wa.me/${cleanPhone}?text=${messageEncoded}`;
-
-    const isMobile =
-      typeof navigator !== "undefined" &&
-      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      window.location.href = waUrl;
-    } else {
-      window.open(waUrl, "_blank", "noopener,noreferrer");
-    }
-    toast.success(`Opening WhatsApp directly for +${cleanPhone}...`);
-  }
-
-  async function handleCopyShareLink() {
-    const data = await resolveShareData();
-    if (!data) return;
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(data.whatsappText);
-        toast.success("Statement link and message copied to clipboard!");
-      } else {
-        toast.info(data.shareUrl);
-      }
-    } catch (_e) {
-      toast.error("Failed to copy link to clipboard.");
-    }
-  }
-
-  async function handleSendToGroup() {
-    if (!selectedGroupId) {
-      toast.warn("Please select a WhatsApp group first");
-      return;
-    }
-    const group = whatsappGroups.find((g) => g.id === selectedGroupId);
-    if (!group) return;
-
-    const data = await resolveShareData();
-    if (!data) return;
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(data.whatsappText);
-      }
-    } catch (_e) {
-      // ignore
-    }
-
-    if (group.link) {
-      window.open(group.link, "_blank", "noopener,noreferrer");
-      toast.success(
-        `Opening ${group.name}. Statement message copied to clipboard!`
-      );
-    } else {
-      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
-        data.whatsappText
-      )}`;
-      window.open(waUrl, "_blank", "noopener,noreferrer");
-      toast.success(`Opening WhatsApp for ${group.name}`);
-    }
-  }
-
-  async function handleSharePdfFile() {
+  async function handleShareOnWhatsApp() {
     if (!pdfBlob) {
       toast.error("PDF is still preparing. Please wait a moment.");
       return;
     }
 
+    setIsSharing(true);
     try {
       const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+
       if (
         typeof navigator !== "undefined" &&
         navigator.canShare &&
         navigator.canShare({ files: [file] })
       ) {
+        // Native Web Share API (Mobile Android, iOS, PWA):
+        // Prompts OS share tray, user taps WhatsApp and manually selects contact or group
         await navigator.share({
           files: [file],
           title: fileName,
-          text: `📄 Statement for ${partyDisplayName}`,
         });
-        toast.success("PDF document shared successfully!");
+        toast.success("PDF shared successfully!");
         return;
       }
+
+      // Desktop fallback: download the PDF file and open WhatsApp Web
+      handleDownload();
+      window.open("https://web.whatsapp.com", "_blank", "noopener,noreferrer");
+      toast.info("PDF downloaded! Please choose your contact on WhatsApp and attach the file.");
     } catch (err) {
       if (err.name === "AbortError") {
         return;
       }
+      toast.error("Sharing failed: " + (err?.message || "Please download the PDF directly."));
+    } finally {
+      setIsSharing(false);
     }
-
-    handleDownload();
-    toast.info("Downloaded PDF file. You can attach it directly into your WhatsApp chat.");
   }
 
   function handleDownload() {
@@ -482,69 +340,32 @@ export default function ReportPdfPreviewModal({
   const partyDisplayName =
     selectedParty?.firmName ||
     selectedParty?.name ||
-    shareData?.party?.firmName ||
-    shareData?.party?.name ||
     (reportParams?.userType === "MANUFACTURER"
       ? "Manufacturer Report"
       : "Customer Report");
 
-  const targetPhone =
-    customPhone ||
-    shareData?.party?.phone ||
-    selectedParty?.phone ||
-    selectedParty?.contactPhone ||
-    "";
-  const cleanTargetPhone = cleanPhoneForWhatsApp(targetPhone);
-
   const modalFooter = (
     <div className="flex flex-col gap-2.5">
-      {/* Primary Action Buttons (Always visible and thumb-friendly on mobile) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:items-center sm:justify-end">
+      <div className="flex flex-col-reverse sm:flex-row gap-2 sm:items-center sm:justify-end">
         <button
           type="button"
           onClick={handleDownload}
-          className="ghost-btn flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold border border-border"
+          className="ghost-btn flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs sm:text-sm font-semibold border border-border"
           title="Save PDF file to your phone/PC"
         >
           <DownloadIcon className="h-4 w-4 shrink-0" />
           <span>Download PDF</span>
         </button>
 
-        {/* Share Actual PDF File Document */}
         <button
           type="button"
-          onClick={handleSharePdfFile}
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-primary/90 active:scale-[0.98] transition"
-          title="Attach and share the real PDF file into WhatsApp"
+          onClick={handleShareOnWhatsApp}
+          disabled={isSharing || !pdfBlob}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-[#20ba5a] active:scale-[0.98] transition disabled:opacity-50"
+          title="Share this PDF file directly on WhatsApp"
         >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-          <span>Share PDF File</span>
-        </button>
-
-        {/* Direct WhatsApp Chat Link */}
-        <button
-          type="button"
-          onClick={handleSendWhatsApp}
-          disabled={isGeneratingShare}
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-[#20ba5a] active:scale-[0.98] transition disabled:opacity-50"
-          title="Open WhatsApp chat directly for this party"
-        >
-          <WhatsAppIcon className="h-4 w-4 shrink-0" />
-          <span className="truncate">
-            {isGeneratingShare
-              ? "Preparing..."
-              : cleanTargetPhone
-              ? `Chat (+91 ${cleanTargetPhone.slice(-10)})`
-              : "WhatsApp Chat"}
-          </span>
+          <WhatsAppIcon className="h-4 w-4 shrink-0 fill-current" />
+          <span>{isSharing ? "Sharing..." : "Share on WhatsApp"}</span>
         </button>
       </div>
     </div>
@@ -622,31 +443,7 @@ export default function ReportPdfPreviewModal({
               <PrinterIcon className="h-3 w-3" />
               <span className="hidden sm:inline">Print</span>
             </button>
-            <button
-              type="button"
-              onClick={handleCopyShareLink}
-              disabled={isGeneratingShare}
-              className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-muted-text hover:bg-surface hover:text-text"
-              title="Copy statement link"
-            >
-              <CopyIcon className="h-3 w-3" />
-              <span className="hidden sm:inline">Copy Link</span>
-            </button>
-            {whatsappGroups.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowGroupShare((prev) => !prev)}
-                className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] transition ${
-                  showGroupShare
-                    ? "bg-primary/20 text-primary font-semibold"
-                    : "text-muted-text hover:bg-surface hover:text-text"
-                }`}
-                title="Send to WhatsApp Group"
-              >
-                <WhatsAppIcon className="h-3 w-3" />
-                <span>Group</span>
-              </button>
-            )}
+
             <button
               type="button"
               onClick={() =>
@@ -659,104 +456,6 @@ export default function ReportPdfPreviewModal({
             </button>
           </div>
         </div>
-
-        {/* Direct Party WhatsApp Indicator & Phone Editor */}
-        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1 rounded-lg border border-[#25D366]/40 bg-[#25D366]/10 px-2.5 py-1.5 text-xs text-text">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white">
-              <WhatsAppIcon className="h-3 w-3" />
-            </span>
-            <span className="truncate text-[11px] sm:text-xs">
-              Direct Party: <strong>{partyDisplayName}</strong>
-              {cleanTargetPhone ? (
-                <span className="ml-1 text-[#25D366] font-bold">
-                  (+91 {cleanTargetPhone.slice(-10)})
-                </span>
-              ) : (
-                <span className="ml-1 text-amber-500 font-medium">
-                  (No phone saved)
-                </span>
-              )}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowPhoneEditor((prev) => !prev)}
-            className="text-[11px] font-semibold text-primary underline hover:text-primary/80 shrink-0 self-end xs:self-auto"
-          >
-            {showPhoneEditor
-              ? "Hide"
-              : cleanTargetPhone
-              ? "Change Number"
-              : "Enter Number"}
-          </button>
-        </div>
-
-        {/* Custom Phone Number Input Bar */}
-        {showPhoneEditor && (
-          <div className="rounded-lg border border-border bg-bg/80 p-2 text-xs">
-            <label className="block text-[11px] font-semibold text-text mb-1">
-              Enter Party WhatsApp Number to Send Directly:
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-text font-medium">
-                  +91
-                </span>
-                <input
-                  type="tel"
-                  maxLength={13}
-                  value={customPhone}
-                  onChange={(e) => setCustomPhone(e.target.value)}
-                  placeholder="10-digit mobile number"
-                  className="form-input !pl-10 !py-1 text-xs"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleSendWhatsApp}
-                disabled={isGeneratingShare}
-                className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#20ba5a] transition shrink-0"
-              >
-                <WhatsAppIcon className="h-3 w-3" />
-                <span>Send Direct</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Collapsible WhatsApp Group Share Bar */}
-        {showGroupShare && whatsappGroups.length > 0 && (
-          <div className="rounded-lg border border-[#25D366]/40 bg-[#25D366]/10 p-2 text-xs">
-            <span className="block font-semibold text-text mb-1.5 text-[11px]">
-              Share Statement with WhatsApp Group:
-            </span>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <div className="flex-1">
-                <SearchableSelect
-                  label=""
-                  value={selectedGroupId}
-                  onChange={setSelectedGroupId}
-                  options={whatsappGroups.map((g) => ({
-                    value: g.id,
-                    label: g.name,
-                  }))}
-                  placeholder="Select a WhatsApp group"
-                  autocompleteThreshold={0}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleSendToGroup}
-                disabled={!selectedGroupId || isGeneratingShare}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 font-semibold text-white hover:bg-[#20ba5a] transition text-xs shrink-0"
-              >
-                <WhatsAppIcon className="h-3.5 w-3.5" />
-                <span>Send to Group</span>
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* PDF Viewer Body */}
         <div
