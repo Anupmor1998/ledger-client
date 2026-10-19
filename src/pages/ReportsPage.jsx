@@ -3,10 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
+import ReportPdfPreviewModal from "../components/ReportPdfPreviewModal";
 import SearchableSelect from "../components/SearchableSelect";
 import usePageTour from "../hooks/usePageTour";
 import {
   downloadReportFile,
+  fetchReportPdfBlob,
   getCustomers,
   getManufacturers,
   getQualities,
@@ -126,6 +128,14 @@ function ReportsPage() {
   const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false);
   const [pdfOrientation, setPdfOrientation] = useState("portrait");
   const [pdfShowPaymentStatus, setPdfShowPaymentStatus] = useState(true);
+  const [pdfPageGap, setPdfPageGap] = useState(false);
+  const [previewPdfModalOpen, setPreviewPdfModalOpen] = useState(false);
+  const [previewPdfData, setPreviewPdfData] = useState({
+    url: "",
+    blob: null,
+    filename: "",
+    params: {},
+  });
   const rangePickerRef = useRef(null);
 
   const [customers, setCustomers] = useState([]);
@@ -136,8 +146,8 @@ function ReportsPage() {
     rangePreset: "CURRENT_FINANCIAL_YEAR",
     from: "",
     to: "",
-    customerId: "",
-    manufacturerId: "",
+    customerId: [],
+    manufacturerId: [],
     qualityId: "",
     status: "",
     paymentStatus: "UNPAID",
@@ -214,20 +224,28 @@ function ReportsPage() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  const commonParams = useMemo(
-    () => ({
+  const commonParams = useMemo(() => {
+    const custVal = Array.isArray(filters.customerId)
+      ? filters.customerId.join(",")
+      : filters.customerId || "";
+    const mfrVal = Array.isArray(filters.manufacturerId)
+      ? filters.manufacturerId.join(",")
+      : filters.manufacturerId || "";
+
+    return {
       from: filters.from,
       to: filters.to,
-      customerId: filters.customerId,
-      manufacturerId: filters.manufacturerId,
+      customerId: custVal,
+      customerIds: custVal,
+      manufacturerId: mfrVal,
+      manufacturerIds: mfrVal,
       qualityId: filters.qualityId,
       status: filters.status,
       paymentStatus: filters.paymentStatus,
       userType: filters.userType,
       groupBy: filters.groupBy,
-    }),
-    [filters],
-  );
+    };
+  }, [filters]);
 
   function updateFilter(key, value) {
     setFilters((prev) => {
@@ -373,35 +391,116 @@ function ReportsPage() {
     setPdfExportModalOpen(true);
   }
 
-  async function executeDownloadPdf() {
-    const reportTypeLabel =
-      filters.userType === "MANUFACTURER"
-        ? "Manufacturer Report"
-        : "Customer Report";
+  const selectedParty = useMemo(() => {
+    if (filters.userType === "CUSTOMER") {
+      const ids = Array.isArray(filters.customerId)
+        ? filters.customerId
+        : String(filters.customerId || "")
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean);
+      if (ids.length === 1) {
+        return customers.find((c) => c.id === ids[0]) || null;
+      }
+      if (ids.length > 1) {
+        const matches = customers.filter((c) => ids.includes(c.id));
+        const combinedFirms = matches
+          .map((c) => c.firmName || c.name)
+          .filter(Boolean)
+          .join(", ");
+        const partyWithPhone = matches.find((c) => c.phone);
+        return {
+          firmName: combinedFirms,
+          name: matches[0]?.name || combinedFirms,
+          phone: partyWithPhone?.phone || "",
+        };
+      }
+      return null;
+    }
+    if (filters.userType === "MANUFACTURER") {
+      const ids = Array.isArray(filters.manufacturerId)
+        ? filters.manufacturerId
+        : String(filters.manufacturerId || "")
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean);
+      if (ids.length === 1) {
+        return manufacturers.find((m) => m.id === ids[0]) || null;
+      }
+      if (ids.length > 1) {
+        const matches = manufacturers.filter((m) => ids.includes(m.id));
+        const combinedFirms = matches
+          .map((m) => m.firmName || m.name)
+          .filter(Boolean)
+          .join(", ");
+        const partyWithPhone = matches.find((m) => m.phone);
+        return {
+          firmName: combinedFirms,
+          name: matches[0]?.name || combinedFirms,
+          phone: partyWithPhone?.phone || "",
+        };
+      }
+      return null;
+    }
+    return null;
+  }, [
+    filters.userType,
+    filters.customerId,
+    filters.manufacturerId,
+    customers,
+    manufacturers,
+  ]);
+
+  async function executePreviewPdf() {
     setDownloadingKey("order-report-pdf");
     try {
       const params = {
         ...commonParams,
         orientation: pdfOrientation,
         showPaymentStatus: pdfShowPaymentStatus,
+        pageGap: pdfPageGap,
       };
-      await downloadReportFile(
+      const fallbackName = resolveDownloadFileName("pdf");
+      const { blob, url, filename } = await fetchReportPdfBlob(
         "order-report.pdf",
         params,
-        resolveDownloadFileName("pdf"),
-        "application/pdf",
+        fallbackName,
       );
+
+      if (previewPdfData?.url) {
+        URL.revokeObjectURL(previewPdfData.url);
+      }
+
+      setPreviewPdfData({
+        url,
+        blob,
+        filename: filename || fallbackName,
+        params,
+      });
       setPdfExportModalOpen(false);
-      toast.success(`${reportTypeLabel} downloaded as PDF`);
+      setPreviewPdfModalOpen(true);
     } catch (error) {
       const message =
         error?.response?.data?.message ||
         error?.message ||
-        `Unable to download report.`;
+        `Unable to generate report preview.`;
       toast.error(message);
     } finally {
       setDownloadingKey("");
     }
+  }
+
+  function handleClosePreviewModal() {
+    setPreviewPdfModalOpen(false);
+    if (previewPdfData?.url) {
+      URL.revokeObjectURL(previewPdfData.url);
+    }
+    setPreviewPdfData({
+      url: "",
+      blob: null,
+      filename: "",
+      params: {},
+    });
   }
 
   const groupByOptions = getGroupByOptions(filters.userType);
@@ -580,6 +679,7 @@ function ReportsPage() {
 
           <SearchableSelect
             label="Particular Customer"
+            isMulti
             value={filters.customerId}
             onChange={(nextValue) => updateFilter("customerId", nextValue)}
             options={[
@@ -589,11 +689,12 @@ function ReportsPage() {
                 label: item.firmName || item.name,
               })),
             ]}
-            placeholder="Select customer"
+            placeholder="Select customer firm(s)"
           />
 
           <SearchableSelect
             label="Particular Manufacturer"
+            isMulti
             value={filters.manufacturerId}
             onChange={(nextValue) => updateFilter("manufacturerId", nextValue)}
             options={[
@@ -603,7 +704,7 @@ function ReportsPage() {
                 label: item.firmName || item.name,
               })),
             ]}
-            placeholder="Select manufacturer"
+            placeholder="Select manufacturer firm(s)"
           />
 
           <SearchableSelect
@@ -675,7 +776,7 @@ function ReportsPage() {
             >
               {downloadingKey === "order-report-pdf"
                 ? "Preparing..."
-                : "Export in PDF"}
+                : "Generate PDF"}
             </button>
           </div>
         </div>
@@ -750,13 +851,13 @@ function ReportsPage() {
               </button>
               <button
                 type="button"
-                onClick={executeDownloadPdf}
+                onClick={executePreviewPdf}
                 disabled={downloadingKey === "order-report-pdf"}
                 className="primary-btn !w-auto px-5 py-2 font-semibold"
               >
                 {downloadingKey === "order-report-pdf"
-                  ? "Preparing..."
-                  : "Download PDF"}
+                  ? "Loading Preview..."
+                  : "Preview & Share PDF"}
               </button>
             </div>
           }
@@ -867,8 +968,44 @@ function ReportsPage() {
                 </div>
               </label>
             </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-text">
+                Firm Page Layout
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3.5 transition hover:bg-white/10">
+                <input
+                  type="checkbox"
+                  checked={pdfPageGap}
+                  onChange={(e) => setPdfPageGap(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-white/20 bg-surface text-primary focus:ring-primary"
+                />
+                <div className="flex flex-col text-left">
+                  <span className="text-xs sm:text-sm font-medium text-text">
+                    Page Gap between firms
+                  </span>
+                  <span className="text-xs text-muted-text mt-0.5">
+                    When enabled, each firm starts on a fresh new page with your
+                    company header. When unchecked, firms flow continuously on
+                    the same page.
+                  </span>
+                </div>
+              </label>
+            </div>
           </div>
         </Modal>
+      )}
+
+      {previewPdfModalOpen && (
+        <ReportPdfPreviewModal
+          isOpen={previewPdfModalOpen}
+          onClose={handleClosePreviewModal}
+          pdfUrl={previewPdfData.url}
+          pdfBlob={previewPdfData.blob}
+          fileName={previewPdfData.filename}
+          reportParams={previewPdfData.params}
+          selectedParty={selectedParty}
+        />
       )}
     </section>
   );

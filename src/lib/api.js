@@ -455,6 +455,42 @@ export async function downloadReportFile(
   });
 }
 
+export async function fetchReportPdfBlob(
+  path,
+  params = {},
+  fallbackName = "report.pdf",
+) {
+  const response = await axiosClient.get(`/reports/${path}`, {
+    params: {
+      ...normalizeListParams(params),
+      disposition: "inline",
+    },
+    responseType: "blob",
+  });
+
+  const disposition = response.headers?.["content-disposition"];
+  const filename = resolveFilenameFromDisposition(disposition, fallbackName);
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+
+  trackEvent("report_previewed", {
+    path,
+    format: "PDF",
+    filename,
+  });
+
+  return { blob, url, filename };
+}
+
+export async function createReportShareLink(params = {}) {
+  const response = await axiosClient.post("/reports/share-link", params);
+  trackEvent("report_share_link_created", {
+    userType: params.userType,
+    hasParty: Boolean(params.customerId || params.manufacturerId),
+  });
+  return response.data;
+}
+
 export async function getNextPaymentSerialNo(params = {}) {
   const response = await axiosClient.get("/payments/next-serial", {
     params: normalizeListParams(params),

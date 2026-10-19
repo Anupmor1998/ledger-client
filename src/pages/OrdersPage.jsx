@@ -1421,14 +1421,12 @@ function OrdersPage() {
                     label=""
                     value={selectedGroupId}
                     onChange={setSelectedGroupId}
-                    options={[
-                      { value: "", label: "Select group (optional)" },
-                      ...whatsappGroups.map((group) => ({
-                        value: group.id,
-                        label: group.name,
-                      })),
-                    ]}
-                    placeholder="Select group"
+                    options={whatsappGroups.map((group) => ({
+                      value: group.id,
+                      label: group.name,
+                    }))}
+                    placeholder="Select WhatsApp group (optional)"
+                    autocompleteThreshold={0}
                     className="flex-1"
                   />
                   <button
