@@ -39,6 +39,7 @@ const PLAN_TIERS = [
     ],
     excluded: [
       "Branded PDF Statement Exports",
+      "Interactive PDF Preview & WhatsApp Sharing",
       "Visual Analytics Dashboard",
       "Market Directory Search & Leads",
     ],
@@ -50,14 +51,15 @@ const PLAN_TIERS = [
     highlight: true,
     monthlyPrice: 299,
     yearlyPrice: 2990,
-    subtitle: "High-speed experience with professional branded PDF statements.",
+    subtitle: "Professional branded PDF statements with interactive preview & WhatsApp sharing.",
     features: [
       "Everything in Starter",
-      "Zero Load Time (Priority Fast Server)",
       "Branded PDF Reports & Statements (Print-Ready Downloads)",
+      "Interactive In-App PDF Preview",
+      "Direct WhatsApp Share for PDF Reports",
       "Direct WhatsApp Share for Sauda Slips",
       "Expanded Report Limit (150 Exports/mo)",
-      "Priority High-Speed Server & Email Support",
+      "Priority Email Support",
     ],
     excluded: [
       "Visual Analytics Dashboard",
@@ -1070,6 +1072,18 @@ function SubscriptionPage() {
                 <td className="p-3 text-center">Excel Only</td>
                 <td className="p-3 text-center bg-accent/5 font-medium">Excel + PDF</td>
                 <td className="p-3 text-center font-medium">Excel + PDF</td>
+              </tr>
+              <tr>
+                <td className="p-3 sm:px-4 font-medium">Interactive PDF Preview</td>
+                <td className="p-3 text-center text-muted-text opacity-40">&mdash;</td>
+                <td className="p-3 text-center bg-accent/5 font-bold text-accent">Included</td>
+                <td className="p-3 text-center font-bold text-accent">Included</td>
+              </tr>
+              <tr>
+                <td className="p-3 sm:px-4 font-medium">Direct WhatsApp Send for PDF Reports</td>
+                <td className="p-3 text-center text-muted-text opacity-40">&mdash;</td>
+                <td className="p-3 text-center bg-accent/5 font-bold text-accent">Included</td>
+                <td className="p-3 text-center font-bold text-accent">Included</td>
               </tr>
               <tr>
                 <td className="p-3 sm:px-4 font-medium">Monthly Report Exports</td>
