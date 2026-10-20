@@ -438,6 +438,14 @@ function OrderProgressPage() {
         header: "Order No",
         accessorKey: "orderNo",
         enableSorting: true,
+        sortingFn: (rowA, rowB) => {
+          const numA = Number(rowA.original.originalOrderNo || rowA.original.orderNo || 0);
+          const numB = Number(rowB.original.originalOrderNo || rowB.original.orderNo || 0);
+          if (numA === numB) {
+            return (rowA.original.isCarryForward ? 1 : 0) - (rowB.original.isCarryForward ? 1 : 0);
+          }
+          return numA - numB;
+        },
         cell: ({ row }) => {
           const baseOrderNo = row.original.originalOrderNo || row.original.orderNo;
           const isCarry = Boolean(row.original.isCarryForward || row.original.carriedForwardFromOrderId);
