@@ -389,6 +389,13 @@ function PricingPage({ dark, onToggleTheme }) {
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
+                    <span>PDF Preview & WhatsApp Report Sharing</span>
+                  </div>
+                  <div className="flex items-start gap-2.5 muted-text opacity-50">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 stroke-2 fill-none stroke-current">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
                     <span>Market Directory Search & Leads</span>
                   </div>
                 </div>
@@ -425,7 +432,7 @@ function PricingPage({ dark, onToggleTheme }) {
                   </span>
                 </div>
                 <p className="text-xs muted-text mt-2">
-                  High-speed experience with professional branded PDF statements.
+                  Professional branded PDF statements with interactive preview & WhatsApp sharing.
                 </p>
 
                 <div className="mt-6">
@@ -450,7 +457,13 @@ function PricingPage({ dark, onToggleTheme }) {
                     <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--color-accent)] shrink-0 stroke-2 fill-none stroke-current">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span className="font-semibold">Zero Load Time (Priority Fast Server)</span>
+                    <span className="font-semibold">Interactive In-App PDF Preview</span>
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--color-accent)] shrink-0 stroke-2 fill-none stroke-current">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span className="font-semibold">Direct WhatsApp Share for PDF Reports</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--color-accent)] shrink-0 stroke-2 fill-none stroke-current">
@@ -474,7 +487,7 @@ function PricingPage({ dark, onToggleTheme }) {
                     <svg viewBox="0 0 24 24" className="h-4 w-4 text-[var(--color-accent)] shrink-0 stroke-2 fill-none stroke-current">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span>Priority High-Speed Server & Email Support</span>
+                    <span>Priority Email Support</span>
                   </div>
                   <div className="flex items-start gap-2.5 muted-text opacity-50">
                     <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 stroke-2 fill-none stroke-current">
@@ -645,12 +658,20 @@ function PricingPage({ dark, onToggleTheme }) {
                   <td className="p-4 text-center">Included</td>
                 </tr>
                 <tr>
-                  <td className="p-4 sm:px-6 font-medium">Server Speed & Load Times</td>
-                  <td className="p-4 text-center">Standard</td>
+                  <td className="p-4 sm:px-6 font-medium">Interactive PDF Preview</td>
+                  <td className="p-4 text-center muted-text opacity-50">&mdash;</td>
                   <td className="p-4 text-center bg-[var(--color-accent-soft)]/10 font-semibold text-[var(--color-accent)]">
-                    Zero Load Time
+                    Included
                   </td>
-                  <td className="p-4 text-center font-semibold text-[var(--color-accent)]">Zero Load Time</td>
+                  <td className="p-4 text-center font-semibold text-[var(--color-accent)]">Included</td>
+                </tr>
+                <tr>
+                  <td className="p-4 sm:px-6 font-medium">Direct WhatsApp Share for PDF Reports</td>
+                  <td className="p-4 text-center muted-text opacity-50">&mdash;</td>
+                  <td className="p-4 text-center bg-[var(--color-accent-soft)]/10 font-semibold text-[var(--color-accent)]">
+                    Included
+                  </td>
+                  <td className="p-4 text-center font-semibold text-[var(--color-accent)]">Included</td>
                 </tr>
                 <tr>
                   <td className="p-4 sm:px-6 font-medium">Report Format Support</td>

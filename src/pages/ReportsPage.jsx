@@ -840,9 +840,10 @@ function ReportsPage() {
             </h3>
             <p className="text-xs text-muted-text leading-relaxed">
               Your Starter plan includes fast{" "}
-              <strong>Excel (.xlsx) exports</strong>. To export print-ready,
-              professionally branded PDF statements, upgrade to the{" "}
-              <strong>Growth / Budget</strong> or <strong>Premium</strong> plan.
+              <strong>Excel (.xlsx) exports</strong>. To unlock interactive PDF
+              preview, WhatsApp report sharing, and professionally branded PDF
+              statements, upgrade to the <strong>Growth / Budget</strong> or{" "}
+              <strong>Premium</strong> plan.
             </p>
           </div>
         </Modal>
