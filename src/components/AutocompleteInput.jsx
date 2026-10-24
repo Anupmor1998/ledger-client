@@ -13,6 +13,8 @@ function AutocompleteInput({
   value,
   onChange,
   onSelect,
+  onAddNew,
+  addNewLabel,
   options,
   placeholder,
   error,
@@ -25,18 +27,27 @@ function AutocompleteInput({
   const listRef = useRef(null);
   const sortedOptions = useMemo(() => sortOptionsByLabel(options), [options]);
 
+  const trimmedValue = (value || "").trim();
+
   const filteredOptions = useMemo(() => {
     const query = normalize(value);
     if (!query) {
       return sortedOptions;
     }
 
-    return sortedOptions
-      .filter(
-        (item) =>
-          normalize(item.label).includes(query) || normalize(item.helperText).includes(query)
-      );
+    return sortedOptions.filter(
+      (item) =>
+        normalize(item.label).includes(query) || normalize(item.helperText).includes(query)
+    );
   }, [sortedOptions, value]);
+
+  const hasExactMatch = useMemo(() => {
+    if (!trimmedValue) return false;
+    const query = normalize(trimmedValue);
+    return sortedOptions.some((item) => normalize(item.label) === query);
+  }, [sortedOptions, trimmedValue]);
+
+  const showAddNew = Boolean(onAddNew && trimmedValue && !hasExactMatch);
 
   useEffect(() => {
     if (!open) {
@@ -57,6 +68,8 @@ function AutocompleteInput({
   const endIndex = Math.min(filteredOptions.length, startIndex + visibleCount);
   const visibleOptions = filteredOptions.slice(startIndex, endIndex);
 
+  const shouldRenderDropdown = open && (filteredOptions.length > 0 || showAddNew);
+
   return (
     <label className="block">
       <span className="mb-1 block text-sm muted-text">{label}</span>
@@ -72,7 +85,7 @@ function AutocompleteInput({
               setOpen(true);
             }}
             onBlur={() => {
-              setTimeout(() => setOpen(false), 120);
+              setTimeout(() => setOpen(false), 150);
             }}
           />
         ) : (
@@ -86,44 +99,67 @@ function AutocompleteInput({
               setOpen(true);
             }}
             onBlur={() => {
-              setTimeout(() => setOpen(false), 120);
+              setTimeout(() => setOpen(false), 150);
             }}
             autoComplete="off"
           />
         )}
 
-        {open && filteredOptions.length > 0 ? (
+        {shouldRenderDropdown ? (
           <div
             ref={listRef}
-            className="absolute left-0 right-0 top-[calc(100%-1px)] z-40 mt-0 max-h-52 overflow-auto rounded-b-lg border border-border bg-surface shadow-lg"
+            className="absolute left-0 right-0 top-[calc(100%-1px)] z-40 mt-0 max-h-60 overflow-auto rounded-b-lg border border-border bg-surface shadow-xl"
             onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
           >
-            <div className="relative" style={{ height: totalHeight || 0 }}>
-              {visibleOptions.map((option, index) => {
-                const optionIndex = startIndex + index;
-                return (
-                  <button
-                    key={`${option.value}-${option.label}`}
-                    type="button"
-                    className="absolute left-0 right-0 block w-full px-3 py-2 text-left hover:bg-bg"
-                    style={{
-                      top: optionIndex * VIRTUAL_ROW_HEIGHT,
-                      height: VIRTUAL_ROW_HEIGHT,
-                    }}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      onSelect(option);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="block truncate text-sm">{option.label}</span>
-                    {option.helperText ? (
-                      <span className="mt-0.5 block truncate text-xs muted-text">{option.helperText}</span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
+            {showAddNew && (
+              <button
+                type="button"
+                className="sticky top-0 z-10 flex w-full items-center gap-2 border-b border-border bg-primary/10 px-3 py-2.5 text-left text-xs font-semibold text-primary transition hover:bg-primary/20"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onAddNew(trimmedValue);
+                  setOpen(false);
+                }}
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                  +
+                </span>
+                <span className="truncate">
+                  {addNewLabel ? addNewLabel(trimmedValue) : `Add "${trimmedValue}"`}
+                </span>
+              </button>
+            )}
+
+            {filteredOptions.length > 0 ? (
+              <div className="relative" style={{ height: totalHeight || 0 }}>
+                {visibleOptions.map((option, index) => {
+                  const optionIndex = startIndex + index;
+                  return (
+                    <button
+                      key={`${option.value}-${option.label}`}
+                      type="button"
+                      className="absolute left-0 right-0 block w-full px-3 py-2 text-left hover:bg-bg"
+                      style={{
+                        top: optionIndex * VIRTUAL_ROW_HEIGHT,
+                        height: VIRTUAL_ROW_HEIGHT,
+                      }}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        onSelect(option);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="block truncate text-sm">{option.label}</span>
+                      {option.helperText ? (
+                        <span className="mt-0.5 block truncate text-xs muted-text">{option.helperText}</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : !showAddNew ? (
+              <div className="px-3 py-3 text-center text-xs muted-text">No matches found</div>
+            ) : null}
           </div>
         ) : null}
       </div>
