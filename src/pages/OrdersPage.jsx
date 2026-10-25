@@ -121,15 +121,15 @@ function roundCurrency(value) {
 function computeLotQuantity(quantity, quantityUnit, lotMetersBasis) {
   const normalizedUnit = String(quantityUnit || "").toUpperCase();
   if (normalizedUnit === "LOT") {
-    return quantity;
+    return Math.round(quantity);
   }
   if (normalizedUnit === "TAKKA") {
-    return quantity / TAKKA_PER_LOT;
+    return Math.round(quantity / TAKKA_PER_LOT);
   }
   if (!Number.isFinite(lotMetersBasis) || lotMetersBasis <= 0) {
     return 0;
   }
-  return quantity / lotMetersBasis;
+  return Math.round(quantity / lotMetersBasis);
 }
 
 function randomLotMeters() {

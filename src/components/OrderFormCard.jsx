@@ -78,15 +78,15 @@ function roundCurrency(value) {
 
 function computeLotQuantity(quantity, quantityUnit, lotMetersBasis) {
   if (quantityUnit === "LOT") {
-    return quantity;
+    return Math.round(quantity);
   }
   if (quantityUnit === "TAKKA") {
-    return quantity / TAKKA_PER_LOT;
+    return Math.round(quantity / TAKKA_PER_LOT);
   }
   if (!Number.isFinite(lotMetersBasis) || lotMetersBasis <= 0) {
     return 0;
   }
-  return quantity / lotMetersBasis;
+  return Math.round(quantity / lotMetersBasis);
 }
 
 function extractMessageFromWhatsAppLink(link) {
@@ -122,7 +122,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
   const [quickCustomerForm, setQuickCustomerForm] = useState({
     firmName: "",
     name: "",
+    gstNo: "",
     phone: "",
+    email: "",
     address: "",
     commissionBase: "PERCENT",
     commissionPercent: 1,
@@ -137,6 +139,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
     name: "",
     firmName: "",
     phone: "",
+    email: "",
     address: "",
   });
   const [quickManufacturerErrors, setQuickManufacturerErrors] = useState({});
@@ -389,8 +392,14 @@ function OrderFormCard({ refreshSignal = 0 }) {
   useEffect(() => {
     async function loadRemarkTemplates() {
       try {
-        const res = await getMyRemarkTemplates();
-        setRemarkOptions(Array.isArray(res) ? res : []);
+        const templates = await getMyRemarkTemplates();
+        const options = sortOptionsByLabel(
+          (Array.isArray(templates) ? templates : []).map((template) => ({
+            label: template.text,
+            value: template.text,
+          }))
+        );
+        setRemarkOptions(options);
       } catch {
         setRemarkOptions([]);
       }
@@ -439,7 +448,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
     setQuickCustomerForm({
       firmName: rawName,
       name: "",
+      gstNo: "",
       phone: "",
+      email: "",
       address: "",
       commissionBase: "PERCENT",
       commissionPercent: 1,
@@ -455,6 +466,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
       name: rawName,
       firmName: "",
       phone: "",
+      email: "",
       address: "",
     });
     setQuickManufacturerErrors({});
@@ -476,9 +488,17 @@ function OrderFormCard({ refreshSignal = 0 }) {
     if (!quickCustomerForm.name?.trim()) {
       errs.name = "Contact person name is required";
     }
+    const cleanGst = (quickCustomerForm.gstNo || "").trim().toUpperCase();
+    if (cleanGst && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(cleanGst)) {
+      errs.gstNo = "Enter a valid GSTIN (example: 24ABCDE1234F1Z5)";
+    }
     const cleanPhone = (quickCustomerForm.phone || "").replace(/\D/g, "");
     if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
       errs.phone = "Enter a valid 10-digit Indian mobile number";
+    }
+    const cleanEmail = (quickCustomerForm.email || "").trim();
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      errs.email = "Enter a valid email address";
     }
     if (!quickCustomerForm.address?.trim()) {
       errs.address = "Address / City is required";
@@ -506,7 +526,9 @@ function OrderFormCard({ refreshSignal = 0 }) {
         userType: "customer",
         firmName: quickCustomerForm.firmName.trim(),
         name: quickCustomerForm.name.trim(),
+        gstNo: cleanGst || null,
         phone: cleanPhone,
+        email: cleanEmail || null,
         address: quickCustomerForm.address.trim(),
         commissionBase: quickCustomerForm.commissionBase,
         commissionPercent:
@@ -548,6 +570,10 @@ function OrderFormCard({ refreshSignal = 0 }) {
     if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
       errs.phone = "Enter a valid 10-digit Indian mobile number";
     }
+    const cleanEmail = (quickManufacturerForm.email || "").trim();
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      errs.email = "Enter a valid email address";
+    }
 
     if (Object.keys(errs).length > 0) {
       setQuickManufacturerErrors(errs);
@@ -561,6 +587,7 @@ function OrderFormCard({ refreshSignal = 0 }) {
         name: quickManufacturerForm.name.trim(),
         firmName: quickManufacturerForm.firmName?.trim() || null,
         phone: cleanPhone,
+        email: cleanEmail || null,
         address: quickManufacturerForm.address?.trim() || null,
       });
 
@@ -934,65 +961,51 @@ function OrderFormCard({ refreshSignal = 0 }) {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-1">
-            <div className="mb-1 flex items-center justify-between">
-              <span className="block text-sm muted-text">Remarks</span>
-              {remarkOptions.length > 0 ? (
-                <div className="w-36">
-                  <SearchableSelect
-                    label=""
-                    value=""
-                    onChange={(nextValue) => {
-                      if (!nextValue) return;
-                      const current = remarksValue.trim();
-                      setValue("remarks", current ? `${current} | ${nextValue}` : nextValue, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }}
-                    options={remarkOptions.map((t) => ({ value: t.text, label: t.title || t.text }))}
-                    placeholder="Quick Template"
-                    autocompleteThreshold={0}
-                  />
-                </div>
-              ) : null}
-            </div>
-            <textarea
-              className="form-input"
-              rows="3"
-              placeholder="e.g. Rate including tax, delivery terms..."
-              {...register("remarks")}
-            />
-            {errors.remarks ? (
-              <p className="mt-1 text-sm text-red-500">{errors.remarks.message}</p>
-            ) : null}
-          </div>
+          <AutocompleteInput
+            label="Remarks (Optional)"
+            value={remarksValue}
+            onChange={(value) => setValue("remarks", value, { shouldValidate: true, shouldDirty: true })}
+            onSelect={(option) =>
+              setValue("remarks", option.value, { shouldValidate: true, shouldDirty: true })
+            }
+            options={remarkOptions}
+            placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom remark"}
+            error={errors.remarks?.message}
+            multiline
+            inputClassName="min-h-24"
+          />
 
-          <div className="md:col-span-1">
-            <span className="mb-1 block text-sm muted-text">Customer Remark</span>
-            <textarea
-              className="form-input"
-              rows="3"
-              placeholder="Private note visible only on customer reports"
-              {...register("customerRemark")}
-            />
-            {errors.customerRemark ? (
-              <p className="mt-1 text-sm text-red-500">{errors.customerRemark.message}</p>
-            ) : null}
-          </div>
+          <AutocompleteInput
+            label="Customer Remark (Optional)"
+            value={customerRemarkValue}
+            onChange={(value) =>
+              setValue("customerRemark", value, { shouldValidate: true, shouldDirty: true })
+            }
+            onSelect={(option) =>
+              setValue("customerRemark", option.value, { shouldValidate: true, shouldDirty: true })
+            }
+            options={remarkOptions}
+            placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom customer remark"}
+            error={errors.customerRemark?.message}
+            multiline
+            inputClassName="min-h-24"
+          />
 
-          <div className="md:col-span-1">
-            <span className="mb-1 block text-sm muted-text">Manufacturer Remark</span>
-            <textarea
-              className="form-input"
-              rows="3"
-              placeholder="Private note visible only on manufacturer reports"
-              {...register("manufacturerRemark")}
-            />
-            {errors.manufacturerRemark ? (
-              <p className="mt-1 text-sm text-red-500">{errors.manufacturerRemark.message}</p>
-            ) : null}
-          </div>
+          <AutocompleteInput
+            label="Manufacturer Remark (Optional)"
+            value={manufacturerRemarkValue}
+            onChange={(value) =>
+              setValue("manufacturerRemark", value, { shouldValidate: true, shouldDirty: true })
+            }
+            onSelect={(option) =>
+              setValue("manufacturerRemark", option.value, { shouldValidate: true, shouldDirty: true })
+            }
+            options={remarkOptions}
+            placeholder={remarkOptions.length ? "Type or pick a saved remark" : "Type custom manufacturer remark"}
+            error={errors.manufacturerRemark?.message}
+            multiline
+            inputClassName="min-h-24"
+          />
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -1108,6 +1121,26 @@ function OrderFormCard({ refreshSignal = 0 }) {
               )}
             </label>
 
+            <label className="block">
+              <span className="mb-1 block font-medium text-text">
+                GST No <span className="text-xs muted-text">(Optional)</span>
+              </span>
+              <input
+                type="text"
+                className="form-input text-xs sm:text-sm uppercase"
+                value={quickCustomerForm.gstNo}
+                onChange={(e) => {
+                  const upper = e.target.value.toUpperCase();
+                  setQuickCustomerForm((prev) => ({ ...prev, gstNo: upper }));
+                  if (quickCustomerErrors.gstNo) setQuickCustomerErrors((prev) => ({ ...prev, gstNo: "" }));
+                }}
+                placeholder="e.g. 24ABCDE1234F1Z5"
+              />
+              {quickCustomerErrors.gstNo && (
+                <p className="mt-1 text-xs text-red-500">{quickCustomerErrors.gstNo}</p>
+              )}
+            </label>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <label className="block">
                 <span className="mb-1 block font-medium text-text">
@@ -1207,6 +1240,25 @@ function OrderFormCard({ refreshSignal = 0 }) {
                 <p className="mt-1 text-xs text-red-500">{quickCustomerErrors.address}</p>
               )}
             </label>
+
+            <label className="block">
+              <span className="mb-1 block font-medium text-text">
+                Email <span className="text-xs muted-text">(Optional)</span>
+              </span>
+              <input
+                type="email"
+                className="form-input text-xs sm:text-sm"
+                value={quickCustomerForm.email}
+                onChange={(e) => {
+                  setQuickCustomerForm((prev) => ({ ...prev, email: e.target.value }));
+                  if (quickCustomerErrors.email) setQuickCustomerErrors((prev) => ({ ...prev, email: "" }));
+                }}
+                placeholder="e.g. contact@company.com"
+              />
+              {quickCustomerErrors.email && (
+                <p className="mt-1 text-xs text-red-500">{quickCustomerErrors.email}</p>
+              )}
+            </label>
           </form>
         </Modal>
       )}
@@ -1293,6 +1345,25 @@ function OrderFormCard({ refreshSignal = 0 }) {
               />
               {quickManufacturerErrors.phone && (
                 <p className="mt-1 text-xs text-red-500">{quickManufacturerErrors.phone}</p>
+              )}
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block font-medium text-text">
+                Email <span className="text-xs muted-text">(Optional)</span>
+              </span>
+              <input
+                type="email"
+                className="form-input text-xs sm:text-sm"
+                value={quickManufacturerForm.email}
+                onChange={(e) => {
+                  setQuickManufacturerForm((prev) => ({ ...prev, email: e.target.value }));
+                  if (quickManufacturerErrors.email) setQuickManufacturerErrors((prev) => ({ ...prev, email: "" }));
+                }}
+                placeholder="e.g. mill@company.com"
+              />
+              {quickManufacturerErrors.email && (
+                <p className="mt-1 text-xs text-red-500">{quickManufacturerErrors.email}</p>
               )}
             </label>
 
