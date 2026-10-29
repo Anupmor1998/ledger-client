@@ -21,7 +21,11 @@ export function setupAxiosInterceptors(store) {
 
   axiosClient.interceptors.request.use(
     (config) => {
-      store.dispatch(requestStarted());
+      // Background polling or silent queries should not trigger the global loading indicator
+      if (!config.silent && !config.skipGlobalLoader) {
+        config._trackedByGlobalLoader = true;
+        store.dispatch(requestStarted());
+      }
       const token = store.getState().auth.token || getAuthTokenFromCookie();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -29,18 +33,24 @@ export function setupAxiosInterceptors(store) {
       return config;
     },
     (error) => {
-      store.dispatch(requestEnded());
+      if (error?.config?._trackedByGlobalLoader) {
+        store.dispatch(requestEnded());
+      }
       return Promise.reject(error);
     },
   );
 
   axiosClient.interceptors.response.use(
     (response) => {
-      store.dispatch(requestEnded());
+      if (response?.config?._trackedByGlobalLoader) {
+        store.dispatch(requestEnded());
+      }
       return response;
     },
     async (error) => {
-      store.dispatch(requestEnded());
+      if (error?.config?._trackedByGlobalLoader) {
+        store.dispatch(requestEnded());
+      }
 
       // If the request was made with responseType: "blob" and failed, decode the error Blob into JSON
       if (

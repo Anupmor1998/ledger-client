@@ -555,7 +555,7 @@ export async function getSupportTicketById(id) {
 }
 
 export async function getAdminSupportStats() {
-  const response = await axiosClient.get("/admin/support/stats");
+  const response = await axiosClient.get("/admin/support/stats", { skipGlobalLoader: true });
   return response.data;
 }
 
@@ -707,7 +707,7 @@ export async function toggleUserFreeAccess(userId, enabled) {
 }
 
 export async function getInAppReminders() {
-  const response = await axiosClient.get("/subscription/reminders");
+  const response = await axiosClient.get("/subscription/reminders", { skipGlobalLoader: true });
   return response.data;
 }
 

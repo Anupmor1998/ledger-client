@@ -444,7 +444,9 @@ export function PhoneVerificationModal({ isOpen, onClose, currentPhone, onVerifi
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-800 dark:text-amber-200 space-y-1.5">
             <div className="flex items-center gap-1.5 font-bold text-xs">
               <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2 text-amber-600 shrink-0">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                <circle cx="12" cy="12" r="9" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
               <span>Firebase Setup Pending in .env</span>
             </div>
