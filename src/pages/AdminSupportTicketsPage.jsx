@@ -1,5 +1,5 @@
 import { format, isValid, parseISO } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import useDebounce from "../hooks/useDebounce";
@@ -226,6 +226,22 @@ export default function AdminSupportTicketsPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
+  const filtersRef = useRef({
+    statusFilter: "",
+    priorityFilter: "",
+    categoryFilter: "",
+    debouncedSearch: "",
+  });
+
+  useEffect(() => {
+    filtersRef.current = {
+      statusFilter,
+      priorityFilter,
+      categoryFilter,
+      debouncedSearch,
+    };
+  }, [statusFilter, priorityFilter, categoryFilter, debouncedSearch]);
+
   // Selected ticket for modal details & update
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [formStatus, setFormStatus] = useState("OPEN");
@@ -253,11 +269,17 @@ export default function AdminSupportTicketsPage() {
   async function fetchTickets() {
     setLoading(true);
     try {
+      const {
+        statusFilter: sFilter,
+        priorityFilter: pFilter,
+        categoryFilter: cFilter,
+        debouncedSearch: dSearch,
+      } = filtersRef.current;
       const params = {};
-      if (statusFilter) params.status = statusFilter;
-      if (priorityFilter) params.priority = priorityFilter;
-      if (categoryFilter) params.category = categoryFilter;
-      if (debouncedSearch) params.search = debouncedSearch;
+      if (sFilter) params.status = sFilter;
+      if (pFilter) params.priority = pFilter;
+      if (cFilter) params.category = cFilter;
+      if (dSearch) params.search = dSearch;
 
       const res = await getAdminSupportTickets(params);
       setTickets(Array.isArray(res?.tickets) ? res.tickets : []);

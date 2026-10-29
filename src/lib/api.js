@@ -370,6 +370,11 @@ export async function updateMyProfile(data) {
   return response.data;
 }
 
+export async function deleteMyAccount(data) {
+  const response = await axiosClient.delete("/users/me", { data });
+  return response.data;
+}
+
 export async function updateMyPreferences(data) {
   const response = await axiosClient.put("/users/me/preferences", data);
   return response.data;
