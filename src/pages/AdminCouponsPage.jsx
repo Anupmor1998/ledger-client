@@ -1,5 +1,5 @@
 import { format, isValid, parseISO } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import DatePicker from "../components/DatePicker";
@@ -73,6 +73,18 @@ function AdminCouponsPage() {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput, 300);
 
+  const filtersRef = useRef({
+    statusFilter: "ALL",
+    debouncedSearch: "",
+  });
+
+  useEffect(() => {
+    filtersRef.current = {
+      statusFilter,
+      debouncedSearch,
+    };
+  }, [statusFilter, debouncedSearch]);
+
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -118,9 +130,10 @@ function AdminCouponsPage() {
   async function fetchCoupons() {
     try {
       setLoading(true);
+      const { statusFilter: sFilter, debouncedSearch: dSearch } = filtersRef.current;
       const params = {};
-      if (statusFilter !== "ALL") params.status = statusFilter;
-      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (sFilter !== "ALL") params.status = sFilter;
+      if (dSearch.trim()) params.search = dSearch.trim();
 
       const res = await getAdminCoupons(params);
       setCoupons(Array.isArray(res?.coupons) ? res.coupons : []);

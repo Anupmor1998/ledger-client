@@ -164,10 +164,18 @@ function SearchableSelect({
             <button
               type="button"
               onClick={(e) => handleRemoveMulti(e, opt.value)}
-              className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-muted-text hover:bg-white/20 hover:text-white"
+              className="ml-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-muted-text transition-colors hover:bg-black/10 hover:text-text dark:hover:bg-white/20 dark:hover:text-white"
               title="Remove"
             >
-              ×
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3 w-3 shrink-0 fill-none stroke-current stroke-2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </span>
         ))}

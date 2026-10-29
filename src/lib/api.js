@@ -370,6 +370,11 @@ export async function updateMyProfile(data) {
   return response.data;
 }
 
+export async function deleteMyAccount(data) {
+  const response = await axiosClient.delete("/users/me", { data });
+  return response.data;
+}
+
 export async function updateMyPreferences(data) {
   const response = await axiosClient.put("/users/me/preferences", data);
   return response.data;
@@ -550,7 +555,7 @@ export async function getSupportTicketById(id) {
 }
 
 export async function getAdminSupportStats() {
-  const response = await axiosClient.get("/admin/support/stats");
+  const response = await axiosClient.get("/admin/support/stats", { skipGlobalLoader: true });
   return response.data;
 }
 
@@ -702,7 +707,7 @@ export async function toggleUserFreeAccess(userId, enabled) {
 }
 
 export async function getInAppReminders() {
-  const response = await axiosClient.get("/subscription/reminders");
+  const response = await axiosClient.get("/subscription/reminders", { skipGlobalLoader: true });
   return response.data;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -165,6 +165,26 @@ function AdminPage() {
 
   const debouncedSearch = useDebounce(searchValue, 300);
 
+  const latestStateRef = useRef({
+    pageIndex: 0,
+    pageSize: 20,
+    searchValue: "",
+    debouncedSearch: "",
+    searchField: "",
+    sorting: [{ id: "createdAt", desc: true }],
+  });
+
+  useEffect(() => {
+    latestStateRef.current = {
+      pageIndex,
+      pageSize,
+      searchValue,
+      debouncedSearch,
+      searchField,
+      sorting,
+    };
+  }, [pageIndex, pageSize, searchValue, debouncedSearch, searchField, sorting]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -208,18 +228,17 @@ function AdminPage() {
   }, [collections, collectionsLoading, navigate, selectedCollection]);
 
   useEffect(() => {
-    const nextSearchField = selectedCollection?.searchFields?.[0]?.value || "";
     const nextSortField =
       selectedCollection?.sortableFields?.[0] || selectedCollection?.previewFields?.[0]?.value || "createdAt";
 
     setPageIndex(0);
     setSearchValue("");
-    setSearchField(nextSearchField);
+    setSearchField("");
     setSorting([{ id: nextSortField, desc: true }]);
     setSelectedRecord(null);
     setDeleteTarget(null);
     setDeleteConfirmText("");
-  }, [collectionKey, selectedCollection]);
+  }, [collectionKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -265,7 +284,13 @@ function AdminPage() {
     };
   }, [collectionKey, debouncedSearch, pageIndex, pageSize, searchField, sorting]);
 
-  const searchFieldOptions = selectedCollection?.searchFields || [];
+  const searchFieldOptions = useMemo(
+    () => [
+      { value: "", label: "All Fields" },
+      ...(selectedCollection?.searchFields || []),
+    ],
+    [selectedCollection]
+  );
   const canCreate = selectedCollection?.allowCreate !== false;
   const canUpdate = selectedCollection?.allowUpdate !== false;
   const canDelete = selectedCollection?.allowDelete !== false;
@@ -610,21 +635,32 @@ function AdminPage() {
         ),
       },
     ];
-  }, [canDelete, canUpdate, selectedCollection]);
+  }, [canDelete, canUpdate, selectedCollection, togglingUserId]);
 
   async function refreshRecords() {
     if (!collectionKey) return;
-    const sort = sorting[0] || { id: "createdAt", desc: true };
+    const {
+      pageIndex: pIndex,
+      pageSize: pSize,
+      searchValue: sValue,
+      debouncedSearch: dSearch,
+      searchField: sField,
+      sorting: sSorting,
+    } = latestStateRef.current;
+
+    const sort = sSorting[0] || { id: "createdAt", desc: true };
+    const term = sValue.trim() !== "" ? sValue.trim() : dSearch;
+
     const payload = await getAdminCollectionRecords(collectionKey, {
-      page: pageIndex + 1,
-      limit: pageSize,
-      search: debouncedSearch,
-      searchField,
+      page: pIndex + 1,
+      limit: pSize,
+      search: term,
+      searchField: sField,
       sortBy: sort.id,
       sortOrder: sort.desc ? "desc" : "asc",
     });
     setRecords(Array.isArray(payload?.items) ? payload.items : []);
-    setPagination(payload?.pagination || { page: 1, limit: pageSize, total: 0, totalPages: 0 });
+    setPagination(payload?.pagination || { page: 1, limit: pSize, total: 0, totalPages: 0 });
   }
 
   async function handleSaveRecord() {
@@ -745,9 +781,15 @@ function AdminPage() {
         data={records}
         loading={loading}
         searchValue={searchValue}
-        onSearchChange={setSearchValue}
+        onSearchChange={(nextVal) => {
+          setSearchValue(nextVal);
+          setPageIndex(0);
+        }}
         searchFieldValue={searchField}
-        onSearchFieldChange={setSearchField}
+        onSearchFieldChange={(nextField) => {
+          setSearchField(nextField);
+          setPageIndex(0);
+        }}
         searchFieldOptions={searchFieldOptions}
         sorting={sorting}
         onSortingChange={setSorting}

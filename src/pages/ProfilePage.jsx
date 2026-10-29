@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -7,19 +8,26 @@ import {
   getMyProfile,
   updateMyProfile,
   updateMyPreferences,
+  deleteMyAccount,
 } from "../lib/api";
+import Modal from "../components/Modal";
 import SearchableSelect from "../components/SearchableSelect";
 import {
   EmailVerificationModal,
   PhoneVerificationModal,
 } from "../components/VerificationModals";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { setUserProfile } from "../store/slices/authSlice";
+import { setUserProfile, logout } from "../store/slices/authSlice";
 import { buildFinancialYearOptions, getCurrentFinancialYearStart, getFinancialYearLabel } from "../utils/financialYear";
 import { profileSchema } from "../validation/authSchemas";
 
 function ProfilePage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const user = useAppSelector((state) => state.auth.user);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -186,6 +194,30 @@ function ProfilePage() {
     }
   }
 
+  async function handleDeleteAccount() {
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+      toast.error("Please type DELETE to confirm");
+      return;
+    }
+    if (!deletePassword) {
+      toast.error("Please enter your current password");
+      return;
+    }
+
+    setDeleteSubmitting(true);
+    try {
+      await deleteMyAccount({ password: deletePassword });
+      toast.success("Your account has been permanently deleted.");
+      setShowDeleteModal(false);
+      dispatch(logout());
+      navigate("/login");
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Failed to delete account";
+      toast.error(message);
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }
   return (
     <section className="auth-card p-4 sm:p-6">
       <h2 className="text-xl font-semibold">Profile</h2>
@@ -539,6 +571,138 @@ function ProfilePage() {
           {isSubmitting ? "Saving..." : "Save Changes"}
         </button>
       </form>
+
+      {/* Danger Zone */}
+      <div className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/5 p-4 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-600 dark:text-red-400">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-none stroke-current stroke-2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <line x1="17" y1="8" x2="22" y2="13" />
+                <line x1="22" y1="8" x2="17" y2="13" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-red-600 dark:text-red-400">
+                Danger Zone
+              </h3>
+              <p className="mt-0.5 text-xs text-text/80">
+                Permanently delete your account and all associated data including orders, parties, commissions, and payment entries. This action cannot be undone.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowDeleteModal(true);
+              setDeletePassword("");
+              setDeleteConfirmText("");
+            }}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs font-semibold text-red-600 transition hover:bg-red-500 hover:text-white dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 fill-none stroke-current stroke-2">
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M6 6l1 14h10l1-14" />
+              <path d="M10 11v5" />
+              <path d="M14 11v5" />
+            </svg>
+            Delete Account
+          </button>
+        </div>
+      </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal ? (
+        <Modal
+          title="Delete Account"
+          onClose={() => {
+            if (!deleteSubmitting) {
+              setShowDeleteModal(false);
+              setDeletePassword("");
+              setDeleteConfirmText("");
+            }
+          }}
+          maxWidthClassName="max-w-md"
+          footer={
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletePassword("");
+                  setDeleteConfirmText("");
+                }}
+                disabled={deleteSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50"
+                onClick={handleDeleteAccount}
+                disabled={
+                  deleteConfirmText.trim().toUpperCase() !== "DELETE" ||
+                  !deletePassword ||
+                  deleteSubmitting
+                }
+              >
+                {deleteSubmitting ? (
+                  <>
+                    <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Deleting Account...
+                  </>
+                ) : (
+                  "Permanently Delete My Account"
+                )}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-sm">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 text-xs text-red-600 dark:text-red-400">
+              <p className="font-semibold">Warning: This action is permanent!</p>
+              <p className="mt-1">
+                All your orders, parties, qualities, payments, and financial history will be permanently deleted and cannot be recovered.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium muted-text">
+                Enter your password to verify ownership
+              </label>
+              <input
+                type="password"
+                className="form-input text-xs"
+                placeholder="Current Password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                disabled={deleteSubmitting}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium muted-text">
+                Type <span className="font-bold text-red-600 dark:text-red-400">DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                className="form-input text-xs"
+                placeholder="Type DELETE"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                disabled={deleteSubmitting}
+              />
+            </div>
+          </div>
+        </Modal>
+      ) : null}
 
       {/* Email & Phone Verification Modals */}
       <EmailVerificationModal

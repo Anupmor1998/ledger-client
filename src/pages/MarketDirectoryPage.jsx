@@ -777,7 +777,10 @@ function MarketDirectoryPage() {
         <div className="rounded-xl border border-dashed border-border bg-surface p-8 sm:p-12 text-center shadow-sm w-full min-w-0">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mb-2.5">
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current stroke-2">
-              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </div>
           <h3 className="text-sm sm:text-base font-semibold text-text">
