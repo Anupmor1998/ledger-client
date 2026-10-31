@@ -17,7 +17,7 @@ import {
 /**
  * 6-Block OTP Input with auto-advance, backspace navigation, and paste support
  */
-function SixDigitOtpBoxes({ value, onChange, onEnter, disabled }) {
+export function SixDigitOtpBoxes({ value, onChange, onEnter, disabled }) {
   const inputsRef = useRef([]);
   const digits = Array.from({ length: 6 }, (_, i) => value[i] || "");
 
@@ -81,7 +81,7 @@ function SixDigitOtpBoxes({ value, onChange, onEnter, disabled }) {
   }
 
   return (
-    <div className="flex items-center justify-center gap-2 sm:gap-3 py-2">
+    <div className="flex items-center justify-between gap-1.5 sm:gap-2 py-2 w-full max-w-full">
       {digits.map((digit, idx) => (
         <input
           key={idx}
@@ -96,7 +96,7 @@ function SixDigitOtpBoxes({ value, onChange, onEnter, disabled }) {
           onChange={(e) => handleChange(e, idx)}
           onKeyDown={(e) => handleKeyDown(e, idx)}
           onPaste={handlePaste}
-          className={`w-11 h-12 sm:w-12 sm:h-13 text-center text-xl font-bold font-mono rounded-xl border transition-all duration-150 outline-none select-all ${
+          className={`flex-1 min-w-0 max-w-[48px] h-10 sm:h-11 text-center text-lg sm:text-xl font-bold font-mono rounded-lg border transition-all duration-150 outline-none select-all ${
             digit
               ? "border-accent bg-accent/5 text-accent shadow-xs"
               : "border-border bg-surface text-text focus:border-accent focus:ring-2 focus:ring-accent/20"

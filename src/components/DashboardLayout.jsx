@@ -4,6 +4,7 @@ import { ADSENSE_CONFIG } from "../config/ads";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout } from "../store/slices/authSlice";
 import AdBanner from "./AdBanner";
+import { ExistingUserReminders } from "./ExistingUserReminders";
 import NotificationBell from "./NotificationBell";
 import ShareAppModal from "./ShareAppModal";
 import SubscriptionReminderBanner from "./SubscriptionReminderBanner";
@@ -435,6 +436,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
           </header>
 
           <main className="mt-4 min-w-0 overflow-x-hidden">
+            <ExistingUserReminders />
             <SubscriptionReminderBanner />
             <Outlet />
           </main>

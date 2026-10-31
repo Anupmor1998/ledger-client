@@ -30,7 +30,7 @@ function SignupPage() {
       const result = await signup(values);
       dispatch(setSession(result));
       toast.success("Account created successfully");
-      navigate("/");
+      navigate("/onboarding");
     } catch (error) {
       const message =
         error?.response?.data?.message ||
