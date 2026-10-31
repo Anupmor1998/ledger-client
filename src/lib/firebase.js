@@ -1,3 +1,4 @@
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
@@ -13,6 +14,8 @@ const firebaseConfig = {
   messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
   appId: process.env.FIREBASE_APP_ID || "",
 };
+
+const VAPID_KEY = process.env.FIREBASE_VAPID_KEY || "";
 
 export function isFirebaseConfigured() {
   return Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
@@ -123,3 +126,89 @@ export async function confirmPhoneOtp(confirmationResult, otpCode) {
   };
 }
 
+
+let messaging = null;
+
+export function getFirebaseMessaging() {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return null;
+  }
+  if (!isFirebaseConfigured()) {
+    return null;
+  }
+  if (!messaging) {
+    const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    try {
+      messaging = getMessaging(firebaseApp);
+    } catch (err) {
+      console.warn("Firebase messaging initialization failed:", err);
+      return null;
+    }
+  }
+  return messaging;
+}
+
+/**
+ * Requests notification permission from user and retrieves FCM device token
+ */
+export async function requestFcmToken() {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    console.warn("[FCM] Notifications are not supported in this browser.");
+    return null;
+  }
+
+  const msg = getFirebaseMessaging();
+  if (!msg) {
+    console.warn("[FCM] Firebase messaging could not be initialized.");
+    return null;
+  }
+
+  if (!VAPID_KEY) {
+    console.warn("[FCM] FIREBASE_VAPID_KEY is missing from client environment variables. Restart Vite dev server if newly added.");
+    return null;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      console.info("[FCM] Notification permission was not granted:", permission);
+      return null;
+    }
+
+    // Ensure firebase-messaging-sw.js is registered
+    let swReg = null;
+    if ("serviceWorker" in navigator) {
+      try {
+        swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+      } catch (swErr) {
+        console.warn("[FCM] Could not register firebase-messaging-sw.js directly:", swErr);
+        swReg = await navigator.serviceWorker.ready;
+      }
+    }
+
+    const currentToken = await getToken(msg, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg || undefined,
+    });
+
+    if (currentToken) {
+      console.info("[FCM] Device token acquired successfully");
+    }
+
+    return currentToken || null;
+  } catch (err) {
+    console.error("[FCM] Error getting FCM token:", err);
+    return null;
+  }
+}
+
+/**
+ * Listen for foreground push messages
+ */
+export function onForegroundMessage(callback) {
+  const msg = getFirebaseMessaging();
+  if (!msg) return () => {};
+  return onMessage(msg, (payload) => {
+    if (callback) callback(payload);
+  });
+}

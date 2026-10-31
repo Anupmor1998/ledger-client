@@ -3,6 +3,7 @@ import { ToastContainer } from "react-toastify";
 import AnalyticsTracker from "./components/AnalyticsTracker";
 import GlobalLoader from "./components/GlobalLoader";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import PushNotificationManager from "./components/PushNotificationManager";
 import { identifyUser, initAnalytics, resetUser } from "./lib/analytics";
 import AppRoutes from "./routes/AppRoutes";
 import { useAppSelector } from "./store/hooks";
@@ -30,6 +31,7 @@ function App({ dark, onToggleTheme }) {
       <AnalyticsTracker />
       <GlobalLoader active={isGlobalLoading} />
       <PWAInstallPrompt />
+      <PushNotificationManager />
       <ToastContainer
         position="top-right"
         autoClose={3000}

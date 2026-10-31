@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { getInAppReminders } from "../lib/api";
 
@@ -8,10 +8,18 @@ function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const containerRef = useRef(null);
+  const lastFetchTimeRef = useRef(0);
 
-  async function fetchReminders() {
+  const fetchReminders = useCallback(async (force = false) => {
+    const now = Date.now();
+    // Throttle duplicate fetches within 15 seconds unless explicitly forced
+    if (!force && now - lastFetchTimeRef.current < 15000) {
+      return;
+    }
+
     try {
       setLoading(true);
+      lastFetchTimeRef.current = now;
       const data = await getInAppReminders();
       setReminders(data?.reminders || []);
       setUnreadCount(data?.unreadCount || 0);
@@ -20,14 +28,47 @@ function NotificationBell() {
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    fetchReminders();
-    const interval = setInterval(fetchReminders, 60000); // 1 min refresh
-    return () => clearInterval(interval);
   }, []);
 
+  // 1. Initial fetch on mount
+  useEffect(() => {
+    fetchReminders(true);
+  }, [fetchReminders]);
+
+  // 2. Smart Event-Driven listeners:
+  // - Visibility Change: Only fetch when user switches back to active tab (saves phone battery & eliminates background requests)
+  // - Window Focus: Fetch when returning to browser window
+  // - Online event: Re-sync when network reconnects
+  useEffect(() => {
+    function handleVisibilityOrFocus() {
+      if (document.visibilityState === "visible") {
+        fetchReminders();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    window.addEventListener("online", handleVisibilityOrFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      window.removeEventListener("online", handleVisibilityOrFocus);
+    };
+  }, [fetchReminders]);
+
+  // 3. Fallback idle interval: Every 3 minutes ONLY while the document is visible
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchReminders();
+      }
+    }, 180000); // 3 minutes idle refresh
+
+    return () => clearInterval(interval);
+  }, [fetchReminders]);
+
+  // 4. Close dropdown on click outside
   useEffect(() => {
     function handleOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -40,6 +81,17 @@ function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [open]);
 
+  // 5. Open bell: Trigger a fresh check when user opens the menu
+  function handleToggleOpen() {
+    setOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        fetchReminders();
+      }
+      return next;
+    });
+  }
+
   function handleDismiss(id) {
     setReminders((prev) => prev.filter((r) => r.id !== id));
     setUnreadCount((prev) => Math.max(0, prev - 1));
@@ -49,7 +101,7 @@ function NotificationBell() {
     <div className="relative" ref={containerRef}>
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={handleToggleOpen}
         className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-lg border border-border bg-surface text-muted-text hover:bg-bg hover:text-text transition-colors"
         aria-label="Open reminders and notifications"
         title="Reminders & Notifications"
@@ -79,7 +131,7 @@ function NotificationBell() {
             </div>
             <button
               type="button"
-              onClick={fetchReminders}
+              onClick={() => fetchReminders(true)}
               className="text-[11px] text-accent hover:underline"
               disabled={loading}
             >
@@ -105,6 +157,7 @@ function NotificationBell() {
                 const isUrgent = r.type === "URGENT";
                 const isWarning = r.type === "WARNING";
                 const isSuccess = r.type === "SUCCESS";
+                const isOffer = r.type === "OFFER";
 
                 const badgeBg = isUrgent
                   ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
@@ -112,6 +165,8 @@ function NotificationBell() {
                   ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
                   : isSuccess
                   ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+                  : isOffer
+                  ? "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 font-extrabold"
                   : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
 
                 return (
@@ -175,4 +230,3 @@ function NotificationBell() {
 }
 
 export default NotificationBell;
-

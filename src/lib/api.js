@@ -780,3 +780,24 @@ export async function verifyPhoneWithFirebase(idToken, phoneNumber) {
 }
 
 
+
+export async function registerDeviceToken(token) {
+  const response = await axiosClient.post("/users/me/device-token", {
+    token,
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+  }, { skipGlobalLoader: true });
+  return response.data;
+}
+
+export async function unregisterDeviceToken(token) {
+  const response = await axiosClient.delete("/users/me/device-token", {
+    data: { token },
+    skipGlobalLoader: true,
+  });
+  return response.data;
+}
+
+export async function sendTestPushNotification() {
+  const response = await axiosClient.post("/users/me/test-push");
+  return response.data;
+}
