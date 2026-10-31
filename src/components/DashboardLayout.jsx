@@ -7,6 +7,7 @@ import AdBanner from "./AdBanner";
 import { ADSENSE_CONFIG } from "../config/ads";
 import NotificationBell from "./NotificationBell";
 import SubscriptionReminderBanner from "./SubscriptionReminderBanner";
+import { ExistingUserReminders } from "./ExistingUserReminders";
 import ShareAppModal from "./ShareAppModal";
 import TourHelpButton from "./TourHelpButton";
 
@@ -396,6 +397,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
           </header>
 
           <main className="mt-4 min-w-0 overflow-x-hidden">
+            <ExistingUserReminders />
             <SubscriptionReminderBanner />
             <Outlet />
           </main>

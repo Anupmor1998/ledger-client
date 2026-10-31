@@ -12,6 +12,7 @@ import LoginPage from "../pages/LoginPage";
 import MarketDirectoryPage from "../pages/MarketDirectoryPage";
 import MastersPage from "../pages/MastersPage";
 import OrderProgressPage from "../pages/OrderProgressPage";
+import OnboardingPage from "../pages/OnboardingPage";
 import OrdersPage from "../pages/OrdersPage";
 import PaymentsPage from "../pages/PaymentsPage";
 import PricingPage from "../pages/PricingPage";
@@ -147,6 +148,16 @@ function AppRoutes({ dark, onToggleTheme }) {
           }
         />
       </Route>
+
+      {/* Standalone Onboarding Page (Full-screen wizard for verification & business setup) */}
+      {isAuthenticated && (
+        <Route element={<ProtectedRoute />}>
+          <Route
+            path="/onboarding"
+            element={<OnboardingPage dark={dark} onToggleTheme={onToggleTheme} />}
+          />
+        </Route>
+      )}
 
       {/* When authenticated, root '/' and app features render inside DashboardLayout */}
       {isAuthenticated && (
