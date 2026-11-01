@@ -29,6 +29,9 @@ function SignupPage() {
     try {
       const result = await signup(values);
       dispatch(setSession(result));
+      if (result?.user?.id) {
+        localStorage.setItem(`sauda_needs_onboarding_${result.user.id}`, "true");
+      }
       toast.success("Account created successfully");
       navigate("/onboarding");
     } catch (error) {

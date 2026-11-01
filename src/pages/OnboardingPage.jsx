@@ -603,7 +603,7 @@ function OnboardingPage({ dark, onToggleTheme }) {
               <span className="text-xs text-muted-text">
                 {isBothVerified
                   ? "Both phone and email are verified! Ready to proceed."
-                  : "Please verify both phone and email above to unlock app access."}
+                  : "Please verify both your phone and email above to continue."}
               </span>
 
               <button

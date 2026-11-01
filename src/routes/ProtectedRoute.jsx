@@ -16,32 +16,32 @@ function ProtectedRoute() {
     return <Outlet />;
   }
 
-  // Check if user has both email and phone verified
-  const isEmailVerified = Boolean(user?.isEmailVerified);
-  const isPhoneVerified = Boolean(user?.isPhoneVerified);
-  const isBothVerified = isEmailVerified && isPhoneVerified;
-  const hasFirmName = Boolean(user?.firmName && user?.firmName.trim());
+  // For new signups, onboarding is STRICTLY MANDATORY until both verifications and business setup are complete
+  const isNewSignup = user?.id && localStorage.getItem(`sauda_needs_onboarding_${user.id}`) === "true";
+  if (isNewSignup) {
+    const isBothVerified = Boolean(user?.isEmailVerified) && Boolean(user?.isPhoneVerified);
+    const hasFirmName = Boolean(user?.firmName && user?.firmName.trim());
 
-  // Check if user is a newly registered user who hasn't completed onboarding
-  // We can track if they need onboarding: if both aren't verified or firmName isn't set
-  // To protect newly signed-up users while allowing existing users who were already using the app:
-  // If the user arrived from signup or is unverified, redirect to /onboarding
-  const needsOnboarding = !isBothVerified || !hasFirmName;
-
-  // If user explicitly is on /onboarding route, allow it
-  if (location.pathname === "/onboarding") {
-    // If they already completed onboarding, redirect to root
-    if (isBothVerified && hasFirmName) {
-      return <Navigate to="/" replace />;
+    if (!isBothVerified || !hasFirmName) {
+      if (location.pathname !== "/onboarding") {
+        return <Navigate to="/onboarding" replace />;
+      }
+      return <Outlet />;
+    } else {
+      // Completed! Clean up flag
+      localStorage.removeItem(`sauda_needs_onboarding_${user.id}`);
+      if (location.pathname === "/onboarding") {
+        return <Navigate to="/" replace />;
+      }
     }
-    return <Outlet />;
   }
 
-  // If user hasn't verified both email and phone, force them to onboarding
-  if (!isBothVerified) {
-    return <Navigate to="/onboarding" replace />;
+  // Existing users should not be on /onboarding route; redirect them to dashboard
+  if (location.pathname === "/onboarding") {
+    return <Navigate to="/" replace />;
   }
 
+  // Allow all existing authenticated users full access without blocking
   return <Outlet />;
 }
 
