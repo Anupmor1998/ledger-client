@@ -34,15 +34,20 @@ export default defineConfig(({ mode }) => {
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+          navigateFallback: "/index.html",
+          navigateFallbackDenylist: [/\/api\/.*/i],
           runtimeCaching: [
             {
-              urlPattern: /^https?:\/\/.*/i,
-              handler: "NetworkFirst",
+              urlPattern: ({ request }) =>
+                request.destination === "image" ||
+                request.destination === "font" ||
+                request.destination === "style",
+              handler: "StaleWhileRevalidate",
               options: {
-                cacheName: "http-cache",
+                cacheName: "assets-cache",
                 expiration: {
                   maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 * 24,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
                 },
               },
             },
