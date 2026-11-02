@@ -29,6 +29,14 @@ function LoginPage() {
     try {
       const result = await login(values);
       dispatch(setSession(result));
+
+      // Reset setup popup & reminder banner dismissal flags on fresh login
+      if (result?.user?.id) {
+        sessionStorage.removeItem(`saudabook_setup_modal_dismissed_${result.user.id}`);
+        sessionStorage.removeItem(`saudabook_dismiss_verify_${result.user.id}`);
+        sessionStorage.removeItem(`saudabook_dismiss_biz_${result.user.id}`);
+      }
+
       toast.success("Logged in successfully");
       navigate("/");
     } catch (error) {

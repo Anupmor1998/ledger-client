@@ -16,13 +16,13 @@ function ProtectedRoute() {
     return <Outlet />;
   }
 
-  // For new signups, onboarding is STRICTLY MANDATORY until both verifications and business setup are complete
+  // For new signups, onboarding is mandatory for Phone Verification and Business Setup (Email verification is optional & reminded on login)
   const isNewSignup = user?.id && localStorage.getItem(`sauda_needs_onboarding_${user.id}`) === "true";
   if (isNewSignup) {
-    const isBothVerified = Boolean(user?.isEmailVerified) && Boolean(user?.isPhoneVerified);
+    const isPhoneVerified = Boolean(user?.isPhoneVerified);
     const hasFirmName = Boolean(user?.firmName && user?.firmName.trim());
 
-    if (!isBothVerified || !hasFirmName) {
+    if (!isPhoneVerified || !hasFirmName) {
       if (location.pathname !== "/onboarding") {
         return <Navigate to="/onboarding" replace />;
       }

@@ -1,21 +1,19 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { setUserProfile, logout } from "../store/slices/authSlice";
+import { logout, setUserProfile } from "../store/slices/authSlice";
 import {
-  sendEmailVerificationOtp,
-  verifyEmailOtp,
-  verifyPhoneWithFirebase,
   getMyProfile,
   updateMyProfile,
+  verifyPhoneWithFirebase,
 } from "../lib/api";
 import {
   isFirebaseConfigured,
   setupRecaptcha,
-  clearRecaptcha,
   sendPhoneOtp,
   confirmPhoneOtp,
+  clearRecaptcha,
 } from "../lib/firebase";
 import { SixDigitOtpBoxes } from "../components/VerificationModals";
 
@@ -25,26 +23,27 @@ function OnboardingPage({ dark, onToggleTheme }) {
   const user = useAppSelector((state) => state.auth.user);
 
   // Sync latest user state
-  const isEmailVerified = Boolean(user?.isEmailVerified);
   const isPhoneVerified = Boolean(user?.isPhoneVerified);
-  const isBothVerified = isEmailVerified && isPhoneVerified;
 
-  // Step: 1 for Verification, 2 for Business Profile
-  // If user already verified both, jump directly to step 2
-  const [step, setStep] = useState(isBothVerified ? 2 : 1);
+  // Step: 1 for Phone Verification, 2 for Business Profile
+  // If user already verified phone, jump directly to step 2
+  const [step, setStep] = useState(isPhoneVerified ? 2 : 1);
 
   useEffect(() => {
-    if (isBothVerified) {
+    if (isPhoneVerified) {
       setStep(2);
     }
-  }, [isBothVerified]);
+  }, [isPhoneVerified]);
 
-  // If user already has both verified AND has firmName set, send them to dashboard
+  // If user already has phone verified AND has firmName set, onboarding is done
   useEffect(() => {
-    if (user?.isEmailVerified && user?.isPhoneVerified && user?.firmName?.trim()) {
+    if (user?.isPhoneVerified && user?.firmName?.trim()) {
+      if (user?.id) {
+        localStorage.removeItem(`sauda_needs_onboarding_${user.id}`);
+      }
       navigate("/", { replace: true });
     }
-  }, [user?.isEmailVerified, user?.isPhoneVerified, user?.firmName, navigate]);
+  }, [user?.isPhoneVerified, user?.firmName, user?.id, navigate]);
 
   // Refresh profile on mount to get authoritative verification status
   useEffect(() => {
@@ -60,58 +59,6 @@ function OnboardingPage({ dark, onToggleTheme }) {
       mounted = false;
     };
   }, [dispatch]);
-
-  /* -------------------------------------------------------------
-     EMAIL VERIFICATION STATE
-  ------------------------------------------------------------- */
-  const [emailOtp, setEmailOtp] = useState("");
-  const [emailSending, setEmailSending] = useState(false);
-  const [emailVerifying, setEmailVerifying] = useState(false);
-  const [emailCodeSent, setEmailCodeSent] = useState(false);
-  const [emailCooldown, setEmailCooldown] = useState(0);
-
-  useEffect(() => {
-    if (emailCooldown > 0) {
-      const timer = setInterval(() => {
-        setEmailCooldown((c) => (c > 0 ? c - 1 : 0));
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [emailCooldown]);
-
-  async function handleSendEmailOtp() {
-    if (emailCooldown > 0 || emailSending || isEmailVerified) return;
-    try {
-      setEmailSending(true);
-      const res = await sendEmailVerificationOtp();
-      setEmailCodeSent(true);
-      setEmailCooldown(60);
-      toast.success(res?.message || `Verification code sent to ${user?.email}!`);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to send email verification code");
-    } finally {
-      setEmailSending(false);
-    }
-  }
-
-  async function handleVerifyEmail(e) {
-    if (e?.preventDefault) e.preventDefault();
-    const cleanOtp = emailOtp.trim();
-    if (cleanOtp.length !== 6) {
-      toast.error("Please enter the complete 6-digit email code");
-      return;
-    }
-    try {
-      setEmailVerifying(true);
-      const res = await verifyEmailOtp(cleanOtp);
-      toast.success(res?.message || "Email address verified!");
-      dispatch(setUserProfile({ isEmailVerified: true }));
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Invalid or expired verification code");
-    } finally {
-      setEmailVerifying(false);
-    }
-  }
 
   /* -------------------------------------------------------------
      PHONE VERIFICATION STATE
@@ -200,6 +147,7 @@ function OnboardingPage({ dark, onToggleTheme }) {
         })
       );
       setPhoneStep("SEND");
+      setStep(2); // Automatically advance to Step 2
     } catch (err) {
       toast.error(err?.message || "Invalid SMS verification code");
     } finally {
@@ -223,6 +171,7 @@ function OnboardingPage({ dark, onToggleTheme }) {
           contactPhone: res?.contactPhone || clean,
         })
       );
+      setStep(2); // Automatically advance to Step 2
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to verify phone");
     } finally {
@@ -253,6 +202,12 @@ function OnboardingPage({ dark, onToggleTheme }) {
         businessAddress: businessAddress.trim() || null,
       });
       dispatch(setUserProfile(updated));
+
+      // Clean up onboarding flag
+      if (user?.id) {
+        localStorage.removeItem(`sauda_needs_onboarding_${user.id}`);
+      }
+
       toast.success("Business profile configured successfully!");
       navigate("/", { replace: true });
     } catch (err) {
@@ -310,20 +265,20 @@ function OnboardingPage({ dark, onToggleTheme }) {
       </div>
 
       {/* Main Card Content */}
-      <div className="max-w-3xl mx-auto w-full">
+      <div className="max-w-2xl mx-auto w-full">
         {/* Progress Stepper */}
         <div className="mb-6 flex items-center justify-center gap-3 sm:gap-6 text-xs font-semibold">
           <div className={`flex items-center gap-2 ${step === 1 ? "text-accent" : "text-emerald-600 dark:text-emerald-400"}`}>
             <span
               className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                isBothVerified
+                isPhoneVerified
                   ? "bg-emerald-500 text-white"
                   : step === 1
                   ? "bg-accent text-white"
                   : "bg-surface-muted text-muted-text border border-border"
               }`}
             >
-              {isBothVerified ? (
+              {isPhoneVerified ? (
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
@@ -331,7 +286,7 @@ function OnboardingPage({ dark, onToggleTheme }) {
                 "1"
               )}
             </span>
-            <span>Security Verification</span>
+            <span>Phone Verification</span>
           </div>
 
           <div className="w-8 sm:w-16 h-0.5 bg-border" />
@@ -350,266 +305,162 @@ function OnboardingPage({ dark, onToggleTheme }) {
           </div>
         </div>
 
-        {/* STEP 1: DUAL VERIFICATION */}
+        {/* STEP 1: PHONE VERIFICATION */}
         {step === 1 && (
           <div className="rounded-2xl border border-border bg-surface p-5 sm:p-8 shadow-sm space-y-6">
-            <div className="text-center max-w-lg mx-auto">
+            <div className="text-center max-w-md mx-auto">
               <h2 className="text-xl sm:text-2xl font-extrabold text-text tracking-tight">
-                Verify Your Phone & Email
+                Verify Your Mobile Phone
               </h2>
               <p className="mt-1.5 text-xs sm:text-sm text-muted-text leading-relaxed">
-                To keep your textile sauda orders secure and enable real-time WhatsApp & order notifications, please verify both your mobile phone and email address.
+                To keep your textile sauda orders secure and enable real-time SMS & WhatsApp order confirmations, please verify your mobile phone.
               </p>
             </div>
 
-            {/* Grid with 2 Verification Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-              {/* CARD 1: MOBILE PHONE */}
-              <div
-                className={`rounded-xl border p-4 sm:p-5 flex flex-col justify-between transition-all ${
-                  isPhoneVerified
-                    ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20"
-                    : "border-border bg-bg/50"
-                }`}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2">
-                          <rect x="5" y="2" width="14" height="20" rx="3" ry="3" />
-                          <path d="M12 18h.01" strokeLinecap="round" />
-                        </svg>
-                      </span>
-                      <span className="font-bold text-sm text-text">Mobile Phone</span>
-                    </div>
-
-                    {isPhoneVerified ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        <span>Verified</span>
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                        Pending
-                      </span>
-                    )}
+            {/* Mobile Phone Verification Box */}
+            <div
+              className={`rounded-xl border p-4 sm:p-5 transition-all ${
+                isPhoneVerified
+                  ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20"
+                  : "border-border bg-bg/50"
+              }`}
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2">
+                        <rect x="5" y="2" width="14" height="20" rx="3" ry="3" />
+                        <path d="M12 18h.01" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                    <span className="font-bold text-sm text-text">Mobile Phone</span>
                   </div>
 
                   {isPhoneVerified ? (
-                    <div className="py-2 text-xs text-muted-text space-y-1">
-                      <p className="text-text font-semibold">+91 {user?.contactPhone}</p>
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        SMS verification confirmed.
-                      </p>
-                    </div>
-                  ) : phoneStep === "SEND" ? (
-                    <div className="space-y-3 pt-1">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
-                          Mobile Number
-                        </label>
-                        <div className="flex items-stretch rounded-lg shadow-xs overflow-hidden border border-border focus-within:ring-2 focus-within:ring-accent/20 focus-within:border-accent transition-colors bg-surface">
-                          <div className="flex items-center gap-1.5 px-2.5 bg-surface/80 border-r border-border text-xs font-semibold text-text select-none shrink-0 whitespace-nowrap">
-                            <span className="font-bold">+91</span>
-                          </div>
-                          <input
-                            type="tel"
-                            maxLength={10}
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                            placeholder="9876543210"
-                            className="w-full bg-transparent px-3 py-2 text-sm font-semibold tracking-wide text-text outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {firebaseReady ? (
-                        <button
-                          type="button"
-                          onClick={handleSendPhoneOtp}
-                          disabled={phoneLoading || phoneNumber.length !== 10}
-                          className="primary-btn w-full text-xs py-2 font-bold flex items-center justify-center gap-1.5"
-                        >
-                          {phoneLoading ? "Sending SMS..." : "Send SMS Code"}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleDevBypassPhone}
-                          disabled={phoneLoading || phoneNumber.length !== 10}
-                          className="primary-btn w-full text-xs py-2 font-bold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current shrink-0">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                          </svg>
-                          <span>{phoneLoading ? "Verifying..." : "Quick Test Verify Phone"}</span>
-                        </button>
-                      )}
-                    </div>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span>Verified</span>
+                    </span>
                   ) : (
-                    <form onSubmit={handleConfirmPhoneOtp} className="space-y-3 pt-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-text">+91 {phoneNumber}</span>
-                        <button
-                          type="button"
-                          onClick={() => setPhoneStep("SEND")}
-                          className="text-[11px] text-accent hover:underline font-semibold"
-                        >
-                          Change
-                        </button>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-muted-text uppercase mb-1">
-                          Enter 6-Digit SMS Code
-                        </label>
-                        <SixDigitOtpBoxes
-                          value={phoneOtp}
-                          onChange={setPhoneOtp}
-                          disabled={phoneLoading}
-                          onEnter={handleConfirmPhoneOtp}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px]">
-                        <button
-                          type="button"
-                          onClick={handleSendPhoneOtp}
-                          disabled={phoneCooldown > 0 || phoneLoading}
-                          className="text-accent font-semibold hover:underline disabled:opacity-50 disabled:no-underline"
-                        >
-                          {phoneCooldown > 0 ? `Resend SMS in ${phoneCooldown}s` : "Resend SMS Code"}
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={phoneLoading || phoneOtp.trim().length !== 6}
-                          className="primary-btn !w-auto text-xs py-1.5 px-4 font-bold"
-                        >
-                          {phoneLoading ? "Verifying..." : "Verify SMS"}
-                        </button>
-                      </div>
-                    </form>
+                    <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
+                      Pending
+                    </span>
                   )}
                 </div>
-              </div>
 
-              {/* CARD 2: EMAIL ADDRESS */}
-              <div
-                className={`rounded-xl border p-4 sm:p-5 flex flex-col justify-between transition-all ${
-                  isEmailVerified
-                    ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20"
-                    : "border-border bg-bg/50"
-                }`}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                        <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                        </svg>
-                      </span>
-                      <span className="font-bold text-sm text-text">Email Address</span>
-                    </div>
-
-                    {isEmailVerified ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        <span>Verified</span>
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30">
-                        Pending
-                      </span>
-                    )}
+                {isPhoneVerified ? (
+                  <div className="py-2 text-xs text-muted-text space-y-1">
+                    <p className="text-text font-semibold">+91 {user?.contactPhone}</p>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      SMS verification confirmed.
+                    </p>
                   </div>
-
-                  {isEmailVerified ? (
-                    <div className="py-2 text-xs text-muted-text space-y-1">
-                      <p className="text-text font-semibold truncate">{user?.email}</p>
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        Email address confirmed.
-                      </p>
-                    </div>
-                  ) : !emailCodeSent ? (
-                    <div className="space-y-3 pt-1">
-                      <div className="text-xs">
-                        <span className="text-muted-text block text-[11px] uppercase font-semibold mb-1">
-                          Registered Email
-                        </span>
-                        <p className="font-semibold text-text truncate">{user?.email}</p>
+                ) : phoneStep === "SEND" ? (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                        Mobile Number
+                      </label>
+                      <div className="flex items-stretch rounded-lg shadow-xs overflow-hidden border border-border focus-within:ring-2 focus-within:ring-accent/20 focus-within:border-accent transition-colors bg-surface">
+                        <div className="flex items-center gap-1.5 px-2.5 bg-surface/80 border-r border-border text-xs font-semibold text-text select-none shrink-0 whitespace-nowrap">
+                          <span className="font-bold">+91</span>
+                        </div>
+                        <input
+                          type="tel"
+                          maxLength={10}
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                          placeholder="9876543210"
+                          className="w-full bg-transparent px-3 py-2 text-sm font-semibold tracking-wide text-text outline-none"
+                        />
                       </div>
+                    </div>
 
+                    {firebaseReady ? (
                       <button
                         type="button"
-                        onClick={handleSendEmailOtp}
-                        disabled={emailSending}
+                        onClick={handleSendPhoneOtp}
+                        disabled={phoneLoading || phoneNumber.length !== 10}
                         className="primary-btn w-full text-xs py-2 font-bold flex items-center justify-center gap-1.5"
                       >
-                        {emailSending ? "Sending Email Code..." : "Send Email Code"}
+                        {phoneLoading ? "Sending SMS..." : "Send SMS Code"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleDevBypassPhone}
+                        disabled={phoneLoading || phoneNumber.length !== 10}
+                        className="primary-btn w-full text-xs py-2 font-bold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current shrink-0">
+                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                        <span>{phoneLoading ? "Verifying..." : "Quick Test Verify Phone"}</span>
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <form onSubmit={handleConfirmPhoneOtp} className="space-y-3 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-text">+91 {phoneNumber}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPhoneStep("SEND")}
+                        className="text-[11px] text-accent hover:underline font-semibold"
+                      >
+                        Change
                       </button>
                     </div>
-                  ) : (
-                    <form onSubmit={handleVerifyEmail} className="space-y-3 pt-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-text truncate max-w-[200px]">
-                          {user?.email}
-                        </span>
-                        <span className="text-[11px] text-muted-text">Code sent</span>
-                      </div>
 
-                      <div>
-                        <label className="block text-[10px] font-bold text-muted-text uppercase mb-1">
-                          Enter 6-Digit Email Code
-                        </label>
-                        <SixDigitOtpBoxes
-                          value={emailOtp}
-                          onChange={setEmailOtp}
-                          disabled={emailVerifying}
-                          onEnter={handleVerifyEmail}
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted-text uppercase mb-1">
+                        Enter 6-Digit SMS Code
+                      </label>
+                      <SixDigitOtpBoxes
+                        value={phoneOtp}
+                        onChange={setPhoneOtp}
+                        disabled={phoneLoading}
+                        onEnter={handleConfirmPhoneOtp}
+                      />
+                    </div>
 
-                      <div className="flex items-center justify-between text-[11px]">
-                        <button
-                          type="button"
-                          onClick={handleSendEmailOtp}
-                          disabled={emailCooldown > 0 || emailSending}
-                          className="text-accent font-semibold hover:underline disabled:opacity-50 disabled:no-underline"
-                        >
-                          {emailCooldown > 0 ? `Resend in ${emailCooldown}s` : "Resend Email Code"}
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={emailVerifying || emailOtp.trim().length !== 6}
-                          className="primary-btn !w-auto text-xs py-1.5 px-4 font-bold"
-                        >
-                          {emailVerifying ? "Verifying..." : "Verify Email"}
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <button
+                        type="button"
+                        onClick={handleSendPhoneOtp}
+                        disabled={phoneCooldown > 0 || phoneLoading}
+                        className="text-accent font-semibold hover:underline disabled:opacity-50 disabled:no-underline"
+                      >
+                        {phoneCooldown > 0 ? `Resend SMS in ${phoneCooldown}s` : "Resend SMS Code"}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={phoneLoading || phoneOtp.trim().length !== 6}
+                        className="primary-btn !w-auto text-xs py-1.5 px-4 font-bold"
+                      >
+                        {phoneLoading ? "Verifying..." : "Verify SMS"}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
 
             {/* Bottom Next Step Bar */}
             <div className="border-t border-border pt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
               <span className="text-xs text-muted-text">
-                {isBothVerified
-                  ? "Both phone and email are verified! Ready to proceed."
-                  : "Please verify both your phone and email above to continue."}
+                {isPhoneVerified
+                  ? "Mobile phone verified! Ready to proceed."
+                  : "Please verify your mobile phone above to continue."}
               </span>
 
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                disabled={!isBothVerified}
+                disabled={!isPhoneVerified}
                 className="primary-btn w-full sm:w-auto text-xs py-2.5 px-6 font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
               >
                 <span>Continue to Business Setup</span>
@@ -748,7 +599,7 @@ function OnboardingPage({ dark, onToggleTheme }) {
                   className="ghost-btn w-full sm:w-auto text-xs py-2 px-3 text-center"
                   disabled={savingBusiness}
                 >
-                  Back to Verification
+                  Back to Phone Verification
                 </button>
 
                 <button
@@ -785,4 +636,3 @@ function OnboardingPage({ dark, onToggleTheme }) {
 }
 
 export default OnboardingPage;
-
