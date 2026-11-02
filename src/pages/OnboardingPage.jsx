@@ -416,7 +416,7 @@ function OnboardingPage({ dark, onToggleTheme }) {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-muted-text uppercase mb-1">
+                      <label className="block text-[10px] font-bold text-muted-text uppercase mb-1.5 text-center">
                         Enter 6-Digit SMS Code
                       </label>
                       <SixDigitOtpBoxes
