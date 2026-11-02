@@ -68,7 +68,7 @@ function NotificationBell() {
     return () => clearInterval(interval);
   }, [fetchReminders]);
 
-  // 4. Close dropdown on click outside
+  // 4. Close dropdown on click or touch outside
   useEffect(() => {
     function handleOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -77,8 +77,12 @@ function NotificationBell() {
     }
     if (open) {
       document.addEventListener("mousedown", handleOutside);
+      document.addEventListener("touchstart", handleOutside);
     }
-    return () => document.removeEventListener("mousedown", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
   }, [open]);
 
   // 5. Open bell: Trigger a fresh check when user opens the menu
@@ -119,7 +123,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-border bg-surface p-3 sm:p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+        <div className="fixed left-3 right-3 top-[70px] sm:left-auto sm:right-0 sm:top-full mt-1 sm:mt-2 sm:w-96 max-w-md mx-auto sm:max-w-none sm:mx-0 rounded-2xl border border-border bg-surface p-3 sm:p-4 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
           <div className="flex items-center justify-between border-b border-border pb-2.5 mb-2.5">
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-text">Reminders & Alerts</span>
@@ -139,7 +143,7 @@ function NotificationBell() {
             </button>
           </div>
 
-          <div className="max-h-80 overflow-y-auto space-y-2.5 pr-1">
+          <div className="max-h-[min(24rem,65vh)] overflow-y-auto space-y-2.5 pr-1">
             {reminders.length === 0 ? (
               <div className="py-8 text-center">
                 <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 text-green-600 dark:text-green-400">
@@ -191,8 +195,8 @@ function NotificationBell() {
                       </button>
                     </div>
 
-                    <p className="mt-1.5 text-xs font-bold text-text">{r.title}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-text leading-relaxed">
+                    <p className="mt-1.5 text-xs font-bold text-text break-words">{r.title}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-text leading-relaxed break-words">
                       {r.message}
                     </p>
 
