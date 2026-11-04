@@ -109,6 +109,8 @@ function AdminCouponsPage() {
     bannerSubtitle: "",
     bannerBadge: "",
     expiresAt: "",
+    applicablePlan: "ALL",
+    applicableCycle: "ALL",
   });
 
   const [batchForm, setBatchForm] = useState({
@@ -123,6 +125,8 @@ function AdminCouponsPage() {
     maxUsesPerUser: "1",
     isPublic: false,
     expiresAt: "",
+    applicablePlan: "ALL",
+    applicableCycle: "ALL",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -156,12 +160,58 @@ function AdminCouponsPage() {
     fetchCoupons();
   }, [statusFilter, debouncedSearch]);
 
+  function getVoucherDeepLink(code) {
+    const origin = typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : "https://saudabook.co.in";
+    return `${origin}/subscription?voucher=${encodeURIComponent(code)}`;
+  }
+
   function handleCopy(code) {
     if (!code) return;
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     toast.success(`Copied "${code}" to clipboard!`);
     setTimeout(() => setCopiedCode(null), 2000);
+  }
+
+  function handleCopyDeepLink(code) {
+    if (!code) return;
+    const link = getVoucherDeepLink(code);
+    navigator.clipboard.writeText(link);
+    setCopiedCode(code);
+    toast.success("Voucher deep link copied to clipboard!");
+    setTimeout(() => setCopiedCode(null), 2500);
+  }
+
+  function handleShareWhatsApp(coupon) {
+    const link = getVoucherDeepLink(coupon.code);
+    const discountText =
+      coupon.discountType === "PERCENTAGE"
+        ? `${coupon.discountValue}% OFF`
+        : `₹${coupon.discountValue.toLocaleString("en-IN")} FLAT OFF`;
+    const isFree = coupon.discountType === "PERCENTAGE" && Number(coupon.discountValue) === 100;
+    const planText =
+      coupon.applicablePlan && coupon.applicablePlan !== "ALL"
+        ? `${coupon.applicablePlan} Plan`
+        : "Subscription Plan";
+    const cycleText =
+      coupon.applicableCycle && coupon.applicableCycle !== "ALL"
+        ? `(${coupon.applicableCycle === "YEARLY" ? "1 Year" : "1 Month"})`
+        : "";
+
+    const promoHeadline = isFree
+      ? `🎁 Special Voucher: Activate your ${planText} ${cycleText} 100% FREE on Sauda Book!`
+      : `🎉 Special Offer: Get ${discountText} on your ${planText} ${cycleText}!`;
+
+    const text = `${promoHeadline}
+
+Voucher Code: ${coupon.code}
+
+Tap this link to claim & activate directly:
+${link}`;
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   }
 
   async function handleToggleStatus(coupon) {
@@ -228,6 +278,8 @@ function AdminCouponsPage() {
         bannerSubtitle: "",
         bannerBadge: "",
         expiresAt: "",
+        applicablePlan: "ALL",
+        applicableCycle: "ALL",
       });
       fetchCoupons();
     } catch (err) {
@@ -281,6 +333,8 @@ function AdminCouponsPage() {
         bannerHeadline: editingCoupon.bannerHeadline || null,
         bannerSubtitle: editingCoupon.bannerSubtitle || null,
         bannerBadge: editingCoupon.bannerBadge || null,
+        applicablePlan: editingCoupon.applicablePlan || "ALL",
+        applicableCycle: editingCoupon.applicableCycle || "ALL",
       });
       toast.success("Coupon updated successfully");
       setEditingCoupon(null);
@@ -489,6 +543,7 @@ function AdminCouponsPage() {
               <thead>
                 <tr className="border-b border-border bg-bg/60 text-muted-text text-[11px] uppercase tracking-wider font-semibold">
                   <th className="px-4 py-3">Coupon Code</th>
+                  <th className="px-4 py-3">Target Plan & Cycle</th>
                   <th className="px-4 py-3">Discount</th>
                   <th className="px-4 py-3">Min Order</th>
                   <th className="px-4 py-3">Global Usage</th>
@@ -536,6 +591,26 @@ function AdminCouponsPage() {
                             {coupon.description}
                           </p>
                         )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                              coupon.applicablePlan && coupon.applicablePlan !== "ALL"
+                                ? "bg-accent/15 text-accent border border-accent/30"
+                                : "bg-bg text-muted-text border border-border"
+                            }`}
+                          >
+                            {coupon.applicablePlan && coupon.applicablePlan !== "ALL"
+                              ? `${coupon.applicablePlan} PLAN`
+                              : "ALL PLANS"}
+                          </span>
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold text-muted-text">
+                            {coupon.applicableCycle && coupon.applicableCycle !== "ALL"
+                              ? `${coupon.applicableCycle} ONLY`
+                              : "ANY CYCLE"}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="font-bold text-text">
@@ -609,6 +684,31 @@ function AdminCouponsPage() {
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Share on WhatsApp Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleShareWhatsApp(coupon)}
+                            className="p-1.5 rounded-lg border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 transition"
+                            title="Share voucher link on WhatsApp"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                            </svg>
+                          </button>
+
+                          {/* Copy Deep Link Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleCopyDeepLink(coupon.code)}
+                            className="p-1.5 rounded-lg border border-border text-muted-text hover:text-text hover:bg-bg transition"
+                            title="Copy voucher deep link"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
+                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                          </button>
+
                           {/* Toggle Active Button */}
                           <button
                             type="button"
@@ -718,6 +818,43 @@ function AdminCouponsPage() {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Target Plan *
+                </label>
+                <select
+                  value={editingCoupon.applicablePlan || "ALL"}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, applicablePlan: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">All Plans (Unrestricted)</option>
+                  <option value="STARTER">Starter Plan Only</option>
+                  <option value="GROWTH">Growth / Budget Plan Only</option>
+                  <option value="PREMIUM">Premium Plan Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Target Billing Cycle *
+                </label>
+                <select
+                  value={editingCoupon.applicableCycle || "ALL"}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, applicableCycle: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">Any Cycle (Monthly & Yearly)</option>
+                  <option value="MONTHLY">Monthly Only (30 Days)</option>
+                  <option value="YEARLY">Yearly Only (365 Days)</option>
+                </select>
+              </div>
+            </div>
+
             <div>
               <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
                 Description / Campaign Note
@@ -731,6 +868,43 @@ function AdminCouponsPage() {
                 placeholder="e.g. Diwali discount promo for starter and growth plans"
                 className="w-full px-3 py-2 rounded-lg border border-border bg-bg focus:outline-none focus:ring-1 focus:ring-accent"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Target Plan (Voucher Restriction) *
+                </label>
+                <select
+                  value={singleForm.applicablePlan}
+                  onChange={(e) =>
+                    setSingleForm({ ...singleForm, applicablePlan: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">All Plans (Unrestricted)</option>
+                  <option value="STARTER">Starter Plan Only</option>
+                  <option value="GROWTH">Growth / Budget Plan Only</option>
+                  <option value="PREMIUM">Premium Plan Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Target Billing Cycle *
+                </label>
+                <select
+                  value={singleForm.applicableCycle}
+                  onChange={(e) =>
+                    setSingleForm({ ...singleForm, applicableCycle: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">Any Cycle (Monthly & Yearly)</option>
+                  <option value="MONTHLY">Monthly Only (30 Days)</option>
+                  <option value="YEARLY">Yearly Only (365 Days)</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1081,6 +1255,43 @@ function AdminCouponsPage() {
             <p className="text-[11px] text-muted-text">
               Preview code format: <span className="font-mono font-bold text-accent">{batchForm.prefix || "CODE"}-XXXXXX</span>
             </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Target Plan *
+                </label>
+                <select
+                  value={batchForm.applicablePlan}
+                  onChange={(e) =>
+                    setBatchForm({ ...batchForm, applicablePlan: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">All Plans (Unrestricted)</option>
+                  <option value="STARTER">Starter Plan Only</option>
+                  <option value="GROWTH">Growth / Budget Plan Only</option>
+                  <option value="PREMIUM">Premium Plan Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Target Billing Cycle *
+                </label>
+                <select
+                  value={batchForm.applicableCycle}
+                  onChange={(e) =>
+                    setBatchForm({ ...batchForm, applicableCycle: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">Any Cycle (Monthly & Yearly)</option>
+                  <option value="MONTHLY">Monthly Only (30 Days)</option>
+                  <option value="YEARLY">Yearly Only (365 Days)</option>
+                </select>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>

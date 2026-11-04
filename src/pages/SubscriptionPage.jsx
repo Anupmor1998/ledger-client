@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import {
@@ -97,6 +97,14 @@ function SubscriptionPage() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Voucher deep-link claim states
+  const [deepLinkVoucher, setDeepLinkVoucher] = useState(null);
+  const [voucherLoading, setVoucherLoading] = useState(false);
+  const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [isClaimingVoucher, setIsClaimingVoucher] = useState(false);
+  const [celebrationData, setCelebrationData] = useState(null);
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState(null);
   const [orderPreview, setOrderPreview] = useState(null);
@@ -200,6 +208,111 @@ function SubscriptionPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Detect and validate ?voucher= or ?coupon= from URL deep link
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const voucherCode = params.get("voucher") || params.get("coupon");
+    if (!voucherCode || deepLinkVoucher) return;
+
+    setVoucherLoading(true);
+    validateCouponCode({ code: voucherCode.trim() })
+      .then((res) => {
+        setDeepLinkVoucher(res);
+        setShowVoucherModal(true);
+      })
+      .catch((err) => {
+        const msg =
+          err?.response?.data?.message ||
+          `Voucher code "${voucherCode}" is invalid, expired, or unavailable.`;
+        toast.error(msg);
+        navigate("/subscription", { replace: true });
+      })
+      .finally(() => {
+        setVoucherLoading(false);
+      });
+  }, [location.search]);
+
+  async function handleClaimVoucher() {
+    if (!deepLinkVoucher) return;
+
+    const targetPlanId = deepLinkVoucher.targetPlan || "GROWTH";
+    const targetCycle = deepLinkVoucher.targetCycle || "MONTHLY";
+    const targetPlanObj =
+      PLAN_TIERS.find((p) => p.id === targetPlanId) || PLAN_TIERS[1];
+
+    // CASE 1: 100% Free Voucher Activation (Zero amount)
+    if (deepLinkVoucher.isFree || deepLinkVoucher.finalPrice === 0) {
+      try {
+        setIsClaimingVoucher(true);
+        const orderData = await createSubscriptionOrder({
+          plan: targetPlanId,
+          billingCycle: targetCycle,
+          couponCode: deepLinkVoucher.coupon.code,
+        });
+
+        trackEvent("voucher_free_upgrade_activated", {
+          code: deepLinkVoucher.coupon.code,
+          planId: targetPlanId,
+          cycle: targetCycle,
+        });
+
+        setShowVoucherModal(false);
+        navigate("/subscription", { replace: true });
+        await loadData();
+
+        dispatch(
+          setUserProfile({
+            subscriptionPlan: targetPlanId,
+            billingCycle: targetCycle,
+            subscriptionStatus: "ACTIVE",
+            planExpiresAt: orderData.expiresAt,
+          })
+        );
+
+        setCelebrationData({
+          planName: targetPlanObj.name,
+          planId: targetPlanId,
+          cycle: targetCycle,
+          expiresAt: orderData.expiresAt,
+          code: deepLinkVoucher.coupon.code,
+        });
+        toast.success("Voucher redeemed successfully! Subscription is now active.");
+      } catch (err) {
+        toast.error(err?.response?.data?.message || "Failed to activate voucher subscription");
+      } finally {
+        setIsClaimingVoucher(false);
+      }
+    } else {
+      // CASE 2: Partial discount -> Pre-apply & open checkout
+      setShowVoucherModal(false);
+      navigate("/subscription", { replace: true });
+      setBillingCycle(targetCycle.toLowerCase());
+      setSelectedPlanForCheckout(targetPlanObj);
+      setAppliedCoupon(deepLinkVoucher.coupon);
+      setCouponInput(deepLinkVoucher.coupon.code);
+      setOrderPreview({
+        basePrice: deepLinkVoucher.basePrice,
+        unusedCredit: deepLinkVoucher.unusedCredit,
+        remainingDays: deepLinkVoucher.remainingDays,
+        isUpgrade: deepLinkVoucher.isUpgrade,
+        previousPlan: deepLinkVoucher.previousPlan,
+        discountAmount: deepLinkVoucher.discountAmount,
+        finalPrice: deepLinkVoucher.finalPrice,
+        coupon: deepLinkVoucher.coupon,
+      });
+      setLoadingPreview(false);
+      toast.success(
+        `Voucher "${deepLinkVoucher.coupon.code}" applied! Complete payment to activate.`
+      );
+    }
+  }
+
+  function handleDismissVoucherModal() {
+    setShowVoucherModal(false);
+    setDeepLinkVoucher(null);
+    navigate("/subscription", { replace: true });
+  }
 
   // Compute subscription state from server or user profile
   const subscriptionState = useMemo(() => {
@@ -1602,6 +1715,202 @@ function SubscriptionPage() {
                 })}
               </div>
             )}
+          </div>
+        </Modal>
+      )}
+
+      {/* ========================================================
+          VOUCHER DEEP LINK CONFIRMATION MODAL
+         ======================================================== */}
+      {showVoucherModal && deepLinkVoucher && (
+        <Modal
+          title={
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
+                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+                  <path d="M13 5v2m0 4v2m0 4v2" />
+                </svg>
+              </span>
+              <span>Claim Subscription Voucher</span>
+            </div>
+          }
+          onClose={handleDismissVoucherModal}
+          maxWidth="max-w-md"
+          footer={
+            <div className="flex items-center justify-end gap-2.5 w-full pt-1">
+              <button
+                type="button"
+                onClick={handleDismissVoucherModal}
+                disabled={isClaimingVoucher}
+                className="ghost-btn text-xs py-2 px-3.5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClaimVoucher}
+                disabled={isClaimingVoucher}
+                className="primary-btn !w-auto text-xs py-2 px-5 font-bold flex items-center justify-center gap-1.5"
+              >
+                {isClaimingVoucher ? (
+                  <>
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Activating...</span>
+                  </>
+                ) : deepLinkVoucher.isFree ? (
+                  <>
+                    <span>Activate Free Subscription</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </>
+                ) : (
+                  <>
+                    <span>Claim & Continue to Pay</span>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            {/* Voucher Card Header */}
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-2">
+              <span className="inline-block px-3 py-1 rounded-full font-mono font-extrabold text-sm tracking-wider bg-surface text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs">
+                {deepLinkVoucher.coupon.code}
+              </span>
+
+              <div>
+                <p className="text-sm font-bold text-text">
+                  {deepLinkVoucher.targetPlan} Plan
+                  <span className="ml-1 text-xs text-muted-text font-semibold">
+                    ({deepLinkVoucher.targetCycle === "YEARLY" ? "1 Year / 365 Days" : "1 Month / 30 Days"})
+                  </span>
+                </p>
+                {deepLinkVoucher.coupon.description && (
+                  <p className="text-[11px] text-muted-text mt-0.5">
+                    {deepLinkVoucher.coupon.description}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Pricing Summary */}
+            <div className="rounded-xl border border-border bg-bg/50 p-3.5 space-y-2 text-xs">
+              <div className="flex items-center justify-between text-muted-text">
+                <span>Standard Price ({deepLinkVoucher.targetCycle === "YEARLY" ? "Yearly" : "Monthly"}):</span>
+                <span className="line-through">₹{deepLinkVoucher.basePrice.toLocaleString("en-IN")}</span>
+              </div>
+
+              {deepLinkVoucher.unusedCredit > 0 && (
+                <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                  <span>Prepaid Plan Credit:</span>
+                  <span>-₹{deepLinkVoucher.unusedCredit.toLocaleString("en-IN")}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between font-semibold text-emerald-600 dark:text-emerald-400">
+                <span>Voucher Discount ({deepLinkVoucher.coupon.discountType === "PERCENTAGE" ? `${deepLinkVoucher.coupon.discountValue}%` : "FLAT"}):</span>
+                <span>-₹{deepLinkVoucher.discountAmount.toLocaleString("en-IN")}</span>
+              </div>
+
+              <div className="border-t border-border/60 pt-2 flex items-center justify-between text-sm font-extrabold text-text">
+                <span>Total Payable:</span>
+                {deepLinkVoucher.isFree ? (
+                  <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <span>₹0 (100% FREE)</span>
+                  </span>
+                ) : (
+                  <span className="text-accent">
+                    ₹{deepLinkVoucher.finalPrice.toLocaleString("en-IN")}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Note */}
+            <div className="rounded-lg bg-surface border border-border p-2.5 text-[11px] text-muted-text leading-relaxed">
+              {deepLinkVoucher.isFree ? (
+                <p>
+                  <strong>Zero-payment activation:</strong> Clicking "Activate Free Subscription" will directly provision your subscription for {deepLinkVoucher.targetCycle === "YEARLY" ? "1 Year" : "1 Month"} without entering bank or card details.
+                </p>
+              ) : (
+                <p>
+                  <strong>Pre-applied discount:</strong> Clicking "Claim & Continue" will apply your ₹{deepLinkVoucher.discountAmount.toLocaleString("en-IN")} discount automatically. You will only pay the remaining balance of ₹{deepLinkVoucher.finalPrice.toLocaleString("en-IN")}.
+                </p>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ========================================================
+          FREE VOUCHER ACTIVATION CELEBRATION MODAL
+         ======================================================== */}
+      {celebrationData && (
+        <Modal
+          title="Subscription Activated"
+          onClose={() => setCelebrationData(null)}
+          maxWidth="max-w-md"
+          footer={
+            <div className="flex justify-end w-full pt-1">
+              <button
+                type="button"
+                onClick={() => setCelebrationData(null)}
+                className="primary-btn !w-auto text-xs py-2 px-5 font-bold"
+              >
+                Start Using Sauda Book
+              </button>
+            </div>
+          }
+        >
+          <div className="text-center py-4 space-y-3">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-8 ring-emerald-500/10">
+              <svg viewBox="0 0 24 24" className="w-8 h-8 fill-none stroke-current stroke-2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-extrabold text-text">
+                Welcome to {celebrationData.planName}!
+              </h3>
+              <p className="text-xs text-muted-text mt-1 max-w-sm mx-auto">
+                Your voucher <span className="font-mono font-bold text-text">{celebrationData.code}</span> was applied successfully.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-bg/60 p-3 text-xs max-w-xs mx-auto space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-text">Plan Tier:</span>
+                <span className="font-bold text-text">{celebrationData.planName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-text">Billing Cycle:</span>
+                <span className="font-bold text-text">{celebrationData.cycle === "YEARLY" ? "1 Year (Annual)" : "Monthly"}</span>
+              </div>
+              {celebrationData.expiresAt && (
+                <div className="flex justify-between">
+                  <span className="text-muted-text">Valid Until:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {new Date(celebrationData.expiresAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-text">
+              All features for your plan are unlocked and available immediately across all your devices.
+            </p>
           </div>
         </Modal>
       )}

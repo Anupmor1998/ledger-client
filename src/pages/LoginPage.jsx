@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import AuthLayout from "../components/AuthLayout";
 import { login } from "../lib/api";
@@ -11,6 +11,7 @@ import { loginSchema } from "../validation/authSchemas";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState({ error: "" });
@@ -38,7 +39,13 @@ function LoginPage() {
       }
 
       toast.success("Logged in successfully");
-      navigate("/");
+
+      // Honor deep linked redirect (e.g. /subscription?voucher=XYZ123)
+      const fromState = location.state?.from;
+      const redirectPath = fromState
+        ? `${fromState.pathname || ""}${fromState.search || ""}${fromState.hash || ""}`
+        : "/";
+      navigate(redirectPath || "/", { replace: true });
     } catch (error) {
       const message =
         error?.response?.data?.message || error?.message || "Unable to login. Please try again.";
