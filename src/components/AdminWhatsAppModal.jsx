@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "./Modal";
+import { getAdminCoupons } from "../lib/api";
 
 function WhatsAppIcon({ className = "h-4 w-4" }) {
   return (
@@ -37,6 +38,63 @@ function CopyIcon({ className = "h-4 w-4" }) {
     >
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function TagIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+      <path d="M7 7h.01" />
+    </svg>
+  );
+}
+
+function GiftIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="8" width="18" height="4" rx="1" />
+      <path d="M12 8v13" />
+      <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+      <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 4.8 0 0 1 12 8a4.8 4.8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+    </svg>
+  );
+}
+
+function PlusIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className = "h-3.5 w-3.5" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20 6 9 17l-5-5" />
     </svg>
   );
 }
@@ -84,6 +142,65 @@ function formatWhatsAppToHtml(text) {
   return safe;
 }
 
+// Voucher link and snippet helper functions
+function getVoucherDeepLink(code) {
+  if (!code) return "";
+  const origin =
+    typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : "https://saudabook.co.in";
+  return `${origin}/subscription?voucher=${encodeURIComponent(code)}`;
+}
+
+function formatVoucherDetails(coupon) {
+  if (!coupon) return null;
+  const isFree =
+    coupon.discountType === "PERCENTAGE" && Number(coupon.discountValue) === 100;
+  const discountText =
+    coupon.discountType === "PERCENTAGE"
+      ? `${coupon.discountValue}% OFF`
+      : `₹${Number(coupon.discountValue).toLocaleString("en-IN")} FLAT OFF`;
+
+  const planText =
+    coupon.applicablePlan && coupon.applicablePlan !== "ALL"
+      ? `${coupon.applicablePlan} Plan`
+      : "Subscription Plan";
+
+  const cycleText =
+    coupon.applicableCycle && coupon.applicableCycle !== "ALL"
+      ? `(${coupon.applicableCycle === "YEARLY" ? "1 Year" : "1 Month"})`
+      : "";
+
+  const deepLink = getVoucherDeepLink(coupon.code);
+
+  return {
+    code: coupon.code,
+    isFree,
+    discountText,
+    planText,
+    cycleText,
+    deepLink,
+  };
+}
+
+function generateVoucherSnippet(coupon) {
+  const details = formatVoucherDetails(coupon);
+  if (!details) return "";
+  const { code, isFree, discountText, planText, cycleText, deepLink } = details;
+
+  if (isFree) {
+    return `🎁 *Special Gift: 100% FREE ${planText} ${cycleText}*
+Use voucher code: *${code}*
+Tap here to activate instantly:
+${deepLink}`;
+  }
+
+  return `🎁 *Special Voucher Offer: ${discountText} on ${planText} ${cycleText}*
+Use voucher code: *${code}*
+Tap here to claim and apply discount:
+${deepLink}`;
+}
+
 const TEMPLATES = [
   {
     id: "new_user_onboarding",
@@ -98,6 +215,22 @@ We noticed you recently registered on our platform.
 Did you face any difficulty setting up your firm (*{{firmName}}*), or do you need any assistance entering orders or managing party commissions?
 
 If you'd like, I can give you a quick 5-minute walkthrough or answer any questions you have. Feel free to reply directly here!
+
+Best regards,
+*Sauda Book Team*`,
+  },
+  {
+    id: "voucher_gift",
+    title: "Voucher / Free Gift",
+    badge: "Promo Gift",
+    badgeColor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    text: `Hello {{name}},
+
+We're pleased to share an exclusive voucher with you for *{{firmName}}*! 🎁
+
+{{voucherSnippet}}
+
+You can tap the link above to claim and activate it directly on your account. If you have any questions, feel free to reply right here!
 
 Best regards,
 *Sauda Book Team*`,
@@ -165,20 +298,68 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef(null);
 
+  // Vouchers state
+  const [coupons, setCoupons] = useState([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [selectedCouponCode, setSelectedCouponCode] = useState("");
+  const [copiedVoucherLink, setCopiedVoucherLink] = useState(false);
+
   // User fields normalization
   const userName = user?.name || user?.userName || "there";
   const userFirm = user?.firmName || user?.userFirmName || "your firm";
   const rawPhone = user?.contactPhone || user?.phone || "";
   const userPlan = user?.subscriptionPlan || user?.userSubscriptionPlan || "TRIAL";
 
+  // Fetch active vouchers when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      let isMounted = true;
+      setLoadingCoupons(true);
+      getAdminCoupons({ status: "active", limit: 50 })
+        .then((res) => {
+          if (!isMounted) return;
+          const list = Array.isArray(res?.coupons) ? res.coupons : [];
+          setCoupons(list);
+          if (list.length > 0) {
+            setSelectedCouponCode((prev) => prev || list[0].code);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load active coupons for WhatsApp modal:", err);
+        })
+        .finally(() => {
+          if (isMounted) setLoadingCoupons(false);
+        });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [isOpen]);
+
+  const activeCoupon = useMemo(() => {
+    if (!coupons.length) return null;
+    return coupons.find((c) => c.code === selectedCouponCode) || coupons[0] || null;
+  }, [coupons, selectedCouponCode]);
+
+  const activeCouponDetails = useMemo(() => {
+    return formatVoucherDetails(activeCoupon);
+  }, [activeCoupon]);
+
   // Interpolation helper
-  const interpolate = (tplText) => {
+  const interpolate = (tplText, couponOverride = activeCoupon) => {
     if (!tplText) return "";
+    const voucherSnippet = couponOverride
+      ? generateVoucherSnippet(couponOverride)
+      : "[Select a voucher above to populate offer details]";
+
     return tplText
       .replace(/\{\{name\}\}/g, userName)
       .replace(/\{\{firmName\}\}/g, userFirm)
       .replace(/\{\{phone\}\}/g, phoneOverride || rawPhone || "")
-      .replace(/\{\{plan\}\}/g, userPlan);
+      .replace(/\{\{plan\}\}/g, userPlan)
+      .replace(/\{\{voucherSnippet\}\}/g, voucherSnippet)
+      .replace(/\{\{voucherCode\}\}/g, couponOverride?.code || "")
+      .replace(/\{\{voucherLink\}\}/g, couponOverride ? getVoucherDeepLink(couponOverride.code) : "");
   };
 
   // Populate initial state on open
@@ -204,7 +385,58 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
   // Switching template
   const handleSelectTemplate = (tpl) => {
     setSelectedTemplateId(tpl.id);
-    setMessage(interpolate(tpl.text));
+    setMessage(interpolate(tpl.text, activeCoupon));
+  };
+
+  // Insert voucher snippet into message at cursor position or append
+  const handleInsertVoucherSnippet = (couponToInsert = activeCoupon) => {
+    if (!couponToInsert) {
+      toast.error("Please select a voucher first.");
+      return;
+    }
+    const snippet = generateVoucherSnippet(couponToInsert);
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setMessage((prev) => (prev ? `${prev}\n\n${snippet}` : snippet));
+      toast.success(`Inserted ${couponToInsert.code} voucher!`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentVal = message;
+
+    const prefixSpacing =
+      start > 0 && !currentVal.substring(0, start).endsWith("\n\n")
+        ? currentVal.substring(0, start).endsWith("\n")
+          ? "\n"
+          : "\n\n"
+        : "";
+    const insertion = `${prefixSpacing}${snippet}\n`;
+
+    const nextVal = currentVal.substring(0, start) + insertion + currentVal.substring(end);
+    setMessage(nextVal);
+    toast.success(`Voucher ${couponToInsert.code} attached!`);
+
+    setTimeout(() => {
+      textarea.focus();
+      const pos = start + insertion.length;
+      textarea.setSelectionRange(pos, pos);
+    }, 0);
+  };
+
+  // Apply complete voucher template
+  const handleApplyVoucherTemplate = (coupon = activeCoupon) => {
+    if (!coupon) {
+      toast.error("Please select a voucher first.");
+      return;
+    }
+    const voucherTpl = TEMPLATES.find((t) => t.id === "voucher_gift");
+    if (voucherTpl) {
+      setSelectedTemplateId("voucher_gift");
+      setMessage(interpolate(voucherTpl.text, coupon));
+      toast.success(`Applied voucher template with ${coupon.code}!`);
+    }
   };
 
   // Wrap text selection in WhatsApp formatting characters (*, _, ~, ```)
@@ -252,6 +484,8 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
         ? userFirm
         : variableName === "phone"
         ? phoneOverride || rawPhone || ""
+        : variableName === "voucher"
+        ? activeCoupon?.code || ""
         : userPlan;
 
     const nextVal = currentVal.substring(0, start) + valToInsert + currentVal.substring(end);
@@ -422,6 +656,139 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
           </div>
         </div>
 
+        {/* Voucher Attachment Section */}
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 dark:bg-emerald-950/20 p-3 sm:p-3.5 space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <GiftIcon className="h-4 w-4 shrink-0" />
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-text">Attach Voucher / Discount Link</span>
+                <span className="text-[10px] text-muted-text ml-2 hidden sm:inline">
+                  (Deep links user directly with pre-applied voucher)
+                </span>
+              </div>
+            </div>
+
+            {coupons.length > 0 && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 self-start sm:self-auto">
+                {coupons.length} Active {coupons.length === 1 ? "Voucher" : "Vouchers"}
+              </span>
+            )}
+          </div>
+
+          {loadingCoupons ? (
+            <div className="py-2 text-xs text-muted-text flex items-center gap-2">
+              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+              <span>Loading active vouchers...</span>
+            </div>
+          ) : coupons.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border bg-surface p-2.5 text-xs text-muted-text flex items-center justify-between">
+              <span>No active vouchers found. You can generate or activate vouchers in Admin Coupons.</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                {/* Coupon select dropdown */}
+                <div className="flex-1 relative">
+                  <select
+                    value={selectedCouponCode}
+                    onChange={(e) => setSelectedCouponCode(e.target.value)}
+                    className="form-input text-xs py-2 px-3 pr-8 font-mono w-full bg-surface border-border font-medium"
+                  >
+                    {coupons.map((c) => {
+                      const isFree = c.discountType === "PERCENTAGE" && Number(c.discountValue) === 100;
+                      const discLabel = isFree
+                        ? "100% FREE"
+                        : c.discountType === "PERCENTAGE"
+                        ? `${c.discountValue}% OFF`
+                        : `₹${Number(c.discountValue).toLocaleString("en-IN")} FLAT OFF`;
+                      const target = `${c.applicablePlan || "ALL"} ${c.applicableCycle || "ALL"}`;
+                      return (
+                        <option key={c.code} value={c.code}>
+                          {c.code} • {discLabel} • {target}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Actions: Insert Snippet & Use Full Template */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleInsertVoucherSnippet()}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-surface px-3 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition shadow-sm"
+                    title="Insert voucher promo snippet and deep link into message"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span>Insert Voucher</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleApplyVoucherTemplate()}
+                    className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-sm"
+                    title="Load complete Voucher Invitation template"
+                  >
+                    <GiftIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span>Use Template</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Selected Voucher Highlight Chip */}
+              {activeCouponDetails && (
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg bg-surface border border-border text-xs">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-bold text-text bg-surface-muted px-2 py-0.5 rounded border border-border">
+                      {activeCouponDetails.code}
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        activeCouponDetails.isFree
+                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                          : "bg-primary/10 text-primary border border-primary/20"
+                      }`}
+                    >
+                      {activeCouponDetails.discountText}
+                    </span>
+                    <span className="text-[11px] text-muted-text">
+                      Target: <strong className="text-text font-medium">{activeCouponDetails.planText} {activeCouponDetails.cycleText}</strong>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!activeCouponDetails.deepLink) return;
+                      await navigator.clipboard.writeText(activeCouponDetails.deepLink);
+                      setCopiedVoucherLink(true);
+                      toast.success("Voucher deep link copied!");
+                      setTimeout(() => setCopiedVoucherLink(false), 2000);
+                    }}
+                    className="text-[11px] font-mono text-muted-text hover:text-emerald-600 dark:hover:text-emerald-400 inline-flex items-center gap-1 transition ml-auto"
+                    title="Copy direct deep link"
+                  >
+                    {copiedVoucherLink ? (
+                      <>
+                        <CheckIcon className="h-3 w-3 text-emerald-500" />
+                        <span className="text-emerald-500">Link Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <CopyIcon className="h-3 w-3" />
+                        <span>Copy Deep Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Message Editor with WhatsApp Formatting Toolbar */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="lg:col-span-7 flex flex-col space-y-2">
@@ -497,6 +864,18 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
                 >
                   + Plan
                 </button>
+
+                {activeCoupon && (
+                  <button
+                    type="button"
+                    onClick={() => handleInsertVoucherSnippet()}
+                    className="rounded px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 inline-flex items-center gap-1"
+                    title={`Insert ${activeCoupon.code} voucher offer`}
+                  >
+                    <TagIcon className="h-3 w-3 shrink-0" />
+                    <span>+ Voucher</span>
+                  </button>
+                )}
               </div>
 
               <button
@@ -566,4 +945,3 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
     </Modal>
   );
 }
-
