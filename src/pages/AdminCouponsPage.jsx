@@ -111,6 +111,7 @@ function AdminCouponsPage() {
     expiresAt: "",
     applicablePlan: "ALL",
     applicableCycle: "ALL",
+    targetAudience: "ALL",
   });
 
   const [batchForm, setBatchForm] = useState({
@@ -127,6 +128,7 @@ function AdminCouponsPage() {
     expiresAt: "",
     applicablePlan: "ALL",
     applicableCycle: "ALL",
+    targetAudience: "ALL",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -280,6 +282,7 @@ ${link}`;
         expiresAt: "",
         applicablePlan: "ALL",
         applicableCycle: "ALL",
+        targetAudience: "ALL",
       });
       fetchCoupons();
     } catch (err) {
@@ -335,6 +338,7 @@ ${link}`;
         bannerBadge: editingCoupon.bannerBadge || null,
         applicablePlan: editingCoupon.applicablePlan || "ALL",
         applicableCycle: editingCoupon.applicableCycle || "ALL",
+        targetAudience: editingCoupon.targetAudience || "ALL",
       });
       toast.success("Coupon updated successfully");
       setEditingCoupon(null);
@@ -610,6 +614,15 @@ ${link}`;
                               ? `${coupon.applicableCycle} ONLY`
                               : "ANY CYCLE"}
                           </span>
+                          {coupon.targetAudience === "NEW_OR_EXPIRED_ONLY" ? (
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                              New / Expired Only
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-muted-text">
+                              All Users
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
@@ -818,42 +831,7 @@ ${link}`;
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
-                  Target Plan *
-                </label>
-                <select
-                  value={editingCoupon.applicablePlan || "ALL"}
-                  onChange={(e) =>
-                    setEditingCoupon({ ...editingCoupon, applicablePlan: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-                  <option value="ALL">All Plans (Unrestricted)</option>
-                  <option value="STARTER">Starter Plan Only</option>
-                  <option value="GROWTH">Growth / Budget Plan Only</option>
-                  <option value="PREMIUM">Premium Plan Only</option>
-                </select>
-              </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
-                  Target Billing Cycle *
-                </label>
-                <select
-                  value={editingCoupon.applicableCycle || "ALL"}
-                  onChange={(e) =>
-                    setEditingCoupon({ ...editingCoupon, applicableCycle: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-                  <option value="ALL">Any Cycle (Monthly & Yearly)</option>
-                  <option value="MONTHLY">Monthly Only (30 Days)</option>
-                  <option value="YEARLY">Yearly Only (365 Days)</option>
-                </select>
-              </div>
-            </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
@@ -870,10 +848,10 @@ ${link}`;
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
-                  Target Plan (Voucher Restriction) *
+                  Target Plan *
                 </label>
                 <select
                   value={singleForm.applicablePlan}
@@ -891,7 +869,7 @@ ${link}`;
 
               <div>
                 <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
-                  Target Billing Cycle *
+                  Billing Cycle *
                 </label>
                 <select
                   value={singleForm.applicableCycle}
@@ -903,6 +881,22 @@ ${link}`;
                   <option value="ALL">Any Cycle (Monthly & Yearly)</option>
                   <option value="MONTHLY">Monthly Only (30 Days)</option>
                   <option value="YEARLY">Yearly Only (365 Days)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  User Eligibility *
+                </label>
+                <select
+                  value={singleForm.targetAudience || "ALL"}
+                  onChange={(e) =>
+                    setSingleForm({ ...singleForm, targetAudience: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">All Users (New & Extensions)</option>
+                  <option value="NEW_OR_EXPIRED_ONLY">New or Expired Only</option>
                 </select>
               </div>
             </div>
@@ -1256,7 +1250,7 @@ ${link}`;
               Preview code format: <span className="font-mono font-bold text-accent">{batchForm.prefix || "CODE"}-XXXXXX</span>
             </p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
                   Target Plan *
@@ -1277,7 +1271,7 @@ ${link}`;
 
               <div>
                 <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
-                  Target Billing Cycle *
+                  Billing Cycle *
                 </label>
                 <select
                   value={batchForm.applicableCycle}
@@ -1289,6 +1283,22 @@ ${link}`;
                   <option value="ALL">Any Cycle (Monthly & Yearly)</option>
                   <option value="MONTHLY">Monthly Only (30 Days)</option>
                   <option value="YEARLY">Yearly Only (365 Days)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  User Eligibility *
+                </label>
+                <select
+                  value={batchForm.targetAudience || "ALL"}
+                  onChange={(e) =>
+                    setBatchForm({ ...batchForm, targetAudience: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">All Users (New & Extensions)</option>
+                  <option value="NEW_OR_EXPIRED_ONLY">New or Expired Only</option>
                 </select>
               </div>
             </div>
@@ -1498,6 +1508,59 @@ ${link}`;
                 }
                 className="w-full px-3 py-2 rounded-lg border border-border bg-bg focus:outline-none focus:ring-1 focus:ring-accent"
               />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Target Plan *
+                </label>
+                <select
+                  value={editingCoupon.applicablePlan || "ALL"}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, applicablePlan: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">All Plans (Unrestricted)</option>
+                  <option value="STARTER">Starter Plan Only</option>
+                  <option value="GROWTH">Growth / Budget Plan Only</option>
+                  <option value="PREMIUM">Premium Plan Only</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  Billing Cycle *
+                </label>
+                <select
+                  value={editingCoupon.applicableCycle || "ALL"}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, applicableCycle: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">Any Cycle (Monthly & Yearly)</option>
+                  <option value="MONTHLY">Monthly Only (30 Days)</option>
+                  <option value="YEARLY">Yearly Only (365 Days)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-muted-text uppercase mb-1">
+                  User Eligibility *
+                </label>
+                <select
+                  value={editingCoupon.targetAudience || "ALL"}
+                  onChange={(e) =>
+                    setEditingCoupon({ ...editingCoupon, targetAudience: e.target.value })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg font-semibold focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="ALL">All Users (New & Extensions)</option>
+                  <option value="NEW_OR_EXPIRED_ONLY">New or Expired Only</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

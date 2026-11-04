@@ -276,8 +276,14 @@ function SubscriptionPage() {
           cycle: targetCycle,
           expiresAt: orderData.expiresAt,
           code: deepLinkVoucher.coupon.code,
+          isExtension: deepLinkVoucher.isExtension,
+          extensionDays: deepLinkVoucher.extensionDays,
         });
-        toast.success("Voucher redeemed successfully! Subscription is now active.");
+        toast.success(
+          deepLinkVoucher.isExtension
+            ? `Voucher redeemed! Subscription extended by ${deepLinkVoucher.extensionDays} days.`
+            : "Voucher redeemed successfully! Subscription is now active."
+        );
       } catch (err) {
         toast.error(err?.response?.data?.message || "Failed to activate voucher subscription");
       } finally {
@@ -1760,14 +1766,22 @@ function SubscriptionPage() {
                   </>
                 ) : deepLinkVoucher.isFree ? (
                   <>
-                    <span>Activate Free Subscription</span>
+                    <span>
+                      {deepLinkVoucher.isExtension
+                        ? `Extend Free (+${deepLinkVoucher.extensionDays} Days)`
+                        : "Activate Free Subscription"}
+                    </span>
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                       <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </>
                 ) : (
                   <>
-                    <span>Claim & Continue to Pay</span>
+                    <span>
+                      {deepLinkVoucher.isExtension
+                        ? "Extend & Continue to Pay"
+                        : "Claim & Continue to Pay"}
+                    </span>
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                       <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
@@ -1798,6 +1812,37 @@ function SubscriptionPage() {
                 )}
               </div>
             </div>
+
+            {/* Active Subscription Extension Banner */}
+            {deepLinkVoucher.isExtension && deepLinkVoucher.extendedExpiry && (
+              <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 space-y-1.5 text-xs">
+                <div className="flex items-center gap-2 text-sky-700 dark:text-sky-300 font-bold">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2 shrink-0">
+                    <circle cx="12" cy="12" r="9" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span>Active Subscription Extension</span>
+                </div>
+                <p className="text-[11px] text-sky-950 dark:text-sky-100 leading-relaxed">
+                  Your current <strong>{deepLinkVoucher.targetPlan} Plan</strong> is active until{" "}
+                  <strong>
+                    {new Date(deepLinkVoucher.currentExpiry).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </strong>.
+                  Claiming this voucher will safely extend your plan by <strong>+{deepLinkVoucher.extensionDays} days</strong> until{" "}
+                  <strong>
+                    {new Date(deepLinkVoucher.extendedExpiry).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </strong> without losing any remaining time!
+                </p>
+              </div>
+            )}
 
             {/* Pricing Summary */}
             <div className="rounded-xl border border-border bg-bg/50 p-3.5 space-y-2 text-xs">
@@ -1878,10 +1923,14 @@ function SubscriptionPage() {
 
             <div>
               <h3 className="text-lg font-extrabold text-text">
-                Welcome to {celebrationData.planName}!
+                {celebrationData.isExtension
+                  ? `${celebrationData.planName} Extended by +${celebrationData.extensionDays} Days!`
+                  : `Welcome to ${celebrationData.planName}!`}
               </h3>
               <p className="text-xs text-muted-text mt-1 max-w-sm mx-auto">
-                Your voucher <span className="font-mono font-bold text-text">{celebrationData.code}</span> was applied successfully.
+                {celebrationData.isExtension
+                  ? `Your voucher ${celebrationData.code} successfully extended your active subscription.`
+                  : `Your voucher ${celebrationData.code} was applied successfully.`}
               </p>
             </div>
 
