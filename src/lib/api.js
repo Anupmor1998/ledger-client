@@ -512,6 +512,16 @@ export async function createPaymentEntry(data) {
   return response.data;
 }
 
+export async function updatePaymentEntry(id, data) {
+  const response = await axiosClient.put(`/payments/${id}`, data);
+  trackEvent("payment_entry_updated", {
+    partyType: data.partyType,
+    paymentMode: data.paymentMode,
+    amount: data.amount,
+  });
+  return response.data;
+}
+
 export async function getPaymentEntries(params = {}) {
   const response = await axiosClient.get("/payments", {
     params: normalizeListParams(params),

@@ -14,7 +14,9 @@ import {
   getManufacturers,
   getNextPaymentSerialNo,
   getPaymentEntries,
+  getPaymentEntryById,
   settleCustomerAccount,
+  updatePaymentEntry,
 } from "../lib/api";
 import { useAppSelector } from "../store/hooks";
 import {
@@ -79,9 +81,11 @@ function PaymentsPage() {
   const [orderDateFrom, setOrderDateFrom] = useState(getStartOfMonthDate());
   const [orderDateTo, setOrderDateTo] = useState(getTodayDate());
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [orderAllocations, setOrderAllocations] = useState({}); // { [orderId]: { allocatedAmount, isSettled } }
   const [eligibleOrders, setEligibleOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
 
   // Customer options
   const [customers, setCustomers] = useState([]);
@@ -323,7 +327,7 @@ function PaymentsPage() {
 
   // Fetch orders when customer or date range changes for order selection popup
   const fetchEligibleOrders = useCallback(
-    async (showModal = true) => {
+    async (showModal = true, customEntryId = null) => {
       if (!customerId) {
         toast.warn("Please select a customer first.");
         return;
@@ -338,11 +342,27 @@ function PaymentsPage() {
           customerId,
           from: orderDateFrom,
           to: orderDateTo,
+          excludePaymentEntryId: customEntryId || editingEntry?.id || undefined,
         });
 
         const orders = res?.orders || [];
         setEligibleOrders(orders);
         setSelectedOrderIds(orders.map((o) => o.id));
+
+        // Initialize orderAllocations for any new orders
+        setOrderAllocations((prev) => {
+          const next = { ...prev };
+          orders.forEach((o) => {
+            if (!next[o.id]) {
+              const due = Number(o.remainingAmount ?? o.commissionAmount ?? 0);
+              next[o.id] = {
+                allocatedAmount: due,
+                isSettled: true,
+              };
+            }
+          });
+          return next;
+        });
 
         if (showModal) {
           setOrderModalOpen(true);
@@ -357,23 +377,83 @@ function PaymentsPage() {
         setLoadingOrders(false);
       }
     },
-    [customerId, orderDateFrom, orderDateTo],
+    [customerId, orderDateFrom, orderDateTo, editingEntry],
   );
 
   const handleToggleOrder = (orderId) => {
-    setSelectedOrderIds((prev) =>
-      prev.includes(orderId)
-        ? prev.filter((id) => id !== orderId)
-        : [...prev, orderId],
-    );
+    setSelectedOrderIds((prev) => {
+      const isSelected = prev.includes(orderId);
+      if (isSelected) {
+        return prev.filter((id) => id !== orderId);
+      } else {
+        const next = [...prev, orderId];
+        setOrderAllocations((aPrev) => {
+          if (aPrev[orderId]) return aPrev;
+          const ord = eligibleOrders.find((o) => o.id === orderId);
+          const due = Number(ord?.remainingAmount ?? ord?.commissionAmount ?? 0);
+          return {
+            ...aPrev,
+            [orderId]: { allocatedAmount: due, isSettled: true },
+          };
+        });
+        return next;
+      }
+    });
   };
 
   const handleSelectAllOrders = (select) => {
     if (select) {
       setSelectedOrderIds(eligibleOrders.map((o) => o.id));
+      setOrderAllocations((prev) => {
+        const next = { ...prev };
+        eligibleOrders.forEach((o) => {
+          if (!next[o.id]) {
+            const due = Number(o.remainingAmount ?? o.commissionAmount ?? 0);
+            next[o.id] = { allocatedAmount: due, isSettled: true };
+          }
+        });
+        return next;
+      });
     } else {
       setSelectedOrderIds([]);
     }
+  };
+
+  const handleAllocatedAmountChange = (orderId, val) => {
+    setOrderAllocations((prev) => {
+      const existing = prev[orderId] || {};
+      const ord = eligibleOrders.find((o) => o.id === orderId);
+      const due = Number(ord?.remainingAmount ?? ord?.commissionAmount ?? 0);
+      const num = val === "" ? "" : Number(val);
+      const autoSettled = num !== "" && num >= due;
+      return {
+        ...prev,
+        [orderId]: {
+          ...existing,
+          allocatedAmount: val,
+          isSettled: existing.isSettled !== undefined ? existing.isSettled : autoSettled,
+        },
+      };
+    });
+  };
+
+  const handleToggleSettled = (orderId) => {
+    setOrderAllocations((prev) => ({
+      ...prev,
+      [orderId]: {
+        ...prev[orderId],
+        isSettled: !prev[orderId]?.isSettled,
+      },
+    }));
+  };
+
+  const handleResetAllAllocationsToFull = () => {
+    const next = { ...orderAllocations };
+    eligibleOrders.forEach((o) => {
+      const due = Number(o.remainingAmount ?? o.commissionAmount ?? 0);
+      next[o.id] = { allocatedAmount: due, isSettled: true };
+    });
+    setOrderAllocations(next);
   };
 
   const selectedOrdersTotalCommission = useMemo(() => {
@@ -384,6 +464,25 @@ function PaymentsPage() {
         0,
       );
   }, [eligibleOrders, selectedOrderIds]);
+
+  const selectedOrdersPayingTotal = useMemo(() => {
+    return selectedOrderIds.reduce(
+      (sum, id) => sum + (Number(orderAllocations[id]?.allocatedAmount) || 0),
+      0,
+    );
+  }, [selectedOrderIds, orderAllocations]);
+
+  const hasPartPayment = useMemo(() => {
+    if (adjustedAgainst !== "ORDER_ID") return false;
+    return selectedOrderIds.some((id) => orderAllocations[id]?.isSettled === false);
+  }, [adjustedAgainst, selectedOrderIds, orderAllocations]);
+
+  const handleConfirmOrderSelection = () => {
+    if (selectedOrdersPayingTotal > 0) {
+      setAmount(String(selectedOrdersPayingTotal));
+    }
+    setOrderModalOpen(false);
+  };
 
   const orderSettlementInfo = useMemo(() => {
     if (adjustedAgainst !== "ORDER_ID" || selectedOrderIds.length === 0) {
@@ -437,6 +536,7 @@ function PaymentsPage() {
 
     return (
       entries.find((e) => {
+        if (editingEntry && e.id === editingEntry.id) return false;
         if (e.customerId !== customerId || !e.isFullySettled) return false;
         if (!e.orderDateFrom || !e.orderDateTo) return false;
         const eFrom = new Date(e.orderDateFrom);
@@ -444,14 +544,90 @@ function PaymentsPage() {
         return eFrom <= to && eTo >= from;
       }) || null
     );
-  }, [customerId, orderDateFrom, orderDateTo, entries]);
+  }, [customerId, orderDateFrom, orderDateTo, entries, editingEntry]);
+
+  const handleCancelEdit = () => {
+    setEditingEntry(null);
+    setAmount("");
+    setRemark("");
+    setSelectedOrderIds([]);
+    setOrderAllocations({});
+    setEligibleOrders([]);
+    fetchNextSerial();
+  };
+
+  const handleStartEdit = async (entry) => {
+    try {
+      const fullRes = await getPaymentEntryById(entry.id);
+      const data = fullRes?.data || fullRes || entry;
+      setEditingEntry(data);
+      setPartyType(data.partyType);
+      if (data.partyType === "MANUFACTURER") {
+        setManufacturerId(data.manufacturerId || "");
+        setCustomerId("");
+      } else {
+        setCustomerId(data.customerId || "");
+        setManufacturerId("");
+      }
+      setDate(
+        data.date
+          ? new Date(data.date).toISOString().slice(0, 10)
+          : getTodayDate(),
+      );
+      setPaymentMode(data.paymentMode || "CASH");
+      setAmount(String(data.amount || ""));
+      setRemark(data.remark || "");
+      setAdjustedAgainst(data.adjustedAgainst || "ORDER_ID");
+
+      const fromStr = data.orderDateFrom
+        ? new Date(data.orderDateFrom).toISOString().slice(0, 10)
+        : getStartOfMonthDate();
+      const toStr = data.orderDateTo
+        ? new Date(data.orderDateTo).toISOString().slice(0, 10)
+        : getTodayDate();
+      setOrderDateFrom(fromStr);
+      setOrderDateTo(toStr);
+
+      if (data.adjustedAgainst === "ORDER_ID" && data.customerId) {
+        const res = await getEligibleOrdersForPayment({
+          customerId: data.customerId,
+          from: fromStr,
+          to: toStr,
+          excludePaymentEntryId: data.id,
+        });
+        const orders = res?.orders || [];
+        setEligibleOrders(orders);
+
+        const allocMap = {};
+        const selIds = [];
+        (data.allocations || []).forEach((alloc) => {
+          selIds.push(alloc.orderId);
+          allocMap[alloc.orderId] = {
+            allocatedAmount: alloc.allocatedAmount,
+            isSettled: alloc.isSettled,
+          };
+        });
+        setSelectedOrderIds(selIds);
+        setOrderAllocations(allocMap);
+      }
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      toast.error(
+        "Failed to load payment entry for editing: " +
+          (err?.response?.data?.message || err?.message || ""),
+      );
+    }
+  };
 
   const executeCreatePayment = async () => {
     const numAmount = Number(amount);
     try {
       setSubmitting(true);
+      const isEditing = Boolean(editingEntry);
+
       if (partyType === "MANUFACTURER") {
-        await createPaymentEntry({
+        const payload = {
           partyType: "MANUFACTURER",
           manufacturerId,
           date,
@@ -459,9 +635,14 @@ function PaymentsPage() {
           amount: numAmount,
           remark,
           adjustedAgainst: "PARTIAL",
-        });
+        };
+        if (isEditing) {
+          await updatePaymentEntry(editingEntry.id, payload);
+        } else {
+          await createPaymentEntry(payload);
+        }
       } else {
-        await createPaymentEntry({
+        const payload = {
           partyType: "CUSTOMER",
           customerId,
           date,
@@ -477,14 +658,29 @@ function PaymentsPage() {
             adjustedAgainst === "ORDER_ID" ? orderDateTo : orderDateTo || null,
           selectedOrderIds:
             adjustedAgainst === "ORDER_ID" ? selectedOrderIds : [],
-        });
+          orderAllocations:
+            adjustedAgainst === "ORDER_ID"
+              ? selectedOrderIds.map((id) => ({
+                  orderId: id,
+                  allocatedAmount:
+                    Number(orderAllocations[id]?.allocatedAmount) || 0,
+                  isSettled: Boolean(orderAllocations[id]?.isSettled),
+                }))
+              : [],
+        };
+        if (isEditing) {
+          await updatePaymentEntry(editingEntry.id, payload);
+        } else {
+          await createPaymentEntry(payload);
+        }
       }
 
-      toast.success("Payment entry recorded successfully!");
-      setAmount("");
-      setRemark("");
-      setSelectedOrderIds([]);
-      setEligibleOrders([]);
+      toast.success(
+        isEditing
+          ? "Payment entry updated successfully!"
+          : "Payment entry recorded successfully!",
+      );
+      handleCancelEdit();
       setOverpaymentWarningModalOpen(false);
       fetchNextSerial();
       fetchEntries();
@@ -495,7 +691,9 @@ function PaymentsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Failed to create payment entry.";
+        (editingEntry
+          ? "Failed to update payment entry."
+          : "Failed to create payment entry.");
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -634,11 +832,44 @@ function PaymentsPage() {
           </div>
           <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium">
             <span className="muted-text">Sr. No:</span>
-            <span className="font-bold text-accent">#{nextSerialNo}</span>
+            <span className="font-bold text-accent">
+              #{editingEntry ? editingEntry.serialNo : nextSerialNo}
+            </span>
           </div>
         </div>
 
         <form onSubmit={handleSubmitPayment} className="space-y-4">
+          {/* Active Edit Mode Banner */}
+          {editingEntry && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
+              <div className="flex items-center gap-2.5 font-semibold">
+                <svg
+                  className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                <span>
+                  Editing Payment Entry #{editingEntry.serialNo} (
+                  {formatDateDisplay(editingEntry.date)})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-surface px-3 py-1 text-xs font-semibold text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition"
+              >
+                Cancel Edit
+              </button>
+            </div>
+          )}
+
           {/* Party Type Toggle Tab */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 border-b border-border pb-3">
             <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted">
@@ -695,7 +926,7 @@ function PaymentsPage() {
               <input
                 type="text"
                 disabled
-                value={`#${nextSerialNo}`}
+                value={`#${editingEntry ? editingEntry.serialNo : nextSerialNo}`}
                 className="form-input cursor-not-allowed opacity-75 font-semibold"
               />
             </div>
@@ -788,9 +1019,24 @@ function PaymentsPage() {
                     : ""
                 }`}
               />
-              {partyType === "CUSTOMER" && orderSettlementInfo?.type === "DISCOUNT" && (
+              {partyType === "CUSTOMER" && hasPartPayment && (
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-300 px-3 py-2 text-xs font-semibold text-blue-950 dark:bg-blue-950/60 dark:border-blue-700/80 dark:text-blue-200">
+                  <svg className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>
+                    Part Payment mode: Unsettled orders remain open for remaining balance (Paying {formatCurrency(amount || 0)} of {formatCurrency(orderSettlementInfo?.totalDue || selectedOrdersTotalCommission)})
+                  </span>
+                </div>
+              )}
+              {partyType === "CUSTOMER" && !hasPartPayment && orderSettlementInfo?.type === "DISCOUNT" && (
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-950 dark:bg-amber-950/60 dark:border-amber-700/80 dark:text-amber-200">
-                  <span className="text-sm">🏷️</span>
+                  <svg className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                  </svg>
                   <span>
                     Settling at{" "}
                     <strong className="font-bold underline">
@@ -803,7 +1049,11 @@ function PaymentsPage() {
               )}
               {partyType === "CUSTOMER" && orderSettlementInfo?.type === "EXCESS" && (
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-rose-50 border border-rose-300 px-3 py-2 text-xs font-semibold text-rose-950 dark:bg-rose-950/60 dark:border-rose-700/80 dark:text-rose-200">
-                  <span className="text-sm">⚠️</span>
+                  <svg className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
                   <span>
                     Amount exceeds total commission by{" "}
                     <strong className="font-bold underline">
@@ -813,9 +1063,11 @@ function PaymentsPage() {
                   </span>
                 </div>
               )}
-              {partyType === "CUSTOMER" && orderSettlementInfo?.type === "EXACT" && (
+              {partyType === "CUSTOMER" && !hasPartPayment && orderSettlementInfo?.type === "EXACT" && (
                 <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-950 dark:bg-emerald-950/60 dark:border-emerald-700/80 dark:text-emerald-200">
-                  <span className="text-sm">✓</span>
+                  <svg className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
                   <span>
                     Exactly matches total commission due (
                     {formatCurrency(orderSettlementInfo.totalDue)})
@@ -1024,6 +1276,11 @@ function PaymentsPage() {
                           </span>
                         </>
                       )}
+                      {hasPartPayment && (
+                        <span className="rounded-full bg-blue-100 text-blue-950 dark:bg-blue-950/70 dark:text-blue-200 border border-blue-300 dark:border-blue-700 px-2.5 py-0.5 text-xs font-bold">
+                          Part Payment Active
+                        </span>
+                      )}
                       {orderSettlementInfo?.type === "DISCOUNT" && (
                         <span className="rounded-full bg-amber-100 text-amber-950 dark:bg-amber-950/70 dark:text-amber-200 border border-amber-300 dark:border-amber-700 px-2.5 py-0.5 text-xs font-bold">
                           Discount:{" "}
@@ -1032,8 +1289,13 @@ function PaymentsPage() {
                         </span>
                       )}
                       {orderSettlementInfo?.type === "EXCESS" && (
-                        <span className="rounded-full bg-rose-100 text-rose-950 dark:bg-rose-950/70 dark:text-rose-200 border border-rose-300 dark:border-rose-700 px-2.5 py-0.5 text-xs font-bold">
-                          ⚠️ Excess: +
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-950 dark:bg-rose-950/70 dark:text-rose-200 border border-rose-300 dark:border-rose-700 px-2.5 py-0.5 text-xs font-bold">
+                          <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="9" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                          Excess: +
                           {formatCurrency(orderSettlementInfo.excessAmount)}
                         </span>
                       )}
@@ -1080,7 +1342,11 @@ function PaymentsPage() {
 
                   {settledOverlapEntry && (
                     <div className="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-950 dark:bg-amber-950/70 dark:border-amber-700 dark:text-amber-200">
-                      <span className="text-base">⚠️</span>
+                      <svg className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
                       <div>
                         <strong className="block font-semibold">
                           Settled Period Warning (Entry #
@@ -1101,25 +1367,38 @@ function PaymentsPage() {
 
           {/* Form Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
+            {editingEntry && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="secondary-btn w-auto px-4 py-2 text-sm"
+              >
+                Cancel Edit
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => {
+              onClick={editingEntry ? handleCancelEdit : () => {
                 setCustomerId("");
+                setManufacturerId("");
                 setAmount("");
                 setRemark("");
                 setSelectedOrderIds([]);
+                setOrderAllocations({});
                 setEligibleOrders([]);
               }}
               className="ghost-btn"
             >
-              Reset
+              {editingEntry ? "Reset to Original" : "Reset"}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="primary-btn w-auto px-6 py-2.5"
             >
-              {submitting ? "Recording..." : "Save Payment Entry"}
+              {submitting
+                ? (editingEntry ? "Updating..." : "Recording...")
+                : (editingEntry ? "Update Payment Entry" : "Save Payment Entry")}
             </button>
           </div>
         </form>
@@ -1132,8 +1411,8 @@ function PaymentsPage() {
           maxWidthClassName="max-w-5xl"
           onClose={() => setOrderModalOpen(false)}
           footer={
-            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm w-full">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleSelectAllOrders(true)}
@@ -1148,8 +1427,21 @@ function PaymentsPage() {
                 >
                   Deselect All
                 </button>
+                <button
+                  type="button"
+                  onClick={handleResetAllAllocationsToFull}
+                  className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-muted transition"
+                >
+                  Reset to Full Due
+                </button>
               </div>
               <div className="flex items-center gap-3">
+                <div className="text-right text-xs">
+                  <span className="muted-text">Selected Paying Total: </span>
+                  <strong className="text-emerald-600 font-semibold text-sm">
+                    {formatCurrency(selectedOrdersPayingTotal)}
+                  </strong>
+                </div>
                 <button
                   type="button"
                   onClick={() => setOrderModalOpen(false)}
@@ -1159,7 +1451,7 @@ function PaymentsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setOrderModalOpen(false)}
+                  onClick={handleConfirmOrderSelection}
                   className="primary-btn w-auto px-5 py-2"
                 >
                   Confirm Selection ({selectedOrderIds.length} orders)
@@ -1185,7 +1477,7 @@ function PaymentsPage() {
                   {formatDateDisplay(orderDateTo)}
                 </span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <span>
                   Selected:{" "}
                   <strong className="text-accent">
@@ -1195,9 +1487,16 @@ function PaymentsPage() {
                 </span>
                 <span className="text-border">•</span>
                 <span>
-                  Total Commission:{" "}
+                  Total Due:{" "}
                   <strong className="text-text">
                     {formatCurrency(selectedOrdersTotalCommission)}
+                  </strong>
+                </span>
+                <span className="text-border">•</span>
+                <span>
+                  Paying Now:{" "}
+                  <strong className="text-emerald-600">
+                    {formatCurrency(selectedOrdersPayingTotal)}
                   </strong>
                 </span>
               </div>
@@ -1228,7 +1527,13 @@ function PaymentsPage() {
                         />
                       </th>
                       <th className="px-3.5 py-3 font-medium whitespace-nowrap">
-                        Amount
+                        Remaining Due
+                      </th>
+                      <th className="px-3.5 py-3 font-medium whitespace-nowrap">
+                        Paying (₹)
+                      </th>
+                      <th className="px-3.5 py-3 font-medium whitespace-nowrap text-center">
+                        Settle Order?
                       </th>
                       <th className="px-3.5 py-3 font-medium whitespace-nowrap">
                         LOT
@@ -1259,6 +1564,19 @@ function PaymentsPage() {
                   <tbody className="divide-y divide-border/70">
                     {eligibleOrders.map((ord) => {
                       const isChecked = selectedOrderIds.includes(ord.id);
+                      const dueAmount = Number(
+                        ord.remainingAmount ?? ord.commissionAmount ?? 0,
+                      );
+                      const alloc = orderAllocations[ord.id] || {
+                        allocatedAmount: dueAmount,
+                        isSettled: true,
+                      };
+                      const payingAmount =
+                        alloc.allocatedAmount !== undefined
+                          ? alloc.allocatedAmount
+                          : dueAmount;
+                      const isOrderSettled = Boolean(alloc.isSettled);
+
                       return (
                         <tr
                           key={ord.id}
@@ -1270,7 +1588,7 @@ function PaymentsPage() {
                           }`}
                         >
                           <td
-                            className="px-3.5 py-3 text-center"
+                            className="px-3 py-2.5 text-center"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <input
@@ -1280,29 +1598,73 @@ function PaymentsPage() {
                               className="theme-choice theme-checkbox h-4 w-4"
                             />
                           </td>
-                          <td className="px-3.5 py-3 font-bold text-text">
-                            {formatCurrency(
-                              ord.remainingAmount || ord.commissionAmount,
-                            )}
+                          <td className="px-3 py-2.5 font-bold text-text whitespace-nowrap">
+                            {formatCurrency(dueAmount)}
                           </td>
-                          <td className="px-3.5 py-3 text-text">
+                          <td
+                            className="px-3 py-2.5 whitespace-nowrap"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              max={dueAmount}
+                              value={payingAmount}
+                              disabled={!isChecked}
+                              onChange={(e) =>
+                                handleAllocatedAmountChange(
+                                  ord.id,
+                                  e.target.value,
+                                )
+                              }
+                              className="form-input w-28 py-1 px-2 text-sm font-semibold disabled:opacity-40"
+                              placeholder="0.00"
+                            />
+                          </td>
+                          <td
+                            className="px-3 py-2.5 text-center whitespace-nowrap"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isOrderSettled}
+                                disabled={!isChecked}
+                                onChange={() => handleToggleSettled(ord.id)}
+                                className="theme-choice theme-checkbox h-4 w-4 disabled:opacity-40"
+                              />
+                              <span
+                                className={`text-[11px] font-semibold ${
+                                  isOrderSettled
+                                    ? "text-emerald-600"
+                                    : "text-amber-600"
+                                }`}
+                              >
+                                {isOrderSettled ? "Settled" : "Part Pay"}
+                              </span>
+                            </label>
+                          </td>
+                          <td className="px-3 py-2.5 text-text">
                             {ord.lot || "-"}
                           </td>
-                          <td className="px-3.5 py-3 text-text">
+                          <td className="px-3 py-2.5 text-text">
                             {ord.quality || "-"}
                           </td>
-                          <td className="px-3.5 py-3 text-text">
+                          <td className="px-3 py-2.5 text-text">
                             {ord.meter || "-"}
                           </td>
-                          <td className="px-3.5 py-3 text-text">₹{ord.rate}</td>
-                          <td className="px-3.5 py-3 font-semibold text-accent">
+                          <td className="px-3 py-2.5 text-text">₹{ord.rate}</td>
+                          <td className="px-3 py-2.5 font-semibold text-accent">
                             #{ord.orderId}
                           </td>
-                          <td className="px-3.5 py-3 muted-text">{ord.date}</td>
-                          <td className="px-3.5 py-3 font-medium text-text">
+                          <td className="px-3 py-2.5 muted-text whitespace-nowrap">
+                            {ord.date}
+                          </td>
+                          <td className="px-3 py-2.5 font-medium text-text">
                             {ord.partyFirmName || "-"}
                           </td>
-                          <td className="px-3.5 py-3 muted-text">
+                          <td className="px-3 py-2.5 muted-text">
                             {ord.partyName || "-"}
                           </td>
                         </tr>
@@ -1694,6 +2056,18 @@ function PaymentsPage() {
                     <div className="flex items-center justify-end gap-2 border-t border-border/70 pt-2.5">
                       <button
                         type="button"
+                        onClick={() => handleStartEdit(item)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-muted hover:text-accent transition"
+                      >
+                        <svg className="h-3.5 w-3.5 fill-none stroke-current stroke-2 shrink-0" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => setDetailsModalEntry(item)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-muted transition"
                       >
@@ -1862,6 +2236,24 @@ function PaymentsPage() {
                         </td>
                         <td className="px-3.5 py-3 text-right whitespace-nowrap">
                           <div className="inline-flex items-center gap-2">
+                            {/* Edit Entry */}
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(item)}
+                              className="rounded p-1.5 text-muted hover:bg-surface-muted hover:text-accent transition-colors"
+                              title="Edit Entry"
+                            >
+                              <svg
+                                className="h-4 w-4 fill-none stroke-current stroke-2 shrink-0"
+                                viewBox="0 0 24 24"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </button>
+
                             {/* View Details */}
                             <button
                               type="button"
@@ -2226,7 +2618,11 @@ function PaymentsPage() {
           >
             <div className="space-y-3.5">
               <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-3 text-amber-950 dark:bg-amber-950/70 dark:border-amber-700 dark:text-amber-200 text-sm">
-                <span className="text-xl">⚠️</span>
+                <svg className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
                 <p className="leading-snug">
                   The entered payment amount is <strong>higher</strong> than the
                   total commission due on the selected orders.
