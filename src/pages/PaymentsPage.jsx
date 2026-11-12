@@ -28,10 +28,24 @@ function getTodayDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getStartOfMonthDate() {
-  const d = new Date();
-  d.setDate(1);
-  return d.toISOString().slice(0, 10);
+function getFinancialYearStartDate(fyStartYear) {
+  const year = Number(fyStartYear) || getCurrentFinancialYearStart();
+  return `${year}-04-01`;
+}
+
+const RECENT_DATES_STORAGE_KEY = "recent_payment_order_dates";
+
+function getStoredRecentDates() {
+  try {
+    const raw = localStorage.getItem(RECENT_DATES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((d) => typeof d === "string" && d.length === 10).slice(0, 5)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 function formatCurrency(val) {
@@ -78,8 +92,11 @@ function PaymentsPage() {
   const [amount, setAmount] = useState("");
   const [remark, setRemark] = useState("");
   const [adjustedAgainst, setAdjustedAgainst] = useState("ORDER_ID"); // 'ORDER_ID' | 'PARTIAL'
-  const [orderDateFrom, setOrderDateFrom] = useState(getStartOfMonthDate());
+  const [orderDateFrom, setOrderDateFrom] = useState(() =>
+    getFinancialYearStartDate(selectedFinancialYearStart),
+  );
   const [orderDateTo, setOrderDateTo] = useState(getTodayDate());
+  const [recentDates, setRecentDates] = useState(getStoredRecentDates);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [orderAllocations, setOrderAllocations] = useState({}); // { [orderId]: { allocatedAmount, isSettled } }
   const [eligibleOrders, setEligibleOrders] = useState([]);
@@ -325,6 +342,27 @@ function PaymentsPage() {
     fetchEntries();
   }, [fetchEntries]);
 
+  const recordRecentDates = useCallback((...datesToSave) => {
+    try {
+      let current = getStoredRecentDates();
+      for (const d of datesToSave) {
+        if (d && typeof d === "string" && d.length === 10) {
+          current = [d, ...current.filter((item) => item !== d)].slice(0, 5);
+        }
+      }
+      localStorage.setItem(RECENT_DATES_STORAGE_KEY, JSON.stringify(current));
+      setRecentDates(current);
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!editingEntry) {
+      setOrderDateFrom(getFinancialYearStartDate(selectedFinancialYearStart));
+    }
+  }, [selectedFinancialYearStart, editingEntry]);
+
   // Fetch orders when customer or date range changes for order selection popup
   const fetchEligibleOrders = useCallback(
     async (showModal = true, customEntryId = null) => {
@@ -338,6 +376,7 @@ function PaymentsPage() {
       }
       try {
         setLoadingOrders(true);
+        recordRecentDates(orderDateFrom, orderDateTo);
         const res = await getEligibleOrdersForPayment({
           customerId,
           from: orderDateFrom,
@@ -553,6 +592,8 @@ function PaymentsPage() {
     setSelectedOrderIds([]);
     setOrderAllocations({});
     setEligibleOrders([]);
+    setOrderDateFrom(getFinancialYearStartDate(selectedFinancialYearStart));
+    setOrderDateTo(getTodayDate());
     fetchNextSerial();
   };
 
@@ -581,7 +622,7 @@ function PaymentsPage() {
 
       const fromStr = data.orderDateFrom
         ? new Date(data.orderDateFrom).toISOString().slice(0, 10)
-        : getStartOfMonthDate();
+        : getFinancialYearStartDate(selectedFinancialYearStart);
       const toStr = data.orderDateTo
         ? new Date(data.orderDateTo).toISOString().slice(0, 10)
         : getTodayDate();
@@ -641,6 +682,9 @@ function PaymentsPage() {
         } else {
           await createPaymentEntry(payload);
         }
+        if (adjustedAgainst === "ORDER_ID") {
+          recordRecentDates(orderDateFrom, orderDateTo);
+        }
       } else {
         const payload = {
           partyType: "CUSTOMER",
@@ -672,6 +716,9 @@ function PaymentsPage() {
           await updatePaymentEntry(editingEntry.id, payload);
         } else {
           await createPaymentEntry(payload);
+        }
+        if (adjustedAgainst === "ORDER_ID") {
+          recordRecentDates(orderDateFrom, orderDateTo);
         }
       }
 
@@ -1204,35 +1251,122 @@ function PaymentsPage() {
 
               {/* ORDER_ID Mode Inputs */}
               {adjustedAgainst === "ORDER_ID" && (
-                <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-3 sm:items-end">
+                <div className="mt-4 grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-3 sm:items-start">
                   <div>
-                    <span className="mb-1 block text-sm muted-text">
-                      Orders From Date
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="block text-sm muted-text">
+                        Orders From Date
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOrderDateFrom(
+                            getFinancialYearStartDate(selectedFinancialYearStart),
+                          )
+                        }
+                        className="text-[11px] font-semibold text-accent hover:underline"
+                        title="Reset to Financial Year Start (01 Apr)"
+                      >
+                        FY Start (01 Apr)
+                      </button>
+                    </div>
                     <input
                       type="date"
+                      list="recent-order-from-dates"
                       value={orderDateFrom}
                       onChange={(e) => setOrderDateFrom(e.target.value)}
                       className="form-input"
                     />
+                    <datalist id="recent-order-from-dates">
+                      <option
+                        value={getFinancialYearStartDate(selectedFinancialYearStart)}
+                        label="FY Start"
+                      />
+                      {recentDates.map((d) => (
+                        <option key={d} value={d} />
+                      ))}
+                    </datalist>
+
+                    {recentDates.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="text-muted-text text-[10px] uppercase font-bold tracking-wider">
+                          Recent:
+                        </span>
+                        {recentDates.map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setOrderDateFrom(d)}
+                            className={`rounded px-1.5 py-0.5 font-medium border transition ${
+                              orderDateFrom === d
+                                ? "bg-accent/15 border-accent text-accent font-semibold"
+                                : "bg-surface border-border text-muted-text hover:border-accent/50 hover:text-text"
+                            }`}
+                          >
+                            {formatDateDisplay(d)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
                   <div>
-                    <span className="mb-1 block text-sm muted-text">
-                      Orders To Date
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="block text-sm muted-text">
+                        Orders To Date
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setOrderDateTo(getTodayDate())}
+                        className="text-[11px] font-semibold text-accent hover:underline"
+                        title="Set to Today"
+                      >
+                        Today
+                      </button>
+                    </div>
                     <input
                       type="date"
+                      list="recent-order-to-dates"
                       value={orderDateTo}
                       onChange={(e) => setOrderDateTo(e.target.value)}
                       className="form-input"
                     />
+                    <datalist id="recent-order-to-dates">
+                      <option value={getTodayDate()} label="Today" />
+                      {recentDates.map((d) => (
+                        <option key={d} value={d} />
+                      ))}
+                    </datalist>
+
+                    {recentDates.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="text-muted-text text-[10px] uppercase font-bold tracking-wider">
+                          Recent:
+                        </span>
+                        {recentDates.map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setOrderDateTo(d)}
+                            className={`rounded px-1.5 py-0.5 font-medium border transition ${
+                              orderDateTo === d
+                                ? "bg-accent/15 border-accent text-accent font-semibold"
+                                : "bg-surface border-border text-muted-text hover:border-accent/50 hover:text-text"
+                            }`}
+                          >
+                            {formatDateDisplay(d)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div>
+
+                  <div className="sm:pt-6">
                     <button
                       type="button"
                       disabled={!customerId || loadingOrders}
                       onClick={() => fetchEligibleOrders(true)}
-                      className="ghost-btn inline-flex w-full items-center justify-center gap-2 border-accent text-accent hover:bg-accent/10 disabled:opacity-50"
+                      className="ghost-btn inline-flex w-full items-center justify-center gap-2 border-accent text-accent hover:bg-accent/10 disabled:opacity-50 py-2.5"
                     >
                       {loadingOrders ? (
                         <span>Loading Orders...</span>
@@ -1309,11 +1443,26 @@ function PaymentsPage() {
                 <div className="mt-4 border-t border-border pt-4 space-y-3">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <span className="mb-1 block text-sm muted-text">
-                        Applicable Orders From Date (Optional)
-                      </span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="block text-sm muted-text">
+                          Applicable Orders From Date (Optional)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOrderDateFrom(
+                              getFinancialYearStartDate(selectedFinancialYearStart),
+                            )
+                          }
+                          className="text-[11px] font-semibold text-accent hover:underline"
+                          title="Reset to Financial Year Start (01 Apr)"
+                        >
+                          FY Start (01 Apr)
+                        </button>
+                      </div>
                       <input
                         type="date"
+                        list="recent-order-from-dates"
                         value={orderDateFrom}
                         onChange={(e) => setOrderDateFrom(e.target.value)}
                         className={`form-input ${
@@ -1324,11 +1473,22 @@ function PaymentsPage() {
                       />
                     </div>
                     <div>
-                      <span className="mb-1 block text-sm muted-text">
-                        Applicable Orders To Date (Optional)
-                      </span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="block text-sm muted-text">
+                          Applicable Orders To Date (Optional)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setOrderDateTo(getTodayDate())}
+                          className="text-[11px] font-semibold text-accent hover:underline"
+                          title="Set to Today"
+                        >
+                          Today
+                        </button>
+                      </div>
                       <input
                         type="date"
+                        list="recent-order-to-dates"
                         value={orderDateTo}
                         onChange={(e) => setOrderDateTo(e.target.value)}
                         className={`form-input ${
