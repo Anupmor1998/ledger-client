@@ -816,3 +816,24 @@ export async function sendTestPushNotification() {
   const response = await axiosClient.post("/users/me/test-push");
   return response.data;
 }
+
+export async function getAdminWhatsAppTemplates() {
+  const response = await axiosClient.get("/admin/whatsapp-templates");
+  return response.data;
+}
+
+export async function createAdminWhatsAppTemplate(data) {
+  const response = await axiosClient.post("/admin/whatsapp-templates", data);
+  return response.data;
+}
+
+export async function updateAdminWhatsAppTemplate(id, data) {
+  const response = await axiosClient.patch(`/admin/whatsapp-templates/${id}`, data);
+  return response.data;
+}
+
+export async function deleteAdminWhatsAppTemplate(id) {
+  const response = await axiosClient.delete(`/admin/whatsapp-templates/${id}`);
+  return response.data;
+}
+

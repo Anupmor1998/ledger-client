@@ -1,8 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "./Modal";
-import { getAdminCoupons } from "../lib/api";
+import {
+  getAdminCoupons,
+  getAdminWhatsAppTemplates,
+  createAdminWhatsAppTemplate,
+  deleteAdminWhatsAppTemplate,
+} from "../lib/api";
 import { encodeVoucherToken } from "../lib/voucherHelper";
+
+function BookmarkIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function TrashIcon({ className = "h-3.5 w-3.5" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
 
 function WhatsAppIcon({ className = "h-4 w-4" }) {
   return (
@@ -302,6 +334,14 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
   const [message, setMessage] = useState("");
   const textareaRef = useRef(null);
 
+  // Custom templates from server
+  const [customTemplates, setCustomTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveTitle, setSaveTitle] = useState("");
+  const [saveBadge, setSaveBadge] = useState("Custom");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   // Vouchers state
   const [coupons, setCoupons] = useState([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
@@ -314,11 +354,13 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
   const rawPhone = user?.contactPhone || user?.phone || "";
   const userPlan = user?.subscriptionPlan || user?.userSubscriptionPlan || "TRIAL";
 
-  // Fetch active vouchers when modal opens
+  // Fetch active vouchers and custom templates when modal opens
   useEffect(() => {
     if (isOpen) {
       let isMounted = true;
       setLoadingCoupons(true);
+      setLoadingTemplates(true);
+
       getAdminCoupons({ status: "active", limit: 50 })
         .then((res) => {
           if (!isMounted) return;
@@ -334,6 +376,19 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
         .finally(() => {
           if (isMounted) setLoadingCoupons(false);
         });
+
+      getAdminWhatsAppTemplates()
+        .then((res) => {
+          if (!isMounted) return;
+          setCustomTemplates(Array.isArray(res?.templates) ? res.templates : []);
+        })
+        .catch((err) => {
+          console.error("Failed to load custom templates:", err);
+        })
+        .finally(() => {
+          if (isMounted) setLoadingTemplates(false);
+        });
+
       return () => {
         isMounted = false;
       };
@@ -348,6 +403,24 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
   const activeCouponDetails = useMemo(() => {
     return formatVoucherDetails(activeCoupon);
   }, [activeCoupon]);
+
+  // Combined built-in + database custom templates
+  const allTemplates = useMemo(() => {
+    const formattedCustom = customTemplates.map((t) => ({
+      id: `custom_${t.id}`,
+      dbId: t.id,
+      title: t.title,
+      badge: t.badge || "Custom",
+      badgeColor: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
+      text: t.text,
+      isCustom: true,
+    }));
+    return [
+      ...TEMPLATES.filter((t) => t.id !== "custom"),
+      ...formattedCustom,
+      TEMPLATES.find((t) => t.id === "custom"),
+    ];
+  }, [customTemplates]);
 
   // Interpolation helper
   const interpolate = (tplText, couponOverride = activeCoupon) => {
@@ -390,6 +463,57 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
   const handleSelectTemplate = (tpl) => {
     setSelectedTemplateId(tpl.id);
     setMessage(interpolate(tpl.text, activeCoupon));
+  };
+
+  // Delete custom template
+  const handleDeleteCustomTemplate = async (dbId, title) => {
+    if (!window.confirm(`Are you sure you want to delete template "${title}"?`)) {
+      return;
+    }
+    try {
+      await deleteAdminWhatsAppTemplate(dbId);
+      setCustomTemplates((prev) => prev.filter((t) => t.id !== dbId));
+      if (selectedTemplateId === `custom_${dbId}`) {
+        const defaultTpl = TEMPLATES.find((t) => t.id === "new_user_onboarding");
+        setSelectedTemplateId("new_user_onboarding");
+        setMessage(interpolate(defaultTpl?.text || ""));
+      }
+      toast.success(`Template "${title}" deleted.`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete template");
+    }
+  };
+
+  // Save new custom template
+  const handleSaveCustomTemplate = async (e) => {
+    e?.preventDefault();
+    if (!saveTitle.trim()) {
+      toast.error("Please enter a template title.");
+      return;
+    }
+    if (!message.trim()) {
+      toast.error("Template message cannot be empty.");
+      return;
+    }
+    try {
+      setSavingTemplate(true);
+      const res = await createAdminWhatsAppTemplate({
+        title: saveTitle.trim(),
+        badge: saveBadge.trim() || "Custom",
+        text: message.trim(),
+      });
+      const newTpl = res.template;
+      setCustomTemplates((prev) => [...prev, newTpl]);
+      setSelectedTemplateId(`custom_${newTpl.id}`);
+      setShowSaveModal(false);
+      setSaveTitle("");
+      setSaveBadge("Custom");
+      toast.success(`Template "${newTpl.title}" saved successfully!`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to save template");
+    } finally {
+      setSavingTemplate(false);
+    }
   };
 
   // Insert voucher snippet into message at cursor position or append
@@ -629,18 +753,24 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
 
         {/* Template Quick Selection */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-muted-text mb-2">
-            1. Choose Message Template
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-text">
+              1. Choose Message Template
+            </label>
+            {customTemplates.length > 0 && (
+              <span className="text-[10px] text-muted-text font-medium">
+                {customTemplates.length} Custom Saved
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-            {TEMPLATES.map((tpl) => {
+            {allTemplates.map((tpl) => {
               const isSelected = selectedTemplateId === tpl.id;
               return (
-                <button
+                <div
                   key={tpl.id}
-                  type="button"
                   onClick={() => handleSelectTemplate(tpl)}
-                  className={`flex flex-col items-start text-left p-2.5 rounded-xl border transition ${
+                  className={`group relative flex flex-col items-start text-left p-2.5 rounded-xl border transition cursor-pointer ${
                     isSelected
                       ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50"
                       : "border-border bg-surface hover:bg-surface-muted"
@@ -648,13 +778,28 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
                 >
                   <div className="flex items-center justify-between gap-1 w-full">
                     <span className="text-xs font-semibold text-text truncate">{tpl.title}</span>
-                    <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${tpl.badgeColor}`}
-                    >
-                      {tpl.badge}
-                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${tpl.badgeColor}`}
+                      >
+                        {tpl.badge}
+                      </span>
+                      {tpl.isCustom && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCustomTemplate(tpl.dbId, tpl.title);
+                          }}
+                          className="p-1 rounded text-muted-text hover:text-red-500 hover:bg-surface transition opacity-0 group-hover:opacity-100"
+                          title={`Delete template "${tpl.title}"`}
+                        >
+                          <TrashIcon className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -800,9 +945,25 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-text">
                 2. Edit Message & Formatting
               </label>
-              <span className="text-[11px] muted-text font-mono">
-                {message.length} chars &bull; {message.trim() ? message.trim().split(/\s+/).length : 0} words
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSaveTitle("");
+                    setSaveBadge("Custom");
+                    setShowSaveModal(true);
+                  }}
+                  disabled={!message.trim()}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  title="Save current message as a reusable custom template"
+                >
+                  <BookmarkIcon className="h-3.5 w-3.5" />
+                  <span>Save as Template</span>
+                </button>
+                <span className="text-[11px] muted-text font-mono">
+                  {message.length} chars &bull; {message.trim() ? message.trim().split(/\s+/).length : 0} words
+                </span>
+              </div>
             </div>
 
             {/* Formatting Toolbar */}
@@ -946,6 +1107,76 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
           </div>
         </div>
       </div>
+
+      {showSaveModal && (
+        <Modal
+          title="Save Custom WhatsApp Template"
+          onClose={() => setShowSaveModal(false)}
+          maxWidthClassName="max-w-md"
+          footer={
+            <div className="flex items-center justify-end gap-2 w-full">
+              <button
+                type="button"
+                className="ghost-btn text-xs py-2 px-3"
+                onClick={() => setShowSaveModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCustomTemplate}
+                disabled={savingTemplate || !saveTitle.trim()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <BookmarkIcon className="h-3.5 w-3.5" />
+                <span>{savingTemplate ? "Saving..." : "Save Template"}</span>
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3.5 py-1">
+            <div>
+              <label className="block text-xs font-semibold text-text mb-1">
+                Template Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={saveTitle}
+                onChange={(e) => setSaveTitle(e.target.value)}
+                placeholder="e.g. Festival Greeting, Payment Follow-up"
+                maxLength={60}
+                className="form-input text-xs w-full"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text mb-1">
+                Badge / Category Label
+              </label>
+              <input
+                type="text"
+                value={saveBadge}
+                onChange={(e) => setSaveBadge(e.target.value)}
+                placeholder="e.g. Custom, Follow-up, Offer"
+                maxLength={20}
+                className="form-input text-xs w-full"
+              />
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface-muted/50 p-3 text-xs space-y-1">
+              <span className="font-semibold text-text block">Dynamic Placeholders Tip</span>
+              <p className="text-[11px] text-muted-text leading-relaxed">
+                You can use placeholders like{" "}
+                <code className="font-mono text-emerald-600 dark:text-emerald-400">{"{{name}}"}</code>,{" "}
+                <code className="font-mono text-emerald-600 dark:text-emerald-400">{"{{firmName}}"}</code>,{" "}
+                <code className="font-mono text-emerald-600 dark:text-emerald-400">{"{{plan}}"}</code>, and{" "}
+                <code className="font-mono text-emerald-600 dark:text-emerald-400">{"{{voucherSnippet}}"}</code>. They will automatically fill in with the recipient's details whenever you use this template.
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }
