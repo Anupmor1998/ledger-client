@@ -14,7 +14,14 @@ export default function usePageTour(tourKey, options = {}) {
 
     if (!hasSeenTour(tourKey)) {
       timerRef.current = setTimeout(() => {
-        if (getPendingVoucher()) return;
+        // Suppress tour if a voucher is pending or if any modal dialog is currently open
+        if (
+          getPendingVoucher() ||
+          typeof document === "undefined" ||
+          document.querySelector('[role="dialog"]')
+        ) {
+          return;
+        }
         startTour(tourKey, { force: false });
       }, delay);
     }
