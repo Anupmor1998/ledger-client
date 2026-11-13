@@ -272,6 +272,11 @@ export async function getAdminCollections() {
   return response.data;
 }
 
+export async function getAdminUsersSelector() {
+  const response = await axiosClient.get("/admin/users-selector");
+  return response.data;
+}
+
 export async function getAdminCollectionRecords(collection, params = {}) {
   const response = await axiosClient.get(`/admin/collections/${collection}`, {
     params: normalizeListParams(params),

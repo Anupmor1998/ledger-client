@@ -176,14 +176,18 @@ function AdminLayout({ dark, onToggleTheme }) {
     dispatch(logout());
   }
 
+  const searchParams = new URLSearchParams(location.search);
+  const activeUserId = searchParams.get("userId");
+  const querySuffix = activeUserId ? `?userId=${encodeURIComponent(activeUserId)}` : "";
+
   const collectionLinks = useMemo(
     () =>
       collections.map((collection) => ({
-        to: `/admin/${collection.key}`,
+        to: `/admin/${collection.key}${querySuffix}`,
         label: collection.label,
         readOnly: isFullyReadOnlyCollection(collection),
       })),
-    [collections],
+    [collections, querySuffix],
   );
   const editableCollections = useMemo(
     () => collectionLinks.filter((collection) => !collection.readOnly),

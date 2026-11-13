@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import CopyableText from "../components/CopyableText";
 import DataTable from "../components/DataTable";
@@ -15,6 +15,7 @@ import {
   updateAdminCollectionRecord,
   adminUpdateUserSubscription,
   toggleUserFreeAccess,
+  getAdminUsersSelector,
 } from "../lib/api";
 
 function formatAdminValue(value) {
@@ -67,6 +68,19 @@ function ActionIcon({ type }) {
       <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
         <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z" />
         <path d="m13.5 6.5 4 4" />
+      </svg>
+    );
+  }
+
+  if (type === "filter") {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4 fill-none stroke-current stroke-2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
       </svg>
     );
   }
@@ -152,6 +166,7 @@ function RowActionMenu({
   onView,
   onEdit,
   onDelete,
+  onFilterByUser,
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0, showAbove: false });
@@ -284,6 +299,20 @@ function RowActionMenu({
                 <span>View Details</span>
               </button>
 
+              {selectedCollection?.key === "users" && onFilterByUser ? (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-accent transition hover:bg-accent/10 text-left"
+                  onClick={() => {
+                    setOpen(false);
+                    onFilterByUser(record);
+                  }}
+                >
+                  <ActionIcon type="filter" />
+                  <span>Filter Data by this User</span>
+                </button>
+              ) : null}
+
               {canUpdate ? (
                 <button
                   type="button"
@@ -325,8 +354,13 @@ function RowActionMenu({
 function AdminPage() {
   const navigate = useNavigate();
   const { collectionKey = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const userIdParam = searchParams.get("userId") || "";
+
   const [collections, setCollections] = useState([]);
   const [collectionsLoading, setCollectionsLoading] = useState(true);
+  const [userSelectorList, setUserSelectorList] = useState([]);
+  const [userSelectorLoading, setUserSelectorLoading] = useState(false);
   const [records, setRecords] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(false);
@@ -356,6 +390,22 @@ function AdminPage() {
 
   const debouncedSearch = useDebounce(searchValue, 300);
 
+  const selectedUser = useMemo(
+    () => userSelectorList.find((u) => u.id === userIdParam) || null,
+    [userSelectorList, userIdParam]
+  );
+
+  function handleSelectUser(newUserId) {
+    const nextParams = new URLSearchParams(searchParams);
+    if (newUserId) {
+      nextParams.set("userId", newUserId);
+    } else {
+      nextParams.delete("userId");
+    }
+    setSearchParams(nextParams);
+    setPageIndex(0);
+  }
+
   const latestStateRef = useRef({
     pageIndex: 0,
     pageSize: 20,
@@ -363,6 +413,7 @@ function AdminPage() {
     debouncedSearch: "",
     searchField: "",
     sorting: [{ id: "createdAt", desc: true }],
+    userIdParam: "",
   });
 
   useEffect(() => {
@@ -373,8 +424,32 @@ function AdminPage() {
       debouncedSearch,
       searchField,
       sorting,
+      userIdParam,
     };
-  }, [pageIndex, pageSize, searchValue, debouncedSearch, searchField, sorting]);
+  }, [pageIndex, pageSize, searchValue, debouncedSearch, searchField, sorting, userIdParam]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadUsers() {
+      setUserSelectorLoading(true);
+      try {
+        const payload = await getAdminUsersSelector();
+        if (!cancelled && Array.isArray(payload?.users)) {
+          setUserSelectorList(payload.users);
+        }
+      } catch (_err) {
+        // Safe fallback
+      } finally {
+        if (!cancelled) {
+          setUserSelectorLoading(false);
+        }
+      }
+    }
+    loadUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -449,6 +524,7 @@ function AdminPage() {
           searchField,
           sortBy: sort.id,
           sortOrder: sort.desc ? "desc" : "asc",
+          userId: userIdParam || undefined,
         });
 
         if (cancelled) {
@@ -473,7 +549,7 @@ function AdminPage() {
     return () => {
       cancelled = true;
     };
-  }, [collectionKey, debouncedSearch, pageIndex, pageSize, searchField, sorting]);
+  }, [collectionKey, debouncedSearch, pageIndex, pageSize, searchField, sorting, userIdParam]);
 
   const searchFieldOptions = useMemo(
     () => [
@@ -785,6 +861,10 @@ function AdminPage() {
             canUpdate={canUpdate}
             canDelete={canDelete}
             onWhatsApp={(user) => setWhatsAppModalUser(user)}
+            onFilterByUser={(userRecord) => {
+              handleSelectUser(userRecord.id);
+              toast.info(`Filtered collections by: ${userRecord.name || userRecord.email}`);
+            }}
             onView={(record) => {
               setSelectedRecord(record);
               setModalMode("view");
@@ -803,7 +883,7 @@ function AdminPage() {
         ),
       },
     ];
-  }, [canDelete, canUpdate, selectedCollection, togglingUserId]);
+  }, [canDelete, canUpdate, selectedCollection, togglingUserId, handleSelectUser]);
 
   async function refreshRecords() {
     if (!collectionKey) return;
@@ -814,6 +894,7 @@ function AdminPage() {
       debouncedSearch: dSearch,
       searchField: sField,
       sorting: sSorting,
+      userIdParam: sUserId,
     } = latestStateRef.current;
 
     const sort = sSorting[0] || { id: "createdAt", desc: true };
@@ -826,6 +907,7 @@ function AdminPage() {
       searchField: sField,
       sortBy: sort.id,
       sortOrder: sort.desc ? "desc" : "asc",
+      userId: sUserId || undefined,
     });
     setRecords(Array.isArray(payload?.items) ? payload.items : []);
     setPagination(payload?.pagination || { page: 1, limit: pSize, total: 0, totalPages: 0 });
@@ -941,6 +1023,87 @@ function AdminPage() {
               </span>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* User Scope Filter Card */}
+      <div className="mt-4 rounded-2xl border border-border bg-surface p-4 sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-text">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 shrink-0 text-accent"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span>Filter by User:</span>
+            </div>
+
+            <div className="min-w-[280px] flex-1 max-w-lg">
+              <select
+                value={userIdParam}
+                onChange={(e) => handleSelectUser(e.target.value)}
+                disabled={userSelectorLoading}
+                className="form-input w-full text-xs font-medium py-2 rounded-xl"
+              >
+                <option value="">All Users (Global View - No User Filter)</option>
+                {userSelectorList.map((u) => {
+                  const display = `${u.name || "Unnamed"} ${u.firmName ? `(${u.firmName})` : ""} - ${u.email}`;
+                  return (
+                    <option key={u.id} value={u.id}>
+                      {display}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {selectedUser ? (
+              <button
+                type="button"
+                onClick={() => handleSelectUser("")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-500/20 dark:text-red-400 transition"
+                title="Clear user filter"
+              >
+                <span>Clear User Filter</span>
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            ) : null}
+          </div>
+
+          {selectedUser ? (
+            <div className="inline-flex items-center gap-2 rounded-xl bg-accent/10 border border-accent/30 px-3.5 py-2 text-xs text-accent">
+              <span className="font-semibold">Scoped to:</span>
+              <span className="font-bold text-text">
+                {selectedUser.name || selectedUser.firmName || selectedUser.email}
+              </span>
+              <span className="text-[11px] muted-text">
+                ({selectedUser.subscriptionPlan} &bull; {selectedUser.subscriptionStatus})
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs muted-text italic">
+              Showing all accounts across system. Select a user to isolate their records.
+            </span>
+          )}
         </div>
       </div>
 
