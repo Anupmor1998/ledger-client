@@ -842,3 +842,14 @@ export async function signVoucherLink(data) {
   return response.data;
 }
 
+export async function getMyReferralInfo() {
+  const response = await axiosClient.get("/referral/me");
+  return response.data;
+}
+
+export async function validateReferralCode(code) {
+  const response = await axiosClient.get(`/referral/validate/${encodeURIComponent(code)}`);
+  return response.data;
+}
+
+

@@ -34,6 +34,12 @@ function App({ dark, onToggleTheme }) {
           }
         }
 
+        // Capture referral code if present in URL
+        const referralParam = params.get("ref") || params.get("r") || params.get("referral");
+        if (referralParam && referralParam.trim()) {
+          sessionStorage.setItem("sauda_pending_referral", referralParam.trim().toUpperCase());
+        }
+
         let code = "";
         let rawToken = "";
         if (encodedV) {

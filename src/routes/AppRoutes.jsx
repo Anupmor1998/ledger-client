@@ -23,6 +23,7 @@ import ResetPasswordPage from "../pages/ResetPasswordPage";
 import SignupPage from "../pages/SignupPage";
 import SupportPage from "../pages/SupportPage";
 import SubscriptionPage from "../pages/SubscriptionPage";
+import ReferralPage from "../pages/ReferralPage";
 import TermsOfServicePage from "../pages/TermsOfServicePage";
 import { useAppSelector } from "../store/hooks";
 import ProtectedRoute from "./ProtectedRoute";
@@ -200,6 +201,8 @@ function AppRoutes({ dark, onToggleTheme }) {
           <Route path="subscription" element={<SubscriptionPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="support" element={<SupportPage />} />
+          <Route path="referral" element={<ReferralPage />} />
+          <Route path="refer-earn" element={<Navigate to="/referral" replace />} />
         </Route>
       </Route>
 

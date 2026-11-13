@@ -1,19 +1,54 @@
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import AuthLayout from "../components/AuthLayout";
-import { signup } from "../lib/api";
+import { signup, validateReferralCode } from "../lib/api";
 import { useAppDispatch } from "../store/hooks";
 import { setSession } from "../store/slices/authSlice";
 import { signupSchema } from "../validation/authSchemas";
 
+function CheckCircleIcon({ className = "h-4 w-4 shrink-0" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
+function TagIcon({ className = "h-3.5 w-3.5 shrink-0" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+  );
+}
+
 function SignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState({ error: "" });
+
+  // Referral states
+  const [referralCode, setReferralCode] = useState("");
+  const [showReferralField, setShowReferralField] = useState(false);
+  const [referralValidation, setReferralValidation] = useState(null);
+
   const {
     register,
     handleSubmit,
@@ -23,16 +58,70 @@ function SignupPage() {
     defaultValues: { name: "", email: "", contactPhone: "", password: "" },
   });
 
+  useEffect(() => {
+    const urlRef = searchParams.get("ref") || searchParams.get("r");
+    const storedRef = sessionStorage.getItem("sauda_pending_referral");
+    const code = (urlRef || storedRef || "").trim().toUpperCase();
+    if (code) {
+      setReferralCode(code);
+      setShowReferralField(true);
+      verifyCode(code);
+    }
+  }, [searchParams]);
+
+  async function verifyCode(codeToTest) {
+    if (!codeToTest || codeToTest.trim().length < 3) {
+      setReferralValidation(null);
+      return;
+    }
+    setReferralValidation({ loading: true });
+    try {
+      const res = await validateReferralCode(codeToTest.trim());
+      if (res?.valid) {
+        setReferralValidation({
+          loading: false,
+          valid: true,
+          referrerName: res.referrerName,
+          message: res.message,
+        });
+      } else {
+        setReferralValidation({
+          loading: false,
+          valid: false,
+          message: "Invalid referral code",
+        });
+      }
+    } catch {
+      setReferralValidation({
+        loading: false,
+        valid: false,
+        message: "Invalid referral code",
+      });
+    }
+  }
+
   async function onSubmit(values) {
     setStatus({ error: "" });
 
     try {
-      const result = await signup(values);
+      const payload = {
+        ...values,
+        referralCode: referralCode.trim() ? referralCode.trim().toUpperCase() : undefined,
+      };
+
+      const result = await signup(payload);
       dispatch(setSession(result));
       if (result?.user?.id) {
         localStorage.setItem(`sauda_needs_onboarding_${result.user.id}`, "true");
       }
-      toast.success("Account created successfully");
+
+      sessionStorage.removeItem("sauda_pending_referral");
+
+      if (result?.referralApplied) {
+        toast.success("Welcome! You've received a 29-day free trial!");
+      } else {
+        toast.success("Account created successfully");
+      }
       navigate("/onboarding");
     } catch (error) {
       const message =
@@ -138,6 +227,80 @@ function SignupPage() {
             </p>
           ) : null}
         </label>
+
+        {/* Referral Code Field */}
+        <div className="pt-1">
+          {!showReferralField ? (
+            <button
+              type="button"
+              onClick={() => setShowReferralField(true)}
+              className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <TagIcon className="h-3.5 w-3.5" />
+              <span>Have a referral code?</span>
+            </button>
+          ) : (
+            <div className="space-y-2 p-3 rounded-xl bg-surface-muted border border-border">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-text flex items-center gap-1.5">
+                  <TagIcon className="h-3.5 w-3.5 text-primary" />
+                  <span>Referral Code</span>
+                </label>
+                {!referralValidation?.valid && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReferralField(false);
+                      setReferralCode("");
+                      setReferralValidation(null);
+                    }}
+                    className="text-[11px] text-muted-text hover:text-text cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. ANUP789K"
+                  value={referralCode}
+                  onChange={(e) => {
+                    const next = e.target.value.toUpperCase();
+                    setReferralCode(next);
+                    verifyCode(next);
+                  }}
+                  className="w-full uppercase font-mono px-3 py-2 rounded-lg border border-border bg-bg text-xs tracking-wider outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              {referralValidation?.loading && (
+                <p className="text-[11px] text-muted-text animate-pulse">
+                  Verifying referral code...
+                </p>
+              )}
+
+              {referralValidation?.valid && (
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-2 text-xs text-emerald-800 dark:text-emerald-300">
+                  <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-600 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Referral bonus applied!</span>
+                    <p className="text-[11px] mt-0.5 leading-relaxed">
+                      Referred by <strong>{referralValidation.referrerName}</strong>. You'll receive a <strong>29-day free trial</strong> (14 standard + 15 bonus days).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {referralValidation && !referralValidation.loading && !referralValidation.valid && (
+                <p className="text-[11px] text-red-500 font-medium">
+                  {referralValidation.message || "Invalid referral code"}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         {status.error ? (
           <p className="text-sm text-red-500">{status.error}</p>
