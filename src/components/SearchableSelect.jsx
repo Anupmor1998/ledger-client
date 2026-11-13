@@ -217,6 +217,23 @@ function SearchableSelect({
             Clear all
           </button>
         )}
+
+        {!isMulti && value && !disabled && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange("");
+              setQuery("");
+            }}
+            className="p-1 rounded-md text-muted-text hover:text-text hover:bg-surface-muted transition"
+            title="Clear selection"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2 shrink-0">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="relative">

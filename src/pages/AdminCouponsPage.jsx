@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import DatePicker from "../components/DatePicker";
-import AutocompleteInput from "../components/AutocompleteInput";
+import SearchableSelect from "../components/SearchableSelect";
 import OfferBanner, { BANNER_THEMES } from "../components/OfferBanner";
 import useDebounce from "../hooks/useDebounce";
 import {
@@ -2131,61 +2131,23 @@ ${lockNotice}`;
             {/* When LOCKED mode: Customer search & selector */}
             {shareTargetMode === "LOCKED" && (
               <div className="space-y-2 pt-1 border-t border-border">
-                {/* Unified Autocomplete Input */}
-                <div className="relative">
-                  <AutocompleteInput
-                    label="Choose Customer to Lock Voucher For"
-                    value={userSearchQuery}
-                    onChange={(val) => {
-                      setUserSearchQuery(val);
-                      if (!val.trim()) {
-                        setSelectedUserId("");
-                      } else {
-                        const match = usersSelector.find((u) => u.id === selectedUserId);
-                        const expected = match
-                          ? (match.firmName
-                              ? `${match.name || "Customer"} (${match.firmName})`
-                              : match.name || "Customer"
-                            ).trim()
-                          : "";
-                        if (val !== expected) {
-                          setSelectedUserId("");
-                        }
-                      }
-                    }}
-                    onSelect={(option) => {
-                      setSelectedUserId(option.value);
-                      setUserSearchQuery(option.label);
-                    }}
-                    options={userAutocompleteOptions}
-                    placeholder="Search customer by name, firm, phone, or email..."
-                    inputClassName="!text-xs !py-2 bg-bg border-border"
-                    helperText={
-                      loadingUsers
-                        ? "Loading customer directory..."
-                        : !selectedUser && userSearchQuery.trim()
-                        ? "Click a customer from the autocomplete list above to select"
-                        : ""
-                    }
-                  />
-
-                  {/* Clear button if input is filled */}
-                  {userSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUserSearchQuery("");
-                        setSelectedUserId("");
-                      }}
-                      className="absolute right-2.5 top-8 p-1 rounded-md text-muted-text hover:text-text hover:bg-surface-muted transition"
-                      title="Clear customer selection"
-                    >
-                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2 shrink-0">
-                        <path d="M18 6L6 18M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
+                {/* Unified Searchable Autocomplete Select */}
+                <SearchableSelect
+                  label="Choose Customer to Lock Voucher For"
+                  value={selectedUserId}
+                  onChange={(val) => {
+                    setSelectedUserId(val || "");
+                  }}
+                  options={userAutocompleteOptions}
+                  placeholder="Search customer by name, firm, phone, or email..."
+                  helperText={
+                    loadingUsers
+                      ? "Loading customer directory..."
+                      : !selectedUser
+                      ? "Search or select a customer to lock this voucher to their account"
+                      : ""
+                  }
+                />
 
                 {/* Selected User Guarantee Box */}
                 {selectedUser ? (
