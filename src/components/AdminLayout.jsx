@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   getAdminCollections,
   getAdminSupportStats,
@@ -65,8 +65,50 @@ function AdminLayout({ dark, onToggleTheme }) {
   const [supportStats, setSupportStats] = useState({ total: 0, open: 0 });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const navigate = useNavigate();
   const location = useLocation();
   const popoverContainerRef = useRef(null);
+
+  const [activeUserId, setActiveUserId] = useState(() => {
+    const fromUrl = new URLSearchParams(location.search).get("userId");
+    const fromStorage = typeof window !== "undefined" ? sessionStorage.getItem("admin_selected_user_id") : "";
+    return fromUrl || fromStorage || "";
+  });
+
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(location.search).get("userId");
+    if (fromUrl) {
+      try {
+        sessionStorage.setItem("admin_selected_user_id", fromUrl);
+      } catch (_e) {}
+      setActiveUserId(fromUrl);
+    } else {
+      const fromStorage = typeof window !== "undefined" ? sessionStorage.getItem("admin_selected_user_id") || "" : "";
+      setActiveUserId(fromStorage);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    function handleFilterChanged(e) {
+      setActiveUserId(e?.detail?.userId || "");
+    }
+    window.addEventListener("admin-user-filter-changed", handleFilterChanged);
+    return () => window.removeEventListener("admin-user-filter-changed", handleFilterChanged);
+  }, []);
+
+  function handleClearUserFilter() {
+    try {
+      sessionStorage.removeItem("admin_selected_user_id");
+    } catch (_e) {}
+    setActiveUserId("");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("admin-user-filter-changed", { detail: { userId: "" } }));
+    }
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.delete("userId");
+    const nextSearch = nextParams.toString() ? `?${nextParams.toString()}` : "";
+    navigate(`${location.pathname}${nextSearch}`, { replace: true });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -176,8 +218,6 @@ function AdminLayout({ dark, onToggleTheme }) {
     dispatch(logout());
   }
 
-  const searchParams = new URLSearchParams(location.search);
-  const activeUserId = searchParams.get("userId");
   const querySuffix = activeUserId ? `?userId=${encodeURIComponent(activeUserId)}` : "";
 
   const collectionLinks = useMemo(
@@ -228,6 +268,30 @@ function AdminLayout({ dark, onToggleTheme }) {
                 {loadingCollections ? "..." : collectionLinks.length}
               </span>
             </div>
+            {activeUserId ? (
+              <div className="mt-2 shrink-0 flex items-center justify-between gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-xs text-accent">
+                <span className="truncate font-medium">User filter active</span>
+                <button
+                  type="button"
+                  onClick={handleClearUserFilter}
+                  className="shrink-0 rounded p-0.5 hover:bg-accent/20 transition"
+                  title="Clear user filter"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            ) : null}
             <nav className="mt-3 flex-1 min-h-0 space-y-4 overflow-y-auto pr-1">
               <div className="space-y-1 border-b border-border pb-3">
                 <p className="text-xs uppercase tracking-wider muted-text mb-2">
@@ -469,6 +533,31 @@ function AdminLayout({ dark, onToggleTheme }) {
               </div>
             </NavLink>
           </div>
+
+          {activeUserId ? (
+            <div className="flex items-center justify-between gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1.5 text-xs text-accent">
+              <span className="truncate font-medium">User filter active</span>
+              <button
+                type="button"
+                onClick={handleClearUserFilter}
+                className="shrink-0 rounded p-0.5 hover:bg-accent/20 transition"
+                title="Clear user filter"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          ) : null}
 
           <CollectionNavSection
             title="Editable"

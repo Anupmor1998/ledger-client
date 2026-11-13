@@ -355,7 +355,11 @@ function AdminPage() {
   const navigate = useNavigate();
   const { collectionKey = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const userIdParam = searchParams.get("userId") || "";
+  const urlUserId = searchParams.get("userId") || "";
+  const [storedUserId, setStoredUserId] = useState(() => {
+    return typeof window !== "undefined" ? sessionStorage.getItem("admin_selected_user_id") || "" : "";
+  });
+  const userIdParam = urlUserId || storedUserId;
 
   const [collections, setCollections] = useState([]);
   const [collectionsLoading, setCollectionsLoading] = useState(true);
@@ -395,14 +399,52 @@ function AdminPage() {
     [userSelectorList, userIdParam]
   );
 
+  useEffect(() => {
+    if (!urlUserId && storedUserId) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("userId", storedUserId);
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [urlUserId, storedUserId]);
+
+  useEffect(() => {
+    function handleExternalFilterChange(e) {
+      const nextId = e?.detail?.userId || "";
+      setStoredUserId(nextId);
+      const nextParams = new URLSearchParams(searchParams);
+      if (nextId) {
+        nextParams.set("userId", nextId);
+      } else {
+        nextParams.delete("userId");
+      }
+      setSearchParams(nextParams, { replace: true });
+      setPageIndex(0);
+    }
+    window.addEventListener("admin-user-filter-changed", handleExternalFilterChange);
+    return () => window.removeEventListener("admin-user-filter-changed", handleExternalFilterChange);
+  }, [searchParams, setSearchParams]);
+
   function handleSelectUser(newUserId) {
     const nextParams = new URLSearchParams(searchParams);
     if (newUserId) {
+      try {
+        sessionStorage.setItem("admin_selected_user_id", newUserId);
+      } catch (_e) {}
+      setStoredUserId(newUserId);
       nextParams.set("userId", newUserId);
     } else {
+      try {
+        sessionStorage.removeItem("admin_selected_user_id");
+      } catch (_e) {}
+      setStoredUserId("");
       nextParams.delete("userId");
     }
-    setSearchParams(nextParams);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("admin-user-filter-changed", { detail: { userId: newUserId || "" } })
+      );
+    }
+    setSearchParams(nextParams, { replace: true });
     setPageIndex(0);
   }
 
@@ -863,7 +905,7 @@ function AdminPage() {
             onWhatsApp={(user) => setWhatsAppModalUser(user)}
             onFilterByUser={(userRecord) => {
               handleSelectUser(userRecord.id);
-              toast.info(`Filtered collections by: ${userRecord.name || userRecord.email}`);
+              toast.info(`Filtered all tables by: ${userRecord.name || userRecord.firmName || userRecord.email}`);
             }}
             onView={(record) => {
               setSelectedRecord(record);
@@ -1090,13 +1132,18 @@ function AdminPage() {
           </div>
 
           {selectedUser ? (
-            <div className="inline-flex items-center gap-2 rounded-xl bg-accent/10 border border-accent/30 px-3.5 py-2 text-xs text-accent">
-              <span className="font-semibold">Scoped to:</span>
-              <span className="font-bold text-text">
-                {selectedUser.name || selectedUser.firmName || selectedUser.email}
-              </span>
-              <span className="text-[11px] muted-text">
-                ({selectedUser.subscriptionPlan} &bull; {selectedUser.subscriptionStatus})
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-xl bg-accent/10 border border-accent/30 px-3.5 py-2 text-xs text-accent">
+                <span className="font-semibold">Scoped to:</span>
+                <span className="font-bold text-text">
+                  {selectedUser.name || selectedUser.firmName || selectedUser.email}
+                </span>
+                <span className="text-[11px] muted-text">
+                  ({selectedUser.subscriptionPlan} &bull; {selectedUser.subscriptionStatus})
+                </span>
+              </div>
+              <span className="rounded-xl border border-border bg-bg px-3 py-2 text-xs font-semibold text-text">
+                {pagination.total} {selectedCollection?.label || "records"}
               </span>
             </div>
           ) : (
