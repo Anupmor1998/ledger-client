@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import DatePicker from "../components/DatePicker";
+import AutocompleteInput from "../components/AutocompleteInput";
 import OfferBanner, { BANNER_THEMES } from "../components/OfferBanner";
 import useDebounce from "../hooks/useDebounce";
 import {
@@ -283,19 +284,22 @@ function AdminCouponsPage() {
     return usersSelector.find((u) => u.id === selectedUserId) || null;
   }, [usersSelector, selectedUserId]);
 
-  const filteredUsers = useMemo(() => {
-    if (!userSearchQuery.trim()) return usersSelector.slice(0, 80);
-    const q = userSearchQuery.toLowerCase().trim();
-    return usersSelector
-      .filter((u) => {
-        const nameMatch = u.name?.toLowerCase().includes(q);
-        const firmMatch = u.firmName?.toLowerCase().includes(q);
-        const phoneMatch = u.contactPhone?.toLowerCase().includes(q);
-        const emailMatch = u.email?.toLowerCase().includes(q);
-        return nameMatch || firmMatch || phoneMatch || emailMatch;
-      })
-      .slice(0, 80);
-  }, [usersSelector, userSearchQuery]);
+  const userAutocompleteOptions = useMemo(() => {
+    return usersSelector.map((u) => {
+      const firmPart = u.firmName ? `(${u.firmName})` : "";
+      const label = `${u.name || "Customer"} ${firmPart}`.trim();
+      const phonePart = u.contactPhone ? `Phone: ${u.contactPhone}` : "No phone";
+      const planPart = `Plan: ${u.subscriptionPlan || "FREE"}`;
+      const emailPart = u.email ? `• ${u.email}` : "";
+      const helperText = `${phonePart} ${emailPart} • ${planPart}`;
+      return {
+        value: u.id,
+        label,
+        helperText,
+        user: u,
+      };
+    });
+  }, [usersSelector]);
 
   const handleOpenShareModal = async (coupon) => {
     setShareModalCoupon(coupon);
@@ -2127,54 +2131,61 @@ ${lockNotice}`;
             {/* When LOCKED mode: Customer search & selector */}
             {shareTargetMode === "LOCKED" && (
               <div className="space-y-2 pt-1 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-text">
-                    Choose Customer to Lock Voucher For
-                  </label>
-                  {loadingUsers && (
-                    <span className="text-[11px] text-muted-text animate-pulse">
-                      Loading customer directory...
-                    </span>
+                {/* Unified Autocomplete Input */}
+                <div className="relative">
+                  <AutocompleteInput
+                    label="Choose Customer to Lock Voucher For"
+                    value={userSearchQuery}
+                    onChange={(val) => {
+                      setUserSearchQuery(val);
+                      if (!val.trim()) {
+                        setSelectedUserId("");
+                      } else {
+                        const match = usersSelector.find((u) => u.id === selectedUserId);
+                        const expected = match
+                          ? (match.firmName
+                              ? `${match.name || "Customer"} (${match.firmName})`
+                              : match.name || "Customer"
+                            ).trim()
+                          : "";
+                        if (val !== expected) {
+                          setSelectedUserId("");
+                        }
+                      }
+                    }}
+                    onSelect={(option) => {
+                      setSelectedUserId(option.value);
+                      setUserSearchQuery(option.label);
+                    }}
+                    options={userAutocompleteOptions}
+                    placeholder="Search customer by name, firm, phone, or email..."
+                    inputClassName="!text-xs !py-2 bg-bg border-border"
+                    helperText={
+                      loadingUsers
+                        ? "Loading customer directory..."
+                        : !selectedUser && userSearchQuery.trim()
+                        ? "Click a customer from the autocomplete list above to select"
+                        : ""
+                    }
+                  />
+
+                  {/* Clear button if input is filled */}
+                  {userSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserSearchQuery("");
+                        setSelectedUserId("");
+                      }}
+                      className="absolute right-2.5 top-8 p-1 rounded-md text-muted-text hover:text-text hover:bg-surface-muted transition"
+                      title="Clear customer selection"
+                    >
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current stroke-2 shrink-0">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
                   )}
                 </div>
-
-                {/* Search input */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-text">
-                    <SearchIcon className="h-3.5 w-3.5 shrink-0" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search by customer name, firm, phone, or email..."
-                    value={userSearchQuery}
-                    onChange={(e) => setUserSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-bg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-
-                {/* Dropdown select */}
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">
-                    -- Select Customer ({filteredUsers.length} available) --
-                  </option>
-                  {filteredUsers.map((u) => {
-                    const labelParts = [
-                      u.name || "Unnamed",
-                      u.firmName ? `(${u.firmName})` : null,
-                      u.contactPhone ? `• ${u.contactPhone}` : null,
-                      u.subscriptionPlan ? `[${u.subscriptionPlan}]` : null,
-                    ].filter(Boolean);
-                    return (
-                      <option key={u.id} value={u.id}>
-                        {labelParts.join(" ")}
-                      </option>
-                    );
-                  })}
-                </select>
 
                 {/* Selected User Guarantee Box */}
                 {selectedUser ? (
