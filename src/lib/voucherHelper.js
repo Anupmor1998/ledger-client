@@ -4,29 +4,31 @@
  */
 
 /**
- * Safely encode voucher code to base64 token
+ * Cleanly format voucher code or token for deep linking.
+ * Plain public codes stay clean (e.g. "ONEMONTH") for readable, short URLs.
  */
 export function encodeVoucherToken(code) {
   if (!code) return "";
-  const clean = String(code).trim().toUpperCase();
-  try {
-    return btoa(unescape(encodeURIComponent(clean)));
-  } catch {
-    return encodeURIComponent(clean);
-  }
+  return String(code).trim().toUpperCase();
 }
 
 /**
- * Safely decode voucher token from JWT, base64, or raw code string
+ * Safely decode voucher token from compact format (code.user.phone.exp.sig),
+ * standard JWT, base64, or raw code string.
  */
 export function decodeVoucherToken(token) {
   if (!token) return "";
   const trimmed = String(token).trim();
 
-  // 1. Try decoding JWT token (3 parts: header.payload.signature)
-  try {
-    const parts = trimmed.split(".");
-    if (parts.length === 3) {
+  // 1. Try compact 5-part token (code.packedUser.phone.exp.sig)
+  const parts = trimmed.split(".");
+  if (parts.length === 5 && parts[0]) {
+    return String(parts[0]).trim().toUpperCase();
+  }
+
+  // 2. Try decoding legacy JWT token (3 parts: header.payload.signature)
+  if (parts.length === 3) {
+    try {
       const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
       const json = decodeURIComponent(
         atob(b64)
@@ -38,12 +40,12 @@ export function decodeVoucherToken(token) {
       if (parsed?.code) {
         return String(parsed.code).trim().toUpperCase();
       }
+    } catch {
+      // Fallback
     }
-  } catch {
-    // If not valid JWT, continue to base64
   }
 
-  // 2. Try decoding base64
+  // 3. Try decoding legacy base64
   try {
     const decoded = decodeURIComponent(escape(atob(trimmed)));
     if (decoded && decoded.trim() && !/[^\x20-\x7E]/.test(decoded)) {
