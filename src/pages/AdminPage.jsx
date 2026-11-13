@@ -546,7 +546,7 @@ function AdminPage() {
     setSelectedRecord(null);
     setDeleteTarget(null);
     setDeleteConfirmText("");
-  }, [collectionKey]);
+  }, [collectionKey, selectedCollection]);
 
   useEffect(() => {
     let cancelled = false;
