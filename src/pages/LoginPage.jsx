@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import AuthLayout from "../components/AuthLayout";
 import { login } from "../lib/api";
+import { getPendingVoucher } from "../lib/voucherHelper";
 import { useAppDispatch } from "../store/hooks";
 import { setSession } from "../store/slices/authSlice";
 import { loginSchema } from "../validation/authSchemas";
@@ -40,24 +41,29 @@ function LoginPage() {
 
       toast.success("Logged in successfully");
 
-      // Honor deep linked redirect (e.g. /subscription?voucher=XYZ123)
+      // Honor deep linked redirect via 'redirectTo' query parameter or location.state?.from
+      const searchParams = new URLSearchParams(location.search);
+      const redirectToParam = searchParams.get("redirectTo");
       const fromState = location.state?.from;
-      let redirectPath = fromState
+      const stateRedirect = fromState
         ? `${fromState.pathname || ""}${fromState.search || ""}${fromState.hash || ""}`
         : "";
 
-      if (!redirectPath || redirectPath === "/") {
-        // Fallback: check if there is a pending voucher in sessionStorage or query params
-        const pendingVoucher =
-          sessionStorage.getItem("sauda_pending_voucher") ||
-          new URLSearchParams(location.search).get("voucher") ||
-          new URLSearchParams(location.search).get("coupon");
-        if (pendingVoucher) {
-          redirectPath = `/subscription?voucher=${encodeURIComponent(pendingVoucher.trim())}`;
+      let targetDestination = redirectToParam || stateRedirect || "/";
+
+      // If user has a pending voucher in sessionStorage, ensure they land directly on "/" (Home)
+      // where the Home page voucher claim modal can immediately claim and activate it with zero friction
+      const hasPendingVoucher = Boolean(getPendingVoucher());
+      if (hasPendingVoucher) {
+        if (
+          targetDestination.startsWith("/subscription") ||
+          targetDestination.startsWith("/pricing")
+        ) {
+          targetDestination = "/";
         }
       }
 
-      navigate(redirectPath || "/", { replace: true });
+      navigate(targetDestination || "/", { replace: true });
     } catch (error) {
       const message =
         error?.response?.data?.message || error?.message || "Unable to login. Please try again.";

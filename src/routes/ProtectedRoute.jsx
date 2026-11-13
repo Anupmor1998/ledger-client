@@ -8,7 +8,12 @@ function ProtectedRoute() {
   const isAuthenticated = Boolean(token) && Boolean(user?.id);
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    const returnUrl = `${location.pathname}${location.search}${location.hash}`;
+    const redirectParam =
+      returnUrl && returnUrl !== "/" && returnUrl !== "/login"
+        ? `?redirectTo=${encodeURIComponent(returnUrl)}`
+        : "";
+    return <Navigate to={`/login${redirectParam}`} replace state={{ from: location }} />;
   }
 
   // Admins bypass normal user onboarding

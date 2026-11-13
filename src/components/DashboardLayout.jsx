@@ -10,6 +10,7 @@ import ShareAppModal from "./ShareAppModal";
 import SubscriptionReminderBanner from "./SubscriptionReminderBanner";
 import ThemeToggle from "./ThemeToggle";
 import TourHelpButton from "./TourHelpButton";
+import VoucherRedemptionModal from "./VoucherRedemptionModal";
 
 const navigationGroups = [
   {
@@ -438,6 +439,7 @@ function DashboardLayout({ dark, onToggleTheme }) {
           <main className="mt-4 min-w-0 overflow-x-hidden">
             <ExistingUserReminders />
             <SubscriptionReminderBanner />
+            <VoucherRedemptionModal />
             <Outlet />
           </main>
         </div>

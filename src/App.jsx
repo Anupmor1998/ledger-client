@@ -5,6 +5,7 @@ import GlobalLoader from "./components/GlobalLoader";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import PushNotificationManager from "./components/PushNotificationManager";
 import { identifyUser, initAnalytics, resetUser } from "./lib/analytics";
+import { decodeVoucherToken, setPendingVoucher } from "./lib/voucherHelper";
 import AppRoutes from "./routes/AppRoutes";
 import { useAppSelector } from "./store/hooks";
 
@@ -19,9 +20,26 @@ function App({ dark, onToggleTheme }) {
     try {
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
-        const voucher = params.get("voucher") || params.get("coupon");
-        if (voucher && voucher.trim()) {
-          sessionStorage.setItem("sauda_pending_voucher", voucher.trim());
+        const encodedV = params.get("v");
+        const rawVoucher = params.get("voucher") || params.get("coupon");
+
+        let code = "";
+        if (encodedV) {
+          code = decodeVoucherToken(encodedV);
+        } else if (rawVoucher) {
+          code = decodeVoucherToken(rawVoucher);
+        }
+
+        if (code && code.trim()) {
+          setPendingVoucher(code.trim());
+
+          // Clean up the URL immediately so the voucher code is never exposed in the browser address bar
+          params.delete("v");
+          params.delete("voucher");
+          params.delete("coupon");
+          const remainingSearch = params.toString() ? `?${params.toString()}` : "";
+          const cleanUrl = `${window.location.pathname}${remainingSearch}${window.location.hash}`;
+          window.history.replaceState({}, document.title, cleanUrl);
         }
       }
     } catch {

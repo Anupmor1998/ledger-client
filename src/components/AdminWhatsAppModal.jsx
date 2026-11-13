@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "./Modal";
 import { getAdminCoupons } from "../lib/api";
+import { encodeVoucherToken } from "../lib/voucherHelper";
 
 function WhatsAppIcon({ className = "h-4 w-4" }) {
   return (
@@ -149,7 +150,8 @@ function getVoucherDeepLink(code) {
     typeof window !== "undefined" && window.location.origin
       ? window.location.origin
       : "https://saudabook.co.in";
-  return `${origin}/subscription?voucher=${encodeURIComponent(code)}`;
+  const token = encodeVoucherToken(code);
+  return `${origin}/?v=${encodeURIComponent(token)}`;
 }
 
 function formatVoucherDetails(coupon) {
@@ -186,19 +188,21 @@ function formatVoucherDetails(coupon) {
 function generateVoucherSnippet(coupon) {
   const details = formatVoucherDetails(coupon);
   if (!details) return "";
-  const { code, isFree, discountText, planText, cycleText, deepLink } = details;
+  const { isFree, discountText, planText, cycleText, deepLink } = details;
 
   if (isFree) {
-    return `🎁 *Special Gift: 100% FREE ${planText} ${cycleText}*
-Use voucher code: *${code}*
-Tap here to activate instantly:
-${deepLink}`;
+    return `🎁 *Exclusive Gift: 100% FREE ${planText} ${cycleText}*
+Tap your private link below to activate instantly on your account:
+${deepLink}
+
+_(This exclusive voucher is private to your account and activates automatically on login)_`;
   }
 
   return `🎁 *Special Voucher Offer: ${discountText} on ${planText} ${cycleText}*
-Use voucher code: *${code}*
-Tap here to claim and apply discount:
-${deepLink}`;
+Tap your private link below to claim and apply discount:
+${deepLink}
+
+_(This exclusive voucher is private to your account and applies automatically on login)_`;
 }
 
 const TEMPLATES = [

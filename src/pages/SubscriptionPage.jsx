@@ -18,6 +18,11 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { setUserProfile } from "../store/slices/authSlice";
 import { loadRazorpaySDK } from "../utils/razorpay";
 import { trackEvent } from "../lib/analytics";
+import {
+  clearPendingVoucher,
+  decodeVoucherToken,
+  getPendingVoucher,
+} from "../lib/voucherHelper";
 import OfferBanner, { BANNER_THEMES } from "../components/OfferBanner";
 
 const PLAN_TIERS = [
@@ -209,23 +214,28 @@ function SubscriptionPage() {
     loadData();
   }, []);
 
-  // Detect and validate ?voucher= or ?coupon= from URL deep link or sessionStorage
+  // Detect and validate voucher from URL deep link or sessionStorage
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    let voucherCode = params.get("voucher") || params.get("coupon");
-    if (!voucherCode) {
-      try {
-        voucherCode = sessionStorage.getItem("sauda_pending_voucher");
-      } catch {
-        // Ignore
-      }
+    const encodedV = params.get("v");
+    const rawVoucher = params.get("voucher") || params.get("coupon");
+
+    let voucherCode = "";
+    if (encodedV) {
+      voucherCode = decodeVoucherToken(encodedV);
+    } else if (rawVoucher) {
+      voucherCode = decodeVoucherToken(rawVoucher);
+    } else {
+      voucherCode = getPendingVoucher();
     }
+
     if (!voucherCode || deepLinkVoucher) return;
 
-    try {
-      sessionStorage.removeItem("sauda_pending_voucher");
-    } catch {
-      // Ignore
+    clearPendingVoucher();
+
+    // Clean address bar immediately if parameters exist
+    if (encodedV || rawVoucher) {
+      navigate("/subscription", { replace: true });
     }
 
     setVoucherLoading(true);
@@ -237,7 +247,7 @@ function SubscriptionPage() {
       .catch((err) => {
         const msg =
           err?.response?.data?.message ||
-          `Voucher code "${voucherCode}" is invalid, expired, or unavailable.`;
+          "This voucher is invalid, expired, or unavailable.";
         toast.error(msg);
         navigate("/subscription", { replace: true });
       })
@@ -1807,8 +1817,13 @@ function SubscriptionPage() {
           <div className="space-y-4 text-xs">
             {/* Voucher Card Header */}
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-2">
-              <span className="inline-block px-3 py-1 rounded-full font-mono font-extrabold text-sm tracking-wider bg-surface text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs">
-                {deepLinkVoucher.coupon.code}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-mono font-bold text-xs tracking-wider bg-surface text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs">
+                <svg viewBox="0 0 24 24" className="h-3 w-3 fill-none stroke-current stroke-2 shrink-0">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>VIP Private Voucher</span>
+                <span className="text-[10px] opacity-75 font-sans">(Verified)</span>
               </span>
 
               <div>
@@ -1942,8 +1957,8 @@ function SubscriptionPage() {
               </h3>
               <p className="text-xs text-muted-text mt-1 max-w-sm mx-auto">
                 {celebrationData.isExtension
-                  ? `Your voucher ${celebrationData.code} successfully extended your active subscription.`
-                  : `Your voucher ${celebrationData.code} was applied successfully.`}
+                  ? "Your private voucher successfully extended your active subscription."
+                  : "Your private voucher was applied successfully and your subscription is active."}
               </p>
             </div>
 
