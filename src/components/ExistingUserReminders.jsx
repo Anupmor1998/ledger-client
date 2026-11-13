@@ -15,31 +15,39 @@ export function ExistingUserReminders() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
 
-  // If user is admin, not logged in, or currently has a pending voucher to claim, suppress reminders
-  if (!user || user?.role === "ADMIN") return null;
-  if (getPendingVoucher()) return null;
-
-  const isEmailVerified = Boolean(user.isEmailVerified);
-  const isPhoneVerified = Boolean(user.isPhoneVerified);
+  const isEmailVerified = Boolean(user?.isEmailVerified);
+  const isPhoneVerified = Boolean(user?.isPhoneVerified);
   const isBothVerified = isEmailVerified && isPhoneVerified;
-  const hasFirmName = Boolean(user.firmName && user.firmName.trim());
+  const hasFirmName = Boolean(user?.firmName && user?.firmName.trim());
   const isAllComplete = isBothVerified && hasFirmName;
 
   // Session-based dismissal key (shows popup on every fresh login/session if anything is pending)
-  const LOGIN_POPUP_DISMISS_KEY = `saudabook_setup_modal_dismissed_${user.id}`;
-  const VERIFY_BANNER_DISMISS_KEY = `saudabook_dismiss_verify_${user.id}`;
-  const BIZ_BANNER_DISMISS_KEY = `saudabook_dismiss_biz_${user.id}`;
+  const LOGIN_POPUP_DISMISS_KEY = user?.id
+    ? `saudabook_setup_modal_dismissed_${user.id}`
+    : "";
+  const VERIFY_BANNER_DISMISS_KEY = user?.id
+    ? `saudabook_dismiss_verify_${user.id}`
+    : "";
+  const BIZ_BANNER_DISMISS_KEY = user?.id
+    ? `saudabook_dismiss_biz_${user.id}`
+    : "";
 
   const [showSetupModal, setShowSetupModal] = useState(() => {
-    if (isAllComplete) return false;
-    return sessionStorage.getItem(LOGIN_POPUP_DISMISS_KEY) !== "true";
+    if (!user?.id || isAllComplete) return false;
+    return LOGIN_POPUP_DISMISS_KEY
+      ? sessionStorage.getItem(LOGIN_POPUP_DISMISS_KEY) !== "true"
+      : false;
   });
 
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(() => {
-    return sessionStorage.getItem(VERIFY_BANNER_DISMISS_KEY) === "true";
+    return VERIFY_BANNER_DISMISS_KEY
+      ? sessionStorage.getItem(VERIFY_BANNER_DISMISS_KEY) === "true"
+      : false;
   });
   const [bizBannerDismissed, setBizBannerDismissed] = useState(() => {
-    return sessionStorage.getItem(BIZ_BANNER_DISMISS_KEY) === "true";
+    return BIZ_BANNER_DISMISS_KEY
+      ? sessionStorage.getItem(BIZ_BANNER_DISMISS_KEY) === "true"
+      : false;
   });
 
   // Modal triggers
@@ -48,19 +56,34 @@ export function ExistingUserReminders() {
 
   // Quick Business Setup Form State (inside popup)
   const [isEditingBiz, setIsEditingBiz] = useState(!hasFirmName);
-  const [firmName, setFirmName] = useState(user.firmName || "");
-  const [businessSubtitle, setBusinessSubtitle] = useState(user.businessSubtitle || "");
-  const [contactPhone, setContactPhone] = useState(user.contactPhone || "");
-  const [businessAddress, setBusinessAddress] = useState(user.businessAddress || "");
+  const [firmName, setFirmName] = useState(user?.firmName || "");
+  const [businessSubtitle, setBusinessSubtitle] = useState(
+    user?.businessSubtitle || ""
+  );
+  const [contactPhone, setContactPhone] = useState(user?.contactPhone || "");
+  const [businessAddress, setBusinessAddress] = useState(
+    user?.businessAddress || ""
+  );
   const [savingBiz, setSavingBiz] = useState(false);
 
   // Keep state in sync if user changes
   useEffect(() => {
-    setFirmName(user.firmName || "");
-    setBusinessSubtitle(user.businessSubtitle || "");
-    setContactPhone(user.contactPhone || "");
-    setBusinessAddress(user.businessAddress || "");
-  }, [user.firmName, user.businessSubtitle, user.contactPhone, user.businessAddress]);
+    setFirmName(user?.firmName || "");
+    setBusinessSubtitle(user?.businessSubtitle || "");
+    setContactPhone(user?.contactPhone || "");
+    setBusinessAddress(user?.businessAddress || "");
+  }, [
+    user?.firmName,
+    user?.businessSubtitle,
+    user?.contactPhone,
+    user?.businessAddress,
+  ]);
+
+  // If user is admin or not logged in, no reminders needed (placed safely AFTER all hooks)
+  if (!user || user?.role === "ADMIN") return null;
+
+  const hasPendingVoucher = Boolean(getPendingVoucher());
+  const shouldShowSetupModal = showSetupModal && !isAllComplete && !hasPendingVoucher;
 
   function handleDismissSetupModal() {
     sessionStorage.setItem(LOGIN_POPUP_DISMISS_KEY, "true");
@@ -109,7 +132,7 @@ export function ExistingUserReminders() {
       {/* ========================================================
           1. OPTIONAL ACCOUNT SETUP & VERIFICATION POPUP (ON LOGIN)
          ======================================================== */}
-      {showSetupModal && !isAllComplete && (
+      {shouldShowSetupModal && (
         <Modal
           title={
             <div className="flex items-center gap-2">
