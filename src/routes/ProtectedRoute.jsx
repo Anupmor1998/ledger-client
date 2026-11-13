@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { getPendingVoucher } from "../lib/voucherHelper";
 import { useAppSelector } from "../store/hooks";
 
 function ProtectedRoute() {
@@ -8,12 +9,22 @@ function ProtectedRoute() {
   const isAuthenticated = Boolean(token) && Boolean(user?.id);
 
   if (!isAuthenticated) {
-    const returnUrl = `${location.pathname}${location.search}${location.hash}`;
+    let returnUrl = `${location.pathname}${location.search}${location.hash}`;
+    const pendingVoucher = getPendingVoucher();
+    if (
+      pendingVoucher ||
+      returnUrl.includes("voucher") ||
+      returnUrl.includes("coupon") ||
+      returnUrl.startsWith("/subscription")
+    ) {
+      returnUrl = "/";
+    }
+
     const redirectParam =
       returnUrl && returnUrl !== "/" && returnUrl !== "/login"
         ? `?redirectTo=${encodeURIComponent(returnUrl)}`
         : "";
-    return <Navigate to={`/login${redirectParam}`} replace state={{ from: location }} />;
+    return <Navigate to={`/login${redirectParam}`} replace state={{ from: { pathname: "/" } }} />;
   }
 
   // Admins bypass normal user onboarding

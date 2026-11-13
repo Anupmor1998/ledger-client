@@ -12,6 +12,7 @@ import {
   getAdminCoupons,
   updateAdminCoupon,
 } from "../lib/api";
+import { encodeVoucherToken } from "../lib/voucherHelper";
 
 function TagIcon({ className = "h-4 w-4" }) {
   return (
@@ -166,7 +167,8 @@ function AdminCouponsPage() {
     const origin = typeof window !== "undefined" && window.location.origin
       ? window.location.origin
       : "https://saudabook.co.in";
-    return `${origin}/subscription?voucher=${encodeURIComponent(code)}`;
+    const token = encodeVoucherToken(code);
+    return `${origin}/?v=${encodeURIComponent(token)}`;
   }
 
   function handleCopy(code) {
@@ -203,15 +205,15 @@ function AdminCouponsPage() {
         : "";
 
     const promoHeadline = isFree
-      ? `🎁 Special Voucher: Activate your ${planText} ${cycleText} 100% FREE on Sauda Book!`
-      : `🎉 Special Offer: Get ${discountText} on your ${planText} ${cycleText}!`;
+      ? `🎁 *Special Voucher: 100% FREE ${planText} ${cycleText} on Sauda Book!*`
+      : `🎉 *Special Offer: Get ${discountText} on your ${planText} ${cycleText}!*`;
 
     const text = `${promoHeadline}
 
-Voucher Code: ${coupon.code}
+Tap your private link below to claim & activate directly:
+${link}
 
-Tap this link to claim & activate directly:
-${link}`;
+_(This exclusive voucher is private to your account and activates automatically on login)_`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   }

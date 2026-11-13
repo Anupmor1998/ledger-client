@@ -20,8 +20,19 @@ function App({ dark, onToggleTheme }) {
     try {
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
-        const encodedV = params.get("v");
-        const rawVoucher = params.get("voucher") || params.get("coupon");
+        let encodedV = params.get("v");
+        let rawVoucher = params.get("voucher") || params.get("coupon");
+
+        // Check if voucher is embedded inside a redirectTo query param
+        const redirectTo = params.get("redirectTo");
+        if (redirectTo && (!rawVoucher && !encodedV)) {
+          const qIdx = redirectTo.indexOf("?");
+          if (qIdx !== -1) {
+            const innerParams = new URLSearchParams(redirectTo.slice(qIdx));
+            encodedV = innerParams.get("v");
+            rawVoucher = innerParams.get("voucher") || innerParams.get("coupon");
+          }
+        }
 
         let code = "";
         if (encodedV) {
@@ -38,7 +49,14 @@ function App({ dark, onToggleTheme }) {
           params.delete("voucher");
           params.delete("coupon");
           const remainingSearch = params.toString() ? `?${params.toString()}` : "";
-          const cleanUrl = `${window.location.pathname}${remainingSearch}${window.location.hash}`;
+
+          // If user landed on /subscription with a voucher, route to "/" (Home dashboard)
+          let targetPath = window.location.pathname;
+          if (targetPath.startsWith("/subscription") || targetPath.startsWith("/pricing")) {
+            targetPath = "/";
+          }
+
+          const cleanUrl = `${targetPath}${remainingSearch}${window.location.hash}`;
           window.history.replaceState({}, document.title, cleanUrl);
         }
       }

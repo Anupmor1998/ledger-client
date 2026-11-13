@@ -25,14 +25,19 @@ export default function VoucherRedemptionModal() {
   const [celebrationData, setCelebrationData] = useState(null);
 
   useEffect(() => {
-    // Only process when user is authenticated and not already on the dedicated /subscription page
-    if (!user?.id || location.pathname === "/subscription") {
+    // Only process when user is authenticated
+    if (!user?.id) {
       return;
     }
 
     const pendingCode = getPendingVoucher();
     if (!pendingCode || isOpen || celebrationData) {
       return;
+    }
+
+    // If user landed on /subscription with a pending voucher, guide them to Home ("/")
+    if (location.pathname.startsWith("/subscription")) {
+      navigate("/", { replace: true });
     }
 
     let isMounted = true;

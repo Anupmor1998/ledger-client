@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import AuthLayout from "../components/AuthLayout";
 import { login } from "../lib/api";
-import { getPendingVoucher } from "../lib/voucherHelper";
+import { decodeVoucherToken, getPendingVoucher, setPendingVoucher } from "../lib/voucherHelper";
 import { useAppDispatch } from "../store/hooks";
 import { setSession } from "../store/slices/authSlice";
 import { loginSchema } from "../validation/authSchemas";
@@ -43,7 +43,20 @@ function LoginPage() {
 
       // Honor deep linked redirect via 'redirectTo' query parameter or location.state?.from
       const searchParams = new URLSearchParams(location.search);
+      let voucherFromSearch = searchParams.get("v") || searchParams.get("voucher") || searchParams.get("coupon");
       const redirectToParam = searchParams.get("redirectTo");
+      if (redirectToParam && !voucherFromSearch) {
+        const qIdx = redirectToParam.indexOf("?");
+        if (qIdx !== -1) {
+          const innerParams = new URLSearchParams(redirectToParam.slice(qIdx));
+          voucherFromSearch = innerParams.get("v") || innerParams.get("voucher") || innerParams.get("coupon");
+        }
+      }
+      if (voucherFromSearch) {
+        const decoded = decodeVoucherToken(voucherFromSearch);
+        if (decoded) setPendingVoucher(decoded);
+      }
+
       const fromState = location.state?.from;
       const stateRedirect = fromState
         ? `${fromState.pathname || ""}${fromState.search || ""}${fromState.hash || ""}`

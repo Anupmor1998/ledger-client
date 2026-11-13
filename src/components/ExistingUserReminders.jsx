@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { updateMyProfile } from "../lib/api";
+import { getPendingVoucher } from "../lib/voucherHelper";
 import { setUserProfile } from "../store/slices/authSlice";
 import {
   EmailVerificationModal,
@@ -14,8 +15,9 @@ export function ExistingUserReminders() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
 
-  // If user is admin or not logged in, no reminders needed
+  // If user is admin, not logged in, or currently has a pending voucher to claim, suppress reminders
   if (!user || user?.role === "ADMIN") return null;
+  if (getPendingVoucher()) return null;
 
   const isEmailVerified = Boolean(user.isEmailVerified);
   const isPhoneVerified = Boolean(user.isPhoneVerified);
