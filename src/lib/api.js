@@ -837,3 +837,8 @@ export async function deleteAdminWhatsAppTemplate(id) {
   return response.data;
 }
 
+export async function signVoucherLink(data) {
+  const response = await axiosClient.post("/admin/coupons/sign-link", data);
+  return response.data;
+}
+

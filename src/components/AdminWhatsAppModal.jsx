@@ -6,8 +6,23 @@ import {
   getAdminWhatsAppTemplates,
   createAdminWhatsAppTemplate,
   deleteAdminWhatsAppTemplate,
+  signVoucherLink,
 } from "../lib/api";
 import { encodeVoucherToken } from "../lib/voucherHelper";
+
+function LockIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
 
 function BookmarkIcon({ className = "h-4 w-4" }) {
   return (
@@ -186,7 +201,7 @@ function getVoucherDeepLink(code) {
   return `${origin}/?v=${encodeURIComponent(token)}`;
 }
 
-function formatVoucherDetails(coupon) {
+function formatVoucherDetails(coupon, linkOverride = null, isLocked = false) {
   if (!coupon) return null;
   const isFree =
     coupon.discountType === "PERCENTAGE" && Number(coupon.discountValue) === 100;
@@ -205,7 +220,7 @@ function formatVoucherDetails(coupon) {
       ? `(${coupon.applicableCycle === "YEARLY" ? "1 Year" : "1 Month"})`
       : "";
 
-  const deepLink = getVoucherDeepLink(coupon.code);
+  const deepLink = linkOverride || getVoucherDeepLink(coupon.code);
 
   return {
     code: coupon.code,
@@ -214,11 +229,12 @@ function formatVoucherDetails(coupon) {
     planText,
     cycleText,
     deepLink,
+    isLocked,
   };
 }
 
-function generateVoucherSnippet(coupon) {
-  const details = formatVoucherDetails(coupon);
+function generateVoucherSnippet(coupon, linkOverride = null) {
+  const details = formatVoucherDetails(coupon, linkOverride);
   if (!details) return "";
   const { isFree, discountText, planText, cycleText, deepLink } = details;
 
@@ -395,14 +411,65 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
     }
   }, [isOpen]);
 
+  const [signedVoucherData, setSignedVoucherData] = useState(null);
+  const [signingVoucher, setSigningVoucher] = useState(false);
+
   const activeCoupon = useMemo(() => {
     if (!coupons.length) return null;
     return coupons.find((c) => c.code === selectedCouponCode) || coupons[0] || null;
   }, [coupons, selectedCouponCode]);
 
+  useEffect(() => {
+    let isCurrent = true;
+    if (isOpen && activeCoupon?.code && user?.id) {
+      setSigningVoucher(true);
+      signVoucherLink({
+        code: activeCoupon.code,
+        targetUserId: user.id,
+        targetPhone: user.contactPhone || user.phone,
+      })
+        .then((res) => {
+          if (!isCurrent) return;
+          if (res?.token) {
+            const origin =
+              typeof window !== "undefined" && window.location.origin
+                ? window.location.origin
+                : "https://saudabook.co.in";
+            setSignedVoucherData({
+              token: res.token,
+              link: `${origin}/?v=${encodeURIComponent(res.token)}`,
+              isLocked: res.isLocked,
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to sign voucher link:", err);
+          if (isCurrent) setSignedVoucherData(null);
+        })
+        .finally(() => {
+          if (isCurrent) setSigningVoucher(false);
+        });
+    } else {
+      setSignedVoucherData(null);
+    }
+    return () => {
+      isCurrent = false;
+    };
+  }, [isOpen, activeCoupon?.code, user?.id, user?.contactPhone, user?.phone]);
+
+  const activeVoucherLink = useMemo(() => {
+    if (signedVoucherData?.link) return signedVoucherData.link;
+    if (activeCoupon?.code) return getVoucherDeepLink(activeCoupon.code);
+    return "";
+  }, [signedVoucherData, activeCoupon]);
+
   const activeCouponDetails = useMemo(() => {
-    return formatVoucherDetails(activeCoupon);
-  }, [activeCoupon]);
+    return formatVoucherDetails(
+      activeCoupon,
+      activeVoucherLink,
+      Boolean(signedVoucherData?.isLocked)
+    );
+  }, [activeCoupon, activeVoucherLink, signedVoucherData]);
 
   // Combined built-in + database custom templates
   const allTemplates = useMemo(() => {
@@ -423,10 +490,17 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
   }, [customTemplates]);
 
   // Interpolation helper
-  const interpolate = (tplText, couponOverride = activeCoupon) => {
+  const interpolate = (tplText, couponOverride = activeCoupon, linkOverride = null) => {
     if (!tplText) return "";
+    const effectiveLink =
+      linkOverride ||
+      (couponOverride?.code === activeCoupon?.code
+        ? activeVoucherLink
+        : couponOverride
+        ? getVoucherDeepLink(couponOverride.code)
+        : "");
     const voucherSnippet = couponOverride
-      ? generateVoucherSnippet(couponOverride)
+      ? generateVoucherSnippet(couponOverride, effectiveLink)
       : "[Select a voucher above to populate offer details]";
 
     return tplText
@@ -436,7 +510,7 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
       .replace(/\{\{plan\}\}/g, userPlan)
       .replace(/\{\{voucherSnippet\}\}/g, voucherSnippet)
       .replace(/\{\{voucherCode\}\}/g, couponOverride?.code || "")
-      .replace(/\{\{voucherLink\}\}/g, couponOverride ? getVoucherDeepLink(couponOverride.code) : "");
+      .replace(/\{\{voucherLink\}\}/g, effectiveLink);
   };
 
   // Populate initial state on open
@@ -522,7 +596,11 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
       toast.error("Please select a voucher first.");
       return;
     }
-    const snippet = generateVoucherSnippet(couponToInsert);
+    const effectiveLink =
+      couponToInsert.code === activeCoupon?.code
+        ? activeVoucherLink
+        : getVoucherDeepLink(couponToInsert.code);
+    const snippet = generateVoucherSnippet(couponToInsert, effectiveLink);
     const textarea = textareaRef.current;
     if (!textarea) {
       setMessage((prev) => (prev ? `${prev}\n\n${snippet}` : snippet));
@@ -903,6 +981,15 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
                     >
                       {activeCouponDetails.discountText}
                     </span>
+                    {activeCouponDetails.isLocked && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                        title={`Cryptographically locked to ${userName}`}
+                      >
+                        <LockIcon className="h-3 w-3 shrink-0" />
+                        <span>Locked to {userName}</span>
+                      </span>
+                    )}
                     <span className="text-[11px] text-muted-text">
                       Target: <strong className="text-text font-medium">{activeCouponDetails.planText} {activeCouponDetails.cycleText}</strong>
                     </span>
@@ -914,11 +1001,15 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
                       if (!activeCouponDetails.deepLink) return;
                       await navigator.clipboard.writeText(activeCouponDetails.deepLink);
                       setCopiedVoucherLink(true);
-                      toast.success("Voucher deep link copied!");
+                      toast.success(
+                        activeCouponDetails.isLocked
+                          ? "Customer-locked voucher link copied!"
+                          : "Voucher deep link copied!"
+                      );
                       setTimeout(() => setCopiedVoucherLink(false), 2000);
                     }}
                     className="text-[11px] font-mono text-muted-text hover:text-emerald-600 dark:hover:text-emerald-400 inline-flex items-center gap-1 transition ml-auto"
-                    title="Copy direct deep link"
+                    title={activeCouponDetails.isLocked ? "Copy locked voucher link" : "Copy direct deep link"}
                   >
                     {copiedVoucherLink ? (
                       <>
@@ -928,7 +1019,7 @@ export default function AdminWhatsAppModal({ isOpen, onClose, user }) {
                     ) : (
                       <>
                         <CopyIcon className="h-3 w-3" />
-                        <span>Copy Deep Link</span>
+                        <span>{activeCouponDetails.isLocked ? "Copy Locked Link" : "Copy Deep Link"}</span>
                       </>
                     )}
                   </button>

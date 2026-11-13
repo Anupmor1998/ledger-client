@@ -1,5 +1,5 @@
 import { format, isValid, parseISO } from "date-fns";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
 import DatePicker from "../components/DatePicker";
@@ -10,6 +10,8 @@ import {
   deleteAdminCoupon,
   generateAdminCouponBatch,
   getAdminCoupons,
+  getAdminUsersSelector,
+  signVoucherLink,
   updateAdminCoupon,
 } from "../lib/api";
 import { encodeVoucherToken } from "../lib/voucherHelper";
@@ -55,6 +57,92 @@ function CheckIcon({ className = "h-3.5 w-3.5" }) {
   );
 }
 
+function LockIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+function GlobeIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
+function ShareIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    </svg>
+  );
+}
+
+function ShieldCheckIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-none stroke-current stroke-2 shrink-0`}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ className = "h-4 w-4" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`${className} fill-current shrink-0`}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+    </svg>
+  );
+}
+
 function formatDate(dateValue) {
   if (!dateValue) return "No Expiry";
   try {
@@ -92,6 +180,17 @@ function AdminCouponsPage() {
   const [editingCoupon, setEditingCoupon] = useState(null);
   const [batchResults, setBatchResults] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
+
+  // Share / Lock Voucher Modal state
+  const [shareModalCoupon, setShareModalCoupon] = useState(null);
+  const [shareTargetMode, setShareTargetMode] = useState("LOCKED"); // "LOCKED" | "GENERAL"
+  const [usersSelector, setUsersSelector] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [signedShareData, setSignedShareData] = useState(null);
+  const [signingShareLink, setSigningShareLink] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // Form states
   const [singleForm, setSingleForm] = useState({
@@ -179,17 +278,123 @@ function AdminCouponsPage() {
     setTimeout(() => setCopiedCode(null), 2000);
   }
 
-  function handleCopyDeepLink(code) {
-    if (!code) return;
-    const link = getVoucherDeepLink(code);
-    navigator.clipboard.writeText(link);
-    setCopiedCode(code);
-    toast.success("Voucher deep link copied to clipboard!");
-    setTimeout(() => setCopiedCode(null), 2500);
-  }
+  const selectedUser = useMemo(() => {
+    if (!selectedUserId) return null;
+    return usersSelector.find((u) => u.id === selectedUserId) || null;
+  }, [usersSelector, selectedUserId]);
 
-  function handleShareWhatsApp(coupon) {
-    const link = getVoucherDeepLink(coupon.code);
+  const filteredUsers = useMemo(() => {
+    if (!userSearchQuery.trim()) return usersSelector.slice(0, 80);
+    const q = userSearchQuery.toLowerCase().trim();
+    return usersSelector
+      .filter((u) => {
+        const nameMatch = u.name?.toLowerCase().includes(q);
+        const firmMatch = u.firmName?.toLowerCase().includes(q);
+        const phoneMatch = u.contactPhone?.toLowerCase().includes(q);
+        const emailMatch = u.email?.toLowerCase().includes(q);
+        return nameMatch || firmMatch || phoneMatch || emailMatch;
+      })
+      .slice(0, 80);
+  }, [usersSelector, userSearchQuery]);
+
+  const handleOpenShareModal = async (coupon) => {
+    setShareModalCoupon(coupon);
+    setShareTargetMode("LOCKED");
+    setSelectedUserId("");
+    setUserSearchQuery("");
+    setSignedShareData(null);
+    setShareCopied(false);
+
+    if (usersSelector.length === 0) {
+      setLoadingUsers(true);
+      try {
+        const payload = await getAdminUsersSelector();
+        if (Array.isArray(payload?.users)) {
+          setUsersSelector(payload.users);
+        }
+      } catch (_err) {
+        toast.error("Failed to load customer list for locking");
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!shareModalCoupon) {
+      setSignedShareData(null);
+      return;
+    }
+
+    if (shareTargetMode === "GENERAL") {
+      const origin =
+        typeof window !== "undefined" && window.location.origin
+          ? window.location.origin
+          : "https://saudabook.co.in";
+      const token = encodeVoucherToken(shareModalCoupon.code);
+      setSignedShareData({
+        token,
+        link: `${origin}/?v=${encodeURIComponent(token)}`,
+        isLocked: false,
+      });
+      return;
+    }
+
+    // LOCKED mode
+    if (selectedUser) {
+      setSigningShareLink(true);
+      signVoucherLink({
+        code: shareModalCoupon.code,
+        targetUserId: selectedUser.id,
+        targetPhone: selectedUser.contactPhone,
+      })
+        .then((res) => {
+          if (!cancelled && res?.token) {
+            const origin =
+              typeof window !== "undefined" && window.location.origin
+                ? window.location.origin
+                : "https://saudabook.co.in";
+            setSignedShareData({
+              token: res.token,
+              link: `${origin}/?v=${encodeURIComponent(res.token)}`,
+              isLocked: res.isLocked,
+              targetUserName: res.targetUserName,
+              targetFirmName: res.targetFirmName,
+              targetPhone: res.targetPhone,
+            });
+          }
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            toast.error(err?.response?.data?.message || "Failed to generate locked link");
+            setSignedShareData(null);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setSigningShareLink(false);
+        });
+    } else {
+      setSignedShareData(null);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shareModalCoupon, shareTargetMode, selectedUser]);
+
+  const handleCopyShareLink = async () => {
+    if (!signedShareData?.link) return;
+    await navigator.clipboard.writeText(signedShareData.link);
+    setShareCopied(true);
+    toast.success("Voucher link copied to clipboard!");
+    setTimeout(() => setShareCopied(false), 2000);
+  };
+
+  const handleShareModalWhatsApp = () => {
+    if (!shareModalCoupon || !signedShareData?.link) return;
+    const coupon = shareModalCoupon;
+    const link = signedShareData.link;
     const discountText =
       coupon.discountType === "PERCENTAGE"
         ? `${coupon.discountValue}% OFF`
@@ -204,19 +409,36 @@ function AdminCouponsPage() {
         ? `(${coupon.applicableCycle === "YEARLY" ? "1 Year" : "1 Month"})`
         : "";
 
-    const promoHeadline = isFree
-      ? `🎁 *Special Voucher: 100% FREE ${planText} ${cycleText} on Sauda Book!*`
-      : `🎉 *Special Offer: Get ${discountText} on your ${planText} ${cycleText}!*`;
+    const greeting = selectedUser?.name
+      ? `Hello ${selectedUser.name}${selectedUser.firmName ? ` (${selectedUser.firmName})` : ""},\n\n`
+      : "";
 
-    const text = `${promoHeadline}
+    const promoHeadline = isFree
+      ? `Special Voucher: 100% FREE ${planText} ${cycleText} on Sauda Book!`
+      : `Special Offer: Get ${discountText} on your ${planText} ${cycleText}!`;
+
+    const lockNotice = signedShareData.isLocked
+      ? `_(This exclusive voucher is cryptographically locked to your account and activates automatically on login)_`
+      : `_(This voucher activates automatically on login)_`;
+
+    const text = `${greeting}*${promoHeadline}*
 
 Tap your private link below to claim & activate directly:
 ${link}
 
-_(This exclusive voucher is private to your account and activates automatically on login)_`;
-    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
-  }
+${lockNotice}`;
+
+    let waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    if (signedShareData.isLocked && selectedUser?.contactPhone) {
+      const cleanDigits = String(selectedUser.contactPhone).replace(/\D/g, "");
+      if (cleanDigits) {
+        const fullPhone = cleanDigits.length === 10 ? `91${cleanDigits}` : cleanDigits;
+        waUrl = `https://api.whatsapp.com/send?phone=${fullPhone}&text=${encodeURIComponent(text)}`;
+      }
+    }
+
+    window.open(waUrl, "_blank");
+  };
 
   async function handleToggleStatus(coupon) {
     try {
@@ -699,29 +921,15 @@ _(This exclusive voucher is private to your account and activates automatically 
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Share on WhatsApp Button */}
+                          {/* Share / Lock Voucher Link Button */}
                           <button
                             type="button"
-                            onClick={() => handleShareWhatsApp(coupon)}
-                            className="p-1.5 rounded-lg border border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 transition"
-                            title="Share voucher link on WhatsApp"
+                            onClick={() => handleOpenShareModal(coupon)}
+                            className="px-2.5 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition flex items-center gap-1.5 text-xs font-semibold"
+                            title="Generate customer-locked voucher link or share on WhatsApp"
                           >
-                            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
-                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                            </svg>
-                          </button>
-
-                          {/* Copy Deep Link Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleCopyDeepLink(coupon.code)}
-                            className="p-1.5 rounded-lg border border-border text-muted-text hover:text-text hover:bg-bg transition"
-                            title="Copy voucher deep link"
-                          >
-                            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current stroke-2">
-                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                            </svg>
+                            <ShareIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span>Share Link</span>
                           </button>
 
                           {/* Toggle Active Button */}
@@ -1801,6 +2009,270 @@ _(This exclusive voucher is private to your account and activates automatically 
               )}
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Share / Lock Voucher Modal */}
+      {shareModalCoupon && (
+        <Modal
+          title={`Share Voucher: ${shareModalCoupon.code}`}
+          onClose={() => setShareModalCoupon(null)}
+          footer={
+            <div className="flex items-center justify-between gap-3 pt-1 w-full">
+              <div className="text-xs text-muted-text truncate">
+                {shareTargetMode === "LOCKED" ? (
+                  selectedUser ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium inline-flex items-center gap-1.5">
+                      <ShieldCheckIcon className="h-4 w-4 shrink-0" />
+                      Locked to {selectedUser.name || selectedUser.firmName || "Customer"}
+                    </span>
+                  ) : (
+                    <span>Select a customer above to lock this voucher</span>
+                  )
+                ) : (
+                  <span className="text-sky-600 dark:text-sky-400 font-medium inline-flex items-center gap-1.5">
+                    <GlobeIcon className="h-4 w-4 shrink-0" />
+                    Public voucher link (unlocked)
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShareModalCoupon(null)}
+                className="ghost-btn text-xs py-2 px-4 shrink-0"
+              >
+                Close
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            {/* Voucher Overview Card */}
+            <div className="p-3.5 rounded-xl bg-surface border border-border flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
+                  <TagIcon className="h-5 w-5 shrink-0" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-bold text-sm text-text tracking-wide">
+                      {shareModalCoupon.code}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      {shareModalCoupon.discountType === "PERCENTAGE"
+                        ? `${shareModalCoupon.discountValue}% OFF`
+                        : `₹${Number(shareModalCoupon.discountValue).toLocaleString("en-IN")} FLAT OFF`}
+                    </span>
+                    {shareModalCoupon.discountType === "PERCENTAGE" &&
+                      Number(shareModalCoupon.discountValue) === 100 && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                          100% FREE
+                        </span>
+                      )}
+                  </div>
+                  <p className="text-[11px] text-muted-text truncate mt-1">
+                    Target: {shareModalCoupon.applicablePlan !== "ALL" ? `${shareModalCoupon.applicablePlan} Plan` : "All Plans"} •{" "}
+                    {shareModalCoupon.applicableCycle !== "ALL"
+                      ? shareModalCoupon.applicableCycle === "YEARLY"
+                        ? "1 Year"
+                        : "1 Month"
+                      : "All Cycles"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Mode Switcher */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-text">Link Security Mode</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShareTargetMode("LOCKED")}
+                  className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                    shareTargetMode === "LOCKED"
+                      ? "border-primary bg-primary/5 text-primary shadow-xs"
+                      : "border-border bg-surface text-muted-text hover:text-text hover:bg-surface-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <LockIcon className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="text-xs font-bold text-text">Account-Locked Link</span>
+                  </div>
+                  <p className="text-[11px] text-muted-text leading-tight">
+                    Tied strictly to one customer. Server rejects redemption if forwarded to anyone else.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShareTargetMode("GENERAL")}
+                  className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                    shareTargetMode === "GENERAL"
+                      ? "border-primary bg-primary/5 text-primary shadow-xs"
+                      : "border-border bg-surface text-muted-text hover:text-text hover:bg-surface-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <GlobeIcon className="h-4 w-4 shrink-0 text-sky-600" />
+                    <span className="text-xs font-bold text-text">General Public Link</span>
+                  </div>
+                  <p className="text-[11px] text-muted-text leading-tight">
+                    Unlocked link. Any registered user or new sign up can redeem upon clicking.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* When LOCKED mode: Customer search & selector */}
+            {shareTargetMode === "LOCKED" && (
+              <div className="space-y-2 pt-1 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text">
+                    Choose Customer to Lock Voucher For
+                  </label>
+                  {loadingUsers && (
+                    <span className="text-[11px] text-muted-text animate-pulse">
+                      Loading customer directory...
+                    </span>
+                  )}
+                </div>
+
+                {/* Search input */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-text">
+                    <SearchIcon className="h-3.5 w-3.5 shrink-0" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by customer name, firm, phone, or email..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-bg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                {/* Dropdown select */}
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">
+                    -- Select Customer ({filteredUsers.length} available) --
+                  </option>
+                  {filteredUsers.map((u) => {
+                    const labelParts = [
+                      u.name || "Unnamed",
+                      u.firmName ? `(${u.firmName})` : null,
+                      u.contactPhone ? `• ${u.contactPhone}` : null,
+                      u.subscriptionPlan ? `[${u.subscriptionPlan}]` : null,
+                    ].filter(Boolean);
+                    return (
+                      <option key={u.id} value={u.id}>
+                        {labelParts.join(" ")}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {/* Selected User Guarantee Box */}
+                {selectedUser ? (
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-1.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                        <ShieldCheckIcon className="h-4 w-4 shrink-0" />
+                        <span>Locked to: {selectedUser.name || "Customer"}</span>
+                      </div>
+                      {selectedUser.contactPhone && (
+                        <span className="font-mono text-[11px] text-emerald-800 dark:text-emerald-300">
+                          {selectedUser.contactPhone}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 leading-relaxed">
+                      {selectedUser.firmName ? `${selectedUser.firmName} • ` : ""}
+                      {selectedUser.email ? `${selectedUser.email} • ` : ""}
+                      Current Plan: <strong>{selectedUser.subscriptionPlan || "FREE"}</strong> ({selectedUser.subscriptionStatus || "ACTIVE"})
+                    </p>
+                    <p className="text-[10px] text-muted-text border-t border-emerald-500/20 pt-1.5 mt-1">
+                      This link includes a cryptographically signed token. Only this customer's account can redeem it; anyone else will see an unauthorized account error.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-surface-muted border border-dashed border-border text-center text-muted-text text-xs">
+                    Please select a customer from the dropdown above to generate their personalized locked link.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Generated Link & Copy / Share Buttons */}
+            <div className="space-y-2 pt-1 border-t border-border">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-text">Voucher Claim Deep Link</label>
+                {signingShareLink && (
+                  <span className="text-[11px] text-primary animate-pulse">
+                    Generating signed link...
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={signedShareData?.link || ""}
+                  placeholder={
+                    shareTargetMode === "LOCKED" && !selectedUser
+                      ? "Select a customer to generate locked link..."
+                      : "Generating link..."
+                  }
+                  onClick={(e) => e.target.select()}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg text-xs font-mono select-all focus:outline-none focus:ring-1 focus:ring-primary flex-1"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleCopyShareLink}
+                  disabled={!signedShareData?.link}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shrink-0 ${
+                    shareCopied
+                      ? "bg-emerald-600 text-white"
+                      : "border border-border bg-surface hover:bg-surface-muted text-text disabled:opacity-50"
+                  }`}
+                  title="Copy voucher link"
+                >
+                  {shareCopied ? (
+                    <>
+                      <CheckIcon className="h-3.5 w-3.5 shrink-0" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <CopyIcon className="h-3.5 w-3.5 shrink-0" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Share on WhatsApp Button */}
+              <button
+                type="button"
+                onClick={handleShareModalWhatsApp}
+                disabled={!signedShareData?.link}
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 shadow-sm"
+              >
+                <WhatsAppIcon className="h-4 w-4 shrink-0" />
+                <span>
+                  {shareTargetMode === "LOCKED" && selectedUser?.contactPhone
+                    ? `Send to ${selectedUser.name || "Customer"}'s WhatsApp (${selectedUser.contactPhone})`
+                    : "Share via WhatsApp"}
+                </span>
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

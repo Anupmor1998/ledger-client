@@ -35,14 +35,17 @@ function App({ dark, onToggleTheme }) {
         }
 
         let code = "";
+        let rawToken = "";
         if (encodedV) {
           code = decodeVoucherToken(encodedV);
+          rawToken = encodedV;
         } else if (rawVoucher) {
           code = decodeVoucherToken(rawVoucher);
+          rawToken = rawVoucher;
         }
 
         if (code && code.trim()) {
-          setPendingVoucher(code.trim());
+          setPendingVoucher(code.trim(), rawToken);
 
           // Clean up the URL immediately so the voucher code is never exposed in the browser address bar
           params.delete("v");

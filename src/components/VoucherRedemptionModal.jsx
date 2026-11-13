@@ -7,6 +7,7 @@ import { trackEvent } from "../lib/analytics";
 import {
   clearPendingVoucher,
   getPendingVoucher,
+  getPendingVoucherToken,
 } from "../lib/voucherHelper";
 import { getPlanTier } from "../config/subscriptionPlans";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
@@ -43,7 +44,10 @@ export default function VoucherRedemptionModal() {
     let isMounted = true;
     setLoading(true);
 
-    validateCouponCode({ code: pendingCode })
+    validateCouponCode({
+      code: pendingCode,
+      voucherToken: getPendingVoucherToken(),
+    })
       .then((res) => {
         if (!isMounted) return;
         setVoucherData(res);
@@ -99,6 +103,7 @@ export default function VoucherRedemptionModal() {
           plan: voucherData.targetPlan,
           billingCycle: voucherData.targetCycle,
           couponCode: pendingCode,
+          voucherToken: getPendingVoucherToken(),
         });
 
         trackEvent("voucher_free_home_activated", {
