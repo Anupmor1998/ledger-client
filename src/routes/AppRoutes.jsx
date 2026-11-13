@@ -118,11 +118,21 @@ function AppRoutes({ dark, onToggleTheme }) {
         <Route
           path="/"
           element={
-            hasAccount ? (
-              <Navigate to="/login" replace />
-            ) : (
-              <LandingPage dark={dark} onToggleTheme={onToggleTheme} />
-            )
+            (() => {
+              if (typeof window !== "undefined") {
+                const search = window.location.search;
+                const match = search.match(/[?&](?:ref|r|referral)=([^&]+)/i);
+                if (match) {
+                  const code = decodeURIComponent(match[1]).trim().toUpperCase();
+                  return <Navigate to={`/signup?ref=${code}`} replace />;
+                }
+              }
+              return hasAccount ? (
+                <Navigate to="/login" replace />
+              ) : (
+                <LandingPage dark={dark} onToggleTheme={onToggleTheme} />
+              );
+            })()
           }
         />
       )}

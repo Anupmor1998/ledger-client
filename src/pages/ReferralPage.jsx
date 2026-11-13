@@ -144,6 +144,20 @@ function ReferralPage() {
     }
   }
 
+  const stats = data?.stats || {
+    totalInvited: 0,
+    totalConverted: 0,
+    daysEarned: 0,
+    maxDaysYear: 90,
+    daysRemaining: 90,
+  };
+
+  const referralLink = data?.referralLink
+    ? data.referralLink.replace(/(\.in|\.com)\/\?ref=/, "$1/signup?ref=")
+    : data?.referralCode
+    ? `https://saudabook.co.in/signup?ref=${data.referralCode}`
+    : "";
+
   function handleCopyCode() {
     if (!data?.referralCode) return;
     navigator.clipboard.writeText(data.referralCode);
@@ -153,43 +167,19 @@ function ReferralPage() {
   }
 
   function handleCopyLink() {
-    if (!data?.referralLink) return;
-    navigator.clipboard.writeText(data.referralLink);
+    if (!referralLink) return;
+    navigator.clipboard.writeText(referralLink);
     setCopiedLink(true);
     toast.success("Referral link copied to clipboard!");
     setTimeout(() => setCopiedLink(false), 2000);
   }
 
   function handleShareWhatsApp() {
-    if (!data?.referralLink) return;
-    const msg = `Try Sauda Book for textile brokerage & trading! Sign up using my referral link to get a 29-day free trial:\n${data.referralLink}`;
+    if (!referralLink) return;
+    const msg = `Try Sauda Book for textile brokerage & trading! Sign up using my referral link to get a 29-day free trial:\n${referralLink}`;
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank");
   }
-
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-28 bg-surface rounded-2xl border border-border" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="h-24 bg-surface rounded-xl border border-border" />
-            <div className="h-24 bg-surface rounded-xl border border-border" />
-            <div className="h-24 bg-surface rounded-xl border border-border" />
-          </div>
-          <div className="h-48 bg-surface rounded-2xl border border-border" />
-        </div>
-      </div>
-    );
-  }
-
-  const stats = data?.stats || {
-    totalInvited: 0,
-    totalConverted: 0,
-    daysEarned: 0,
-    maxDaysYear: 90,
-    daysRemaining: 90,
-  };
 
   const progressPercent = Math.min(
     100,
@@ -328,7 +318,7 @@ function ReferralPage() {
               <input
                 type="text"
                 readOnly
-                value={data?.referralLink || ""}
+                value={referralLink}
                 className="flex-1 px-3 py-2.5 rounded-xl bg-surface-muted border border-border text-xs text-text truncate outline-none select-all"
               />
               <button

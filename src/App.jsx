@@ -37,7 +37,18 @@ function App({ dark, onToggleTheme }) {
         // Capture referral code if present in URL
         const referralParam = params.get("ref") || params.get("r") || params.get("referral");
         if (referralParam && referralParam.trim()) {
-          sessionStorage.setItem("sauda_pending_referral", referralParam.trim().toUpperCase());
+          const cleanRef = referralParam.trim().toUpperCase();
+          try {
+            localStorage.setItem("sauda_pending_referral", cleanRef);
+            sessionStorage.setItem("sauda_pending_referral", cleanRef);
+          } catch {}
+
+          // If visitor lands on root / or /login with referral param, seamlessly direct to /signup?ref=CODE
+          const pathname = window.location.pathname;
+          if (pathname === "/" || pathname === "/login") {
+            window.location.replace(`/signup?ref=${encodeURIComponent(cleanRef)}`);
+            return;
+          }
         }
 
         let code = "";

@@ -59,13 +59,19 @@ function SignupPage() {
   });
 
   useEffect(() => {
-    const urlRef = searchParams.get("ref") || searchParams.get("r");
-    const storedRef = sessionStorage.getItem("sauda_pending_referral");
-    const code = (urlRef || storedRef || "").trim().toUpperCase();
-    if (code) {
-      setReferralCode(code);
+    let code = searchParams.get("ref") || searchParams.get("r") || searchParams.get("referral");
+    if (!code) {
+      try {
+        code =
+          localStorage.getItem("sauda_pending_referral") ||
+          sessionStorage.getItem("sauda_pending_referral");
+      } catch {}
+    }
+    const clean = (code || "").trim().toUpperCase();
+    if (clean) {
+      setReferralCode(clean);
       setShowReferralField(true);
-      verifyCode(code);
+      verifyCode(clean);
     }
   }, [searchParams]);
 
@@ -115,7 +121,10 @@ function SignupPage() {
         localStorage.setItem(`sauda_needs_onboarding_${result.user.id}`, "true");
       }
 
-      sessionStorage.removeItem("sauda_pending_referral");
+      try {
+        localStorage.removeItem("sauda_pending_referral");
+        sessionStorage.removeItem("sauda_pending_referral");
+      } catch {}
 
       if (result?.referralApplied) {
         toast.success("Welcome! You've received a 29-day free trial!");
