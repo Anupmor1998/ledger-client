@@ -13,8 +13,58 @@ import "./index.css";
 import "react-toastify/dist/ReactToastify.css";
 import "./styles/driver-theme.css";
 
+// Clean up any legacy conflicting standalone service worker registrations
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) => {
+      for (const reg of registrations) {
+        if (reg.active?.scriptURL?.includes("firebase-messaging-sw.js")) {
+          reg.unregister().catch(() => {});
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+// Anti-reload loop circuit breaker: prevents runaway reload loops
+const RELOAD_DETECTOR_KEY = "sauda_reload_loop_tracker";
+if (typeof window !== "undefined") {
+  try {
+    const now = Date.now();
+    const data = JSON.parse(sessionStorage.getItem(RELOAD_DETECTOR_KEY) || "{}");
+    if (data.timestamp && now - data.timestamp < 3000) {
+      data.count = (data.count || 0) + 1;
+      if (data.count > 2) {
+        console.warn("[SW] Rapid reload loop detected. Circuit breaker triggered.");
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then((regs) => {
+            regs.forEach((r) => r.unregister());
+          });
+        }
+        sessionStorage.removeItem(RELOAD_DETECTOR_KEY);
+      } else {
+        data.timestamp = now;
+        sessionStorage.setItem(RELOAD_DETECTOR_KEY, JSON.stringify(data));
+      }
+    } else {
+      sessionStorage.setItem(RELOAD_DETECTOR_KEY, JSON.stringify({ timestamp: now, count: 1 }));
+    }
+  } catch {
+    // Ignore storage issues
+  }
+}
+
 setupAxiosInterceptors(store);
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    console.info("[PWA] Service worker update available.");
+  },
+  onOfflineReady() {
+    console.info("[PWA] Application ready for offline use.");
+  },
+});
 
 const THEME_STORAGE_KEY = "ledger_theme";
 

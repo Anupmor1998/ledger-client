@@ -209,11 +209,24 @@ function SubscriptionPage() {
     loadData();
   }, []);
 
-  // Detect and validate ?voucher= or ?coupon= from URL deep link
+  // Detect and validate ?voucher= or ?coupon= from URL deep link or sessionStorage
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const voucherCode = params.get("voucher") || params.get("coupon");
+    let voucherCode = params.get("voucher") || params.get("coupon");
+    if (!voucherCode) {
+      try {
+        voucherCode = sessionStorage.getItem("sauda_pending_voucher");
+      } catch {
+        // Ignore
+      }
+    }
     if (!voucherCode || deepLinkVoucher) return;
+
+    try {
+      sessionStorage.removeItem("sauda_pending_voucher");
+    } catch {
+      // Ignore
+    }
 
     setVoucherLoading(true);
     validateCouponCode({ code: voucherCode.trim() })

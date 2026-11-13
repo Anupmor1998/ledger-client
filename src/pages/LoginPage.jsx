@@ -42,9 +42,21 @@ function LoginPage() {
 
       // Honor deep linked redirect (e.g. /subscription?voucher=XYZ123)
       const fromState = location.state?.from;
-      const redirectPath = fromState
+      let redirectPath = fromState
         ? `${fromState.pathname || ""}${fromState.search || ""}${fromState.hash || ""}`
-        : "/";
+        : "";
+
+      if (!redirectPath || redirectPath === "/") {
+        // Fallback: check if there is a pending voucher in sessionStorage or query params
+        const pendingVoucher =
+          sessionStorage.getItem("sauda_pending_voucher") ||
+          new URLSearchParams(location.search).get("voucher") ||
+          new URLSearchParams(location.search).get("coupon");
+        if (pendingVoucher) {
+          redirectPath = `/subscription?voucher=${encodeURIComponent(pendingVoucher.trim())}`;
+        }
+      }
+
       navigate(redirectPath || "/", { replace: true });
     } catch (error) {
       const message =

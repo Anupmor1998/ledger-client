@@ -16,6 +16,17 @@ function App({ dark, onToggleTheme }) {
 
   useEffect(() => {
     initAnalytics();
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const voucher = params.get("voucher") || params.get("coupon");
+        if (voucher && voucher.trim()) {
+          sessionStorage.setItem("sauda_pending_voucher", voucher.trim());
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
   }, []);
 
   useEffect(() => {

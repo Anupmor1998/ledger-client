@@ -175,14 +175,13 @@ export async function requestFcmToken() {
       return null;
     }
 
-    // Ensure firebase-messaging-sw.js is registered
+    // Wait for the active PWA service worker (which imports firebase-messaging-sw.js)
     let swReg = null;
     if ("serviceWorker" in navigator) {
       try {
-        swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-      } catch (swErr) {
-        console.warn("[FCM] Could not register firebase-messaging-sw.js directly:", swErr);
         swReg = await navigator.serviceWorker.ready;
+      } catch (swErr) {
+        console.warn("[FCM] Could not get service worker registration:", swErr);
       }
     }
 

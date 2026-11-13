@@ -149,67 +149,59 @@ function AppRoutes({ dark, onToggleTheme }) {
         />
       </Route>
 
-      {/* Standalone Onboarding Page (Full-screen wizard for verification & business setup) */}
-      {isAuthenticated && (
-        <Route element={<ProtectedRoute />}>
+      {/* Standalone Onboarding Page & Authenticated Application Features */}
+      <Route element={<ProtectedRoute />}>
+        <Route
+          path="/onboarding"
+          element={<OnboardingPage dark={dark} onToggleTheme={onToggleTheme} />}
+        />
+        <Route
+          path="/"
+          element={
+            <DashboardLayout dark={dark} onToggleTheme={onToggleTheme} />
+          }
+        >
+          <Route index element={<HomePage />} />
+          <Route path="dashboard" element={<DashboardOverviewPage />} />
+          <Route path="masters" element={<MastersPage />} />
           <Route
-            path="/onboarding"
-            element={<OnboardingPage dark={dark} onToggleTheme={onToggleTheme} />}
+            path="customers"
+            element={<Navigate to="/masters?tab=customers" replace />}
           />
-        </Route>
-      )}
-
-      {/* When authenticated, root '/' and app features render inside DashboardLayout */}
-      {isAuthenticated && (
-        <Route element={<ProtectedRoute />}>
           <Route
-            path="/"
-            element={
-              <DashboardLayout dark={dark} onToggleTheme={onToggleTheme} />
-            }
-          >
-            <Route index element={<HomePage />} />
-            <Route path="dashboard" element={<DashboardOverviewPage />} />
-            <Route path="masters" element={<MastersPage />} />
-            <Route
-              path="customers"
-              element={<Navigate to="/masters?tab=customers" replace />}
-            />
-            <Route
-              path="manufacturers"
-              element={<Navigate to="/masters?tab=manufacturers" replace />}
-            />
-            <Route
-              path="quality"
-              element={<Navigate to="/masters?tab=qualities" replace />}
-            />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route
-              path="order-activity"
-              element={<Navigate to="/orders" replace />}
-            />
-            <Route path="payments" element={<PaymentsPage />} />
-            <Route
-              path="pending-payments"
-              element={<Navigate to="/payments" replace />}
-            />
-            <Route
-              path="received-payments"
-              element={<Navigate to="/payments" replace />}
-            />
-            <Route path="order-progress" element={<OrderProgressPage />} />
-            <Route path="market-directory" element={<MarketDirectoryPage />} />
-            <Route
-              path="directory"
-              element={<Navigate to="/market-directory" replace />}
-            />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="subscription" element={<SubscriptionPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="support" element={<SupportPage />} />
-          </Route>
+            path="manufacturers"
+            element={<Navigate to="/masters?tab=manufacturers" replace />}
+          />
+          <Route
+            path="quality"
+            element={<Navigate to="/masters?tab=qualities" replace />}
+          />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route
+            path="order-activity"
+            element={<Navigate to="/orders" replace />}
+          />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route
+            path="pending-payments"
+            element={<Navigate to="/payments" replace />}
+          />
+          <Route
+            path="received-payments"
+            element={<Navigate to="/payments" replace />}
+          />
+          <Route path="order-progress" element={<OrderProgressPage />} />
+          <Route path="market-directory" element={<MarketDirectoryPage />} />
+          <Route
+            path="directory"
+            element={<Navigate to="/market-directory" replace />}
+          />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="support" element={<SupportPage />} />
         </Route>
-      )}
+      </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
