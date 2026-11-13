@@ -585,7 +585,7 @@ function SubscriptionPage() {
             {[
               {
                 mode: "TRIAL_ACTIVE",
-                label: "Trial (14d Active)",
+                label: "Trial (Active)",
                 color: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:bg-sky-500/20",
               },
               {
@@ -648,7 +648,9 @@ function SubscriptionPage() {
               }`}
             >
               {subscriptionState.isTrial
-                ? `14-Day Free Trial (${subscriptionState.daysRemaining} days left)`
+                ? subscriptionState.daysRemaining > 14
+                  ? `29-Day Free Trial (${subscriptionState.daysRemaining} days left)`
+                  : `Free Trial (${subscriptionState.daysRemaining} days left)`
                 : `${subscriptionState.plan} (${subscriptionState.status})`}
             </span>
           </div>
@@ -686,13 +688,22 @@ function SubscriptionPage() {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </div>
 
-            <div className="flex items-baseline gap-3">
+            <div className="flex items-baseline flex-wrap gap-2.5 sm:gap-3">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-text">
-                {subscriptionState.isTrial ? "14-Day Free Trial" : subscriptionState.plan}
+                {subscriptionState.isTrial
+                  ? subscriptionState.daysRemaining > 14
+                    ? "29-Day Free Trial"
+                    : "14-Day Free Trial"
+                  : subscriptionState.plan}
               </h2>
               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                 Active
               </span>
+              {subscriptionState.isTrial && subscriptionState.daysRemaining > 14 && (
+                <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
+                  Referral Bonus Active (+15 Days)
+                </span>
+              )}
             </div>
 
             <p className="text-xs text-muted-text">

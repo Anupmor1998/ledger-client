@@ -63,7 +63,7 @@ function SubscriptionReminderBanner() {
             <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2.5" />
           </svg>
           <span>
-            {currentPlan === "TRIAL" ? "14-Day Free Trial Expired" : "Subscription Expired"}: Upgrade your plan to continue recording new orders and exports.
+            {currentPlan === "TRIAL" ? "Free Trial Expired" : "Subscription Expired"}: Upgrade your plan to continue recording new orders and exports.
           </span>
         </div>
 

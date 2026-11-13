@@ -343,7 +343,7 @@ function ReportsPage() {
     if (user?.role !== "ADMIN" && !isVip && (isTrialExpired || isPlanExpired)) {
       toast.error(
         currentPlan === "TRIAL"
-          ? "Your 14-day free trial has expired. Please upgrade your plan to download reports."
+          ? "Your free trial has expired. Please upgrade your plan to download reports."
           : "Your subscription has expired. Please renew your plan to download reports.",
       );
       return;
