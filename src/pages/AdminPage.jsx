@@ -913,9 +913,24 @@ function AdminPage() {
               setRecordJson(safeJsonStringify(record));
             }}
             onEdit={(record) => {
+              const editable = { ...record };
+              delete editable.isExpired;
+              delete editable.daysRemaining;
+              delete editable.userName;
+              delete editable.userEmail;
+              delete editable.userFirmName;
+              delete editable.userSubscriptionPlan;
+              delete editable.userBillingCycle;
+              delete editable.customerName;
+              delete editable.manufacturerName;
+              delete editable.qualityName;
+              delete editable.partyName;
+              if (editable.contactPhone) {
+                editable.contactPhone = String(editable.contactPhone);
+              }
               setSelectedRecord(record);
               setModalMode("edit");
-              setRecordJson(safeJsonStringify(record));
+              setRecordJson(safeJsonStringify(editable));
             }}
             onDelete={(record) => {
               setDeleteTarget(record);
@@ -963,6 +978,16 @@ function AdminPage() {
     setSaving(true);
     try {
       const parsed = parseJsonPayload(recordJson);
+      if (parsed && typeof parsed === "object") {
+        if (parsed.contactPhone !== undefined && parsed.contactPhone !== null) {
+          parsed.contactPhone = String(parsed.contactPhone).trim();
+        }
+        if (parsed.phone !== undefined && parsed.phone !== null) {
+          parsed.phone = String(parsed.phone).trim();
+        }
+        delete parsed.isExpired;
+        delete parsed.daysRemaining;
+      }
       await updateAdminCollectionRecord(selectedCollection.key, selectedRecord.id, parsed);
       toast.success("Record updated");
       setSelectedRecord(null);
